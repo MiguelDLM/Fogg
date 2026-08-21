@@ -40,6 +40,15 @@ public class SleepTimelineView extends View {
     public SleepTimelineView(Context context, AttributeSet a, int s) { super(context, a, s); }
 
     public void setSleepData(String rawPrefsString) {
+        setSleepData(rawPrefsString, 0);
+    }
+
+    /**
+     * Renders the sleep session for one calendar day: the last session that
+     * ENDS within [dayStart, dayStart+24h). dayStart=0 keeps the old behaviour
+     * (last session in the data).
+     */
+    public void setSleepData(String rawPrefsString, long dayStart) {
         segments.clear();
         sessionStart = 0;
         sessionEnd = 0;
@@ -47,17 +56,27 @@ public class SleepTimelineView extends View {
 
         String[] records = rawPrefsString.split(",");
 
-        // Find last MODE_END
+        // Find the MODE_END for the requested day (or the last one overall)
         int endIdx = -1;
         for (int i = records.length - 1; i >= 0; i--) {
-            if (parseMode(records[i]) == BleSleep.MODE_END) { endIdx = i; break; }
+            if (parseMode(records[i]) != BleSleep.MODE_END) continue;
+            if (dayStart > 0) {
+                long ts = parseTs(records[i]);
+                if (ts < dayStart || ts >= dayStart + 86400L) continue;
+            }
+            endIdx = i;
+            break;
         }
         if (endIdx < 0) { invalidate(); return; }
 
-        // Find preceding MODE_START
+        // Find the MODE_START of THIS session. Stop at the previous MODE_END:
+        // if this session's START is missing from the data, walking past it
+        // picked up an earlier night's START and painted a timeline hours long.
         int startIdx = -1;
         for (int i = endIdx - 1; i >= 0; i--) {
-            if (parseMode(records[i]) == BleSleep.MODE_START) { startIdx = i; break; }
+            int m = parseMode(records[i]);
+            if (m == BleSleep.MODE_END) break;
+            if (m == BleSleep.MODE_START) { startIdx = i; break; }
         }
         if (startIdx < 0) { invalidate(); return; }
 
@@ -90,7 +109,8 @@ public class SleepTimelineView extends View {
             labelPaint.setColor(Color.parseColor("#8B949E"));
             labelPaint.setTextSize(32f);
             labelPaint.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText("Sin datos de sueño", getWidth() / 2f, getHeight() / 2f, labelPaint);
+            canvas.drawText(getContext().getString(com.example.dialsender.R.string.sleep_no_data_day),
+                    getWidth() / 2f, getHeight() / 2f, labelPaint);
             return;
         }
 

@@ -90,9 +90,9 @@ public class MetricDetailBottomSheet extends BottomSheetDialogFragment {
             BleManager ble = BleManager.getInstance(requireContext());
             if (ble.isSessionReady()) {
                 ble.syncHealth();
-                Toast.makeText(requireContext(), "Sincronizando...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), R.string.syncing_short, Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(requireContext(), "No conectado", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), R.string.status_not_connected, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -115,157 +115,168 @@ public class MetricDetailBottomSheet extends BottomSheetDialogFragment {
         chartContainer.removeAllViews();
         String history = prefs.getString(PREF_HEALTH_PREFIX + metricKey, "");
 
+        // Sleep is not a bucketed series, it gets its own renderer. Everything
+        // below used to sit INSIDE this branch (the `else` was missing), so
+        // every other metric drew nothing at all and sleep drew a bar chart of
+        // raw mode codes on top of its own timeline.
         if ("sleep".equals(metricKey)) {
+            renderSleep(history);
+            return;
+        }
+
+        long now = System.currentTimeMillis() / 1000;
+        long todayStart = getTodayStart();
+        long rangeStart;
+        int numBuckets, bucketSize;
+        if (currentRange == RANGE_DAY) {
+            rangeStart = todayStart;
+            numBuckets = 24;
+            bucketSize = 3600;
+        } else if (currentRange == RANGE_WEEK) {
+            rangeStart = todayStart - 6L * 86400;
+            numBuckets = 7;
+            bucketSize = 86400;
+        } else if (currentRange == RANGE_MONTH) {
+            rangeStart = todayStart - 29L * 86400;
+            numBuckets = 30;
+            bucketSize = 86400;
+        } else {
+            rangeStart = findEarliestTimestamp();
+            numBuckets = (int) ((now - rangeStart) / 86400) + 1;
+            if (numBuckets <= 0)
+                numBuckets = 1;
+            bucketSize = 86400;
+        }
+
+        float[] buckets = new float[numBuckets];
+        int latestVal = 0;
+        long latestTs = Long.MIN_VALUE;
+        for (String entry : history.split(",")) {
+            if (entry.trim().isEmpty())
+                continue;
+            long ts = 0;
+            int val = 0;
+            String[] p = entry.split(":");
+            try {
+                if (p.length >= 2) {
+                    ts = Long.parseLong(p[0].trim());
+                    val = Integer.parseInt(p[1].trim());
+                } else {
+                    val = Integer.parseInt(entry.trim());
+                    ts = todayStart + 3600;
+                }
+            } catch (Exception ignored) {
+                continue;
+            }
+            if (ts >= rangeStart && ts <= now + 86400) {
+                int idx = (int) ((ts - rangeStart) / bucketSize);
+                if (idx >= 0 && idx < numBuckets && val > buckets[idx])
+                    buckets[idx] = val;
+            }
+            // The headline is the most recent reading of TODAY, by timestamp —
+            // records arrive out of order, so "last in the string" was wrong.
+            if (ts >= todayStart && ts <= now && ts > latestTs) {
+                latestTs = ts;
+                latestVal = val;
+            }
+        }
+
+        txtValue.setText(latestVal > 0 ? String.valueOf(latestVal) : "—");
+
+        List<BarEntry> entries = new ArrayList<>();
+        for (int i = 0; i < numBuckets; i++)
+            entries.add(new BarEntry(i, buckets[i]));
+
+        BarDataSet ds = new BarDataSet(entries, "Data");
+        ds.setColor(ContextCompat.getColor(requireContext(), R.color.accent_primary));
+        ds.setDrawValues(false);
+        chartContainer.addView(buildBarChart(ds), new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * Day: the stage timeline for the night you woke up from today.
+     * Week/month/all: hours slept per day.
+     */
+    private void renderSleep(String history) {
+        long todayStart = getTodayStart();
+
+        if (currentRange == RANGE_DAY) {
+            SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyzeDay(history, todayStart);
+            txtValue.setText(sr.totalMinutes > 0
+                    ? (sr.totalMinutes / 60) + "h " + (sr.totalMinutes % 60) + "m"
+                    : "—");
             SleepTimelineView stv = new SleepTimelineView(requireContext());
-            stv.setSleepData(history);
+            stv.setSleepData(history, todayStart);
             chartContainer.addView(stv, new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT));
-            SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyze(history);
-            if (sr.totalMinutes > 0) {
-                int h = sr.totalMinutes / 60, m = sr.totalMinutes % 60;
-                txtValue.setText(h + "h " + m + "m");
-            } else {
-                txtValue.setText("—");
-            }
-            long now = System.currentTimeMillis() / 1000;
-            long todayStart = getTodayStart();
-            long rangeStart;
-            int numBuckets, bucketSize;
-            if (currentRange == RANGE_DAY) {
-                rangeStart = todayStart;
-                numBuckets = 24;
-                bucketSize = 3600;
-            } else if (currentRange == RANGE_WEEK) {
-                rangeStart = todayStart - 6L * 86400;
-                numBuckets = 7;
-                bucketSize = 86400;
-            } else if (currentRange == RANGE_MONTH) {
-                rangeStart = todayStart - 29L * 86400;
-                numBuckets = 30;
-                bucketSize = 86400;
-            } else {
-                rangeStart = findEarliestTimestamp();
-                numBuckets = (int) ((now - rangeStart) / 86400) + 1;
-                if (numBuckets <= 0)
-                    numBuckets = 1;
-                bucketSize = 86400;
-            }
-
-            float[] buckets = new float[numBuckets];
-            float[][] sleepStacks = null;
-            if ("sleep".equals(metricKey) && currentRange != RANGE_DAY) {
-                sleepStacks = new float[numBuckets][3];
-            }
-
-            int latestVal = 0;
-            if (!history.isEmpty()) {
-                long lastTs = -1;
-                int lastMode = -1;
-                for (String entry : history.split(",")) {
-                    long ts = 0;
-                    int val = 0;
-                    if (entry.contains(":")) {
-                        try {
-                            ts = Long.parseLong(entry.split(":")[0]);
-                            val = Integer.parseInt(entry.split(":")[1]);
-                        } catch (Exception ignored) {
-                        }
-                    } else {
-                        try {
-                            val = Integer.parseInt(entry.trim());
-                            ts = todayStart + 3600;
-                        } catch (Exception ignored) {
-                        }
-                    }
-                    if (ts >= rangeStart && ts <= now + 86400) {
-                        int idx = (int) ((ts - rangeStart) / bucketSize);
-                        if (idx >= 0 && idx < numBuckets) {
-                            if ("sleep".equals(metricKey) && currentRange != RANGE_DAY) {
-                                if (lastTs != -1 && ts > lastTs) {
-                                    int lastBucketIdx = (int) ((lastTs - rangeStart) / bucketSize);
-                                    if (lastBucketIdx >= 0 && lastBucketIdx < numBuckets) {
-                                        float deltaHours = (ts - lastTs) / 3600f;
-                                        if (lastMode == 1)
-                                            sleepStacks[lastBucketIdx][0] += deltaHours; // Deep
-                                        else if (lastMode == 2 || lastMode == 8)
-                                            sleepStacks[lastBucketIdx][1] += deltaHours; // Light
-                                        else if (lastMode == 9)
-                                            sleepStacks[lastBucketIdx][2] += deltaHours; // REM
-                                    }
-                                }
-                                lastTs = ts;
-                                lastMode = val;
-                            } else if ("sleep".equals(metricKey) && currentRange == RANGE_DAY) {
-                                buckets[idx] = val;
-                            } else if (val > buckets[idx]) {
-                                buckets[idx] = val;
-                            }
-                        }
-                    }
-                    if (ts >= todayStart && ts <= now)
-                        latestVal = val;
-                }
-            }
-
-            String displayVal = (latestVal == 0 && "blood_oxygen".equals(metricKey)) ? "—"
-                    : String.valueOf(latestVal);
-            txtValue.setText(displayVal);
-
-            List<BarEntry> entries = new ArrayList<>();
-            for (int i = 0; i < numBuckets; i++) {
-                if (sleepStacks != null) {
-                    entries.add(new BarEntry(i, sleepStacks[i]));
-                } else {
-                    entries.add(new BarEntry(i, buckets[i]));
-                }
-            }
-
-            BarDataSet ds = new BarDataSet(entries, "Data");
-            if (sleepStacks != null) {
-                ds.setColors(new int[] {
-                        ContextCompat.getColor(requireContext(), R.color.accent_purple), // Deep
-                        ContextCompat.getColor(requireContext(), R.color.accent_primary), // Light
-                        ContextCompat.getColor(requireContext(), R.color.accent_pink) // REM
-                });
-                ds.setStackLabels(new String[] { "Profundo", "Ligero", "REM" });
-            } else {
-                ds.setColor(ContextCompat.getColor(requireContext(), R.color.accent_primary));
-            }
-            ds.setDrawValues(false);
-
-            BarData data = new BarData(ds);
-            data.setBarWidth(0.7f);
-
-            BarChart chart = new BarChart(requireContext());
-            chart.setData(data);
-            chart.getDescription().setEnabled(false);
-            chart.getLegend().setEnabled(false);
-            chart.getXAxis().setDrawGridLines(false);
-            chart.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
-            chart.getXAxis().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
-            chart.getAxisLeft().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
-            chart.getAxisLeft().setAxisMinimum(0f);
-            chart.getAxisRight().setEnabled(false);
-            chart.setTouchEnabled(false);
-            chart.animateY(600);
-
-            chartContainer.addView(chart, new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT));
+            return;
         }
+
+        int days;
+        if (currentRange == RANGE_WEEK) {
+            days = 7;
+        } else if (currentRange == RANGE_MONTH) {
+            days = 30;
+        } else {
+            days = (int) ((todayStart - findEarliestTimestamp()) / 86400L) + 1;
+            if (days < 1)
+                days = 1;
+        }
+        long start = todayStart - (days - 1L) * 86400L;
+        int[] minutes = SleepAnalyzer.minutesPerDay(history, start, days);
+
+        List<BarEntry> entries = new ArrayList<>();
+        int sum = 0, n = 0;
+        for (int i = 0; i < days; i++) {
+            entries.add(new BarEntry(i, minutes[i] / 60f));
+            if (minutes[i] > 0) {
+                sum += minutes[i];
+                n++;
+            }
+        }
+        int avg = n > 0 ? sum / n : 0;
+        txtValue.setText(avg > 0 ? (avg / 60) + "h " + (avg % 60) + "m" : "—");
+
+        BarDataSet ds = new BarDataSet(entries, "Data");
+        ds.setColor(ContextCompat.getColor(requireContext(), R.color.accent_purple));
+        ds.setDrawValues(false);
+        chartContainer.addView(buildBarChart(ds), new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    private BarChart buildBarChart(BarDataSet ds) {
+        BarData data = new BarData(ds);
+        data.setBarWidth(0.7f);
+
+        BarChart chart = new BarChart(requireContext());
+        chart.setData(data);
+        chart.getDescription().setEnabled(false);
+        chart.getLegend().setEnabled(false);
+        chart.getXAxis().setDrawGridLines(false);
+        chart.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
+        chart.getXAxis().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+        chart.getAxisLeft().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+        chart.getAxisLeft().setAxisMinimum(0f);
+        chart.getAxisRight().setEnabled(false);
+        chart.setTouchEnabled(false);
+        chart.animateY(600);
+        return chart;
     }
 
     private void shareMetric() {
         String label = metricKey.replace("_", " ");
-        String range = currentRange == RANGE_DAY ? "hoy"
-                : currentRange == RANGE_WEEK ? "esta semana" : "este mes";
+        String range = getString(currentRange == RANGE_DAY ? R.string.share_range_today
+                : currentRange == RANGE_WEEK ? R.string.share_range_week : R.string.share_range_month);
         String val = txtValue.getText() != null ? txtValue.getText().toString() : "—";
-        String text = "Mi " + label + " (" + range + "): " + val + "\nCompartido desde Dial Studio";
+        String text = getString(R.string.share_metric_fmt, label + ": " + val, range);
         android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_SEND);
         i.setType("text/plain");
         i.putExtra(android.content.Intent.EXTRA_TEXT, text);
-        startActivity(android.content.Intent.createChooser(i, "Compartir"));
+        startActivity(android.content.Intent.createChooser(i, getString(R.string.share)));
     }
 
     private long getTodayStart() {

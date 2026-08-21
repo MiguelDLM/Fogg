@@ -193,7 +193,7 @@ public class ExportDataActivity extends AppCompatActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    txtStatus.setText("Error: " + e.getMessage());
+                    txtStatus.setText(getString(R.string.error_fmt, e.getMessage()));
                     btnExport.setEnabled(true);
                 });
             }

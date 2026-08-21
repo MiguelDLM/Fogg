@@ -67,9 +67,10 @@ public class StatusFragment extends Fragment {
         swipeRefreshHealth.setOnRefreshListener(() -> {
             render();
             BleManager ble = BleManager.getInstance(requireContext());
+            // Weather refreshes regardless of the watch connection
+            com.example.dialsender.ble.WeatherSync.syncIfPossible(requireContext(), ble);
             if (ble.isSessionReady()) {
                 ble.syncHealth();
-                com.example.dialsender.ble.WeatherSync.syncIfPossible(requireContext(), ble);
                 toast(getString(R.string.status_syncing));
             } else {
                 long lastSync = prefs.getLong("last_sync_time", 0);
@@ -252,13 +253,16 @@ public class StatusFragment extends Fragment {
 
         // --- Sleep timeline by stages ---
         String sleepRaw = prefs.getString(P + "sleep", "");
-        SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyze(sleepRaw);
+        // Only the session(s) you woke up from on this day — analyze() would
+        // return the last session in the whole history and paint a stale night
+        // as if it were today's.
+        SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyzeDay(sleepRaw, todayStart);
         if (sr.totalMinutes > 0) {
             LinearLayout sleepContent = new LinearLayout(requireContext());
             sleepContent.setOrientation(LinearLayout.VERTICAL);
             com.example.dialsender.views.SleepTimelineView tl =
                     new com.example.dialsender.views.SleepTimelineView(requireContext());
-            tl.setSleepData(sleepRaw);
+            tl.setSleepData(sleepRaw, todayStart);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(90));
             tl.setLayoutParams(tlp);

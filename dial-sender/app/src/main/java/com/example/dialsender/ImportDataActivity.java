@@ -156,7 +156,7 @@ public class ImportDataActivity extends AppCompatActivity {
         btnSelectFile.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         txtStatus.setVisibility(View.VISIBLE);
-        txtStatus.setText("Copiando archivo…");
+        txtStatus.setText(R.string.import_copying);
         layoutResults.removeAllViews();
 
         new Thread(() -> {
@@ -183,7 +183,7 @@ public class ImportDataActivity extends AppCompatActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    txtStatus.setText("Error: " + e.getMessage());
+                    txtStatus.setText(getString(R.string.error_fmt, e.getMessage()));
                     btnSelectFile.setEnabled(true);
                 });
             }

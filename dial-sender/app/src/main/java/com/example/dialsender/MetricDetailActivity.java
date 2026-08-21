@@ -216,8 +216,9 @@ public class MetricDetailActivity extends AppCompatActivity {
     private void render() {
         content.removeAllViews();
 
-        if (range == DAY)
-            content.addView(buildDayNav());
+        // Shown in every range: it is the anchor the week/month window ends on,
+        // so hiding it left the user unable to see or move it.
+        content.addView(buildDayNav());
 
         if (isBp) {
             renderBp(selDayStart);
@@ -237,7 +238,7 @@ public class MetricDetailActivity extends AppCompatActivity {
             List<float[]> s = seriesRange(metric, selDayStart, selDayStart + 86400);
             float latest = s.isEmpty() ? 0 : s.get(s.size() - 1)[1];
             float disp = "distance".equals(metric) ? latest / 1000f : latest;
-            String when = s.isEmpty() ? "Sin datos" : new SimpleDateFormat("HH:mm", Locale.US)
+            String when = s.isEmpty() ? getString(R.string.no_data) : new SimpleDateFormat("HH:mm", Locale.US)
                     .format(new Date((long) s.get(s.size() - 1)[0] * 1000L));
             content.addView(valueHeader(fmt(disp), when));
             if (cumulative) {
@@ -247,13 +248,15 @@ public class MetricDetailActivity extends AppCompatActivity {
                 content.addView(statsRow(s));
             }
         } else {
-            long todayStart = todayStart();
+            // Anchored on the day chosen in the picker, not always on today —
+            // picking a past date and switching to Semana used to snap back.
             int days = range == WEEK ? 7 : 30;
-            long start = todayStart - (days - 1) * 86400L;
+            long start = selDayStart - (days - 1) * 86400L;
             float[][] agg = aggregateByDay(metric, start, days); // [sum/last, avg, count]
             float shown = cumulative ? agg[0][days - 1] : lastNonZeroAvg(agg, days);
             float disp = "distance".equals(metric) ? shown / 1000f : shown;
-            content.addView(valueHeader(fmt(disp), range == WEEK ? "Últimos 7 días" : "Últimos 30 días"));
+            content.addView(valueHeader(fmt(disp),
+                    range == WEEK ? getString(R.string.last_7_days) : getString(R.string.last_30_days)));
             content.addView(dailyBarChart(agg, days, start));
             if (!cumulative)
                 content.addView(statsRowDaily(agg, days));
@@ -262,24 +265,30 @@ public class MetricDetailActivity extends AppCompatActivity {
         content.addView(descriptionCard());
     }
 
-    /** Renders the sleep timeline + legend for the selected day. */
+    /** Renders sleep: per-day timeline + legend, or week/month bar charts. */
     private void renderSleep() {
-        // Only the day view makes sense for sleep; we always show the selected day.
         String sleepRaw = prefs.getString(P + "sleep", "");
+
+        if (range != DAY) {
+            renderSleepRange(sleepRaw);
+            return;
+        }
+
+        // Day view: only the session(s) that ended on the selected day
         com.example.dialsender.ble.SleepAnalyzer.SleepResult sr =
-                com.example.dialsender.ble.SleepAnalyzer.analyze(sleepRaw);
+                com.example.dialsender.ble.SleepAnalyzer.analyzeDay(sleepRaw, selDayStart);
 
         // Big value card
         String totalStr = sr.totalMinutes > 0
-                ? (sr.totalMinutes / 60) + " h " + (sr.totalMinutes % 60) + " min"
-                : "Sin datos";
-        content.addView(valueHeader(totalStr, sr.totalMinutes > 0 ? "horas dormidas" : ""));
+                ? getString(R.string.sleep_hours_min, sr.totalMinutes / 60, sr.totalMinutes % 60)
+                : getString(R.string.no_data);
+        content.addView(valueHeader(totalStr, sr.totalMinutes > 0 ? getString(R.string.sleep_hours_slept) : ""));
 
         if (sr.totalMinutes > 0) {
-            // Sleep timeline chart
+            // Sleep timeline chart for the selected day
             com.example.dialsender.views.SleepTimelineView tl =
                     new com.example.dialsender.views.SleepTimelineView(this);
-            tl.setSleepData(sleepRaw);
+            tl.setSleepData(sleepRaw, selDayStart);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(120));
             tlp.setMargins(0, dp(12), 0, 0);
@@ -290,10 +299,10 @@ public class MetricDetailActivity extends AppCompatActivity {
             LinearLayout legend = new LinearLayout(this);
             legend.setOrientation(LinearLayout.HORIZONTAL);
             legend.setPadding(0, dp(12), 0, dp(8));
-            addSleepLegendItem(legend, "Profundo", 0xFF3F51B5, sr.deepMin);
-            addSleepLegendItem(legend, "Ligero", 0xFF22D3EE, sr.lightMin);
-            addSleepLegendItem(legend, "REM", 0xFF9C27B0, sr.remMin);
-            addSleepLegendItem(legend, "Despierto", 0xFF6B7280, sr.awakeMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_deep), 0xFF3F51B5, sr.deepMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_light), 0xFF22D3EE, sr.lightMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_rem), 0xFF9C27B0, sr.remMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_awake), 0xFF6B7280, sr.awakeMin);
             content.addView(legend);
         } else {
             TextView noData = new TextView(this);
@@ -307,6 +316,84 @@ public class MetricDetailActivity extends AppCompatActivity {
             noData.setLayoutParams(lp);
             content.addView(noData);
         }
+    }
+
+    /** Week/month sleep: bar chart of hours per day + max/avg/min stats. */
+    private void renderSleepRange(String sleepRaw) {
+        int days = range == WEEK ? 7 : 30;
+        long start = selDayStart - (days - 1) * 86400L;
+        int[] minutes = com.example.dialsender.ble.SleepAnalyzer.minutesPerDay(sleepRaw, start, days);
+
+        // Average over days with data
+        int sum = 0, n = 0, max = 0, min = Integer.MAX_VALUE;
+        for (int m : minutes) {
+            if (m <= 0) continue;
+            sum += m; n++;
+            max = Math.max(max, m);
+            min = Math.min(min, m);
+        }
+        int avg = n > 0 ? sum / n : 0;
+
+        String header = avg > 0
+                ? getString(R.string.sleep_hours_min, avg / 60, avg % 60)
+                : getString(R.string.no_data);
+        content.addView(valueHeader(header,
+                range == WEEK ? getString(R.string.avg_last_7_days) : getString(R.string.avg_last_30_days)));
+
+        // Bar chart in hours
+        List<BarEntry> entries = new ArrayList<>();
+        for (int i = 0; i < days; i++)
+            entries.add(new BarEntry(i, minutes[i] / 60f));
+        BarChart chart = new BarChart(this);
+        BarDataSet ds = new BarDataSet(entries, "");
+        ds.setColor(color);
+        ds.setDrawValues(false);
+        BarData bd = new BarData(ds);
+        bd.setBarWidth(0.6f);
+        chart.setData(bd);
+        style(chart);
+        chart.getXAxis().setAxisMinimum(-0.5f);
+        chart.getXAxis().setAxisMaximum(days - 0.5f);
+        String[] labels = new String[days];
+        SimpleDateFormat f = new SimpleDateFormat("dd/MM", Locale.getDefault());
+        for (int i = 0; i < days; i++)
+            labels[i] = f.format(new Date((start + i * 86400L) * 1000L));
+        chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(labels));
+        chart.getXAxis().setLabelCount(Math.min(days, 6), false);
+        setHeight(chart, 260);
+        content.addView(chart);
+
+        if (n > 0) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, dp(20), 0, 0);
+            row.addView(sleepStat(getString(R.string.stat_max), max));
+            row.addView(sleepStat(getString(R.string.stat_avg), avg));
+            row.addView(sleepStat(getString(R.string.stat_min), min == Integer.MAX_VALUE ? 0 : min));
+            content.addView(row);
+        }
+    }
+
+    private View sleepStat(String label, int minutes) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView l = new TextView(this);
+        l.setText(title + "\n" + label);
+        l.setTextColor(0xFF8B949E);
+        l.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        l.setGravity(Gravity.CENTER);
+        c.addView(l);
+        TextView v = new TextView(this);
+        v.setText(getString(R.string.sleep_hours_min, minutes / 60, minutes % 60));
+        v.setTextColor(Color.WHITE);
+        v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        v.setTypeface(null, Typeface.BOLD);
+        v.setGravity(Gravity.CENTER);
+        v.setPadding(0, dp(6), 0, 0);
+        c.addView(v);
+        return c;
     }
 
     private void addSleepLegendItem(LinearLayout row, String name, int clr, int minutes) {
@@ -517,9 +604,9 @@ public class MetricDetailActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(0, dp(20), 0, 0);
-        row.addView(stat(title + "\nmáx.", max));
-        row.addView(stat(title + "\nmedia", avg));
-        row.addView(stat(title + "\nmín.", min));
+        row.addView(stat(title + "\n" + getString(R.string.stat_max), max));
+        row.addView(stat(title + "\n" + getString(R.string.stat_avg), avg));
+        row.addView(stat(title + "\n" + getString(R.string.stat_min), min));
         return row;
     }
 
@@ -642,26 +729,46 @@ public class MetricDetailActivity extends AppCompatActivity {
         return chart;
     }
 
-    private void renderBp(long todayStart) {
-        // Blood pressure: show latest sys/dia + a simple list
+    /**
+     * Blood pressure: the most recent sys/dia reading INSIDE the selected
+     * window. It used to scan the whole history and ignore its argument, so
+     * stepping back a day still showed the same (newer) reading.
+     */
+    private void renderBp(long dayStart) {
+        long from, to;
+        if (range == DAY) {
+            from = dayStart;
+            to = dayStart + 86400L;
+        } else {
+            int days = range == WEEK ? 7 : 30;
+            to = dayStart + 86400L;
+            from = to - days * 86400L;
+        }
+
         String h = prefs.getString(P + "blood_pressure", "");
         String latest = "—";
         String when = "";
         if (!h.isEmpty()) {
             String[] arr = h.split(",");
-            for (int i = arr.length - 1; i >= 0; i--) {
-                String[] p = arr[i].split(":");
-                if (p.length >= 2 && p[1].contains("/")) {
+            long bestTs = Long.MIN_VALUE;
+            for (String rec : arr) {
+                String[] p = rec.split(":");
+                if (p.length < 2 || !p[1].contains("/"))
+                    continue;
+                try {
+                    long ts = Long.parseLong(p[0]);
+                    if (ts < from || ts >= to || ts <= bestTs)
+                        continue;
+                    bestTs = ts;
                     latest = p[1];
-                    try {
-                        when = new SimpleDateFormat("HH:mm", Locale.US)
-                                .format(new Date(Long.parseLong(p[0]) * 1000L));
-                    } catch (Exception ignored) {
-                    }
-                    break;
+                    when = new SimpleDateFormat(range == DAY ? "HH:mm" : "dd/MM HH:mm", Locale.US)
+                            .format(new Date(ts * 1000L));
+                } catch (Exception ignored) {
                 }
             }
         }
+        if ("—".equals(latest))
+            when = getString(R.string.no_data);
         content.addView(valueHeader(latest, when));
     }
 
@@ -735,17 +842,20 @@ public class MetricDetailActivity extends AppCompatActivity {
     }
 
     private String fmt(float v) {
+        if (v <= 0)
+            return "—";
         if ("distance".equals(metric))
             return String.format(Locale.US, "%.2f", v);
-        return v <= 0 ? "—" : String.valueOf((int) v);
+        return String.valueOf((int) v);
     }
 
     private void share() {
-        String rangeName = range == DAY ? "hoy" : range == WEEK ? "esta semana" : "este mes";
+        String rangeName = range == DAY ? getString(R.string.share_range_today)
+                : range == WEEK ? getString(R.string.share_range_week) : getString(R.string.share_range_month);
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType("text/plain");
-        i.putExtra(Intent.EXTRA_TEXT, "Mi " + title + " (" + rangeName + ") — Dial Studio");
-        startActivity(Intent.createChooser(i, "Compartir"));
+        i.putExtra(Intent.EXTRA_TEXT, getString(R.string.share_metric_fmt, title, rangeName));
+        startActivity(Intent.createChooser(i, getString(R.string.share)));
     }
 
     private long todayStart() {

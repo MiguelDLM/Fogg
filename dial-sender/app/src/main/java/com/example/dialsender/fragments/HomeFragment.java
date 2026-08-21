@@ -102,7 +102,7 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
     @Override
     public void onResume() {
         super.onResume();
-        bleManager.setListener(this);
+        bleManager.addListener(this);
         refreshMetrics();
         updateConnectionState(bleManager.isSessionReady());
 
@@ -132,7 +132,7 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
     public void onDestroyView() {
         super.onDestroyView();
         if (bleManager != null) {
-            bleManager.setListener(null);
+            bleManager.removeListener(this);
         }
         gaugeSteps = null;
         gaugeHeart = null;
@@ -145,7 +145,7 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
     private void applyGaugeStyle() {
         if (!isAdded() || prefs == null)
             return;
-        String style = prefs.getString("gauge_style", GaugeView.STYLE_A);
+        String style = prefs.getString("gauge_style", GaugeView.STYLE_B);
         GaugeView[] gauges = { gaugeSteps, gaugeHeart, gaugeCalories, gaugeSpo2, gaugeSleep };
         for (GaugeView g : gauges) {
             if (g != null)
@@ -160,12 +160,14 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
     private void updateDate() {
         if (txtDate == null)
             return;
-        SimpleDateFormat sdf = new SimpleDateFormat("EEEE, d MMM", new Locale("es", "ES"));
+        SimpleDateFormat sdf = new SimpleDateFormat("EEEE, d MMM", Locale.getDefault());
         txtDate.setText(sdf.format(new Date()));
     }
 
     private void refreshMetrics() {
-        if (!isAdded() || prefs == null)
+        // gauge* are nulled in onDestroyView, but a health-sync callback can
+        // still arrive while the fragment is technically added.
+        if (!isAdded() || prefs == null || gaugeSteps == null || gaugeSleep == null)
             return;
 
         int goalSteps = prefs.getInt("goal_steps", 10000);
@@ -176,29 +178,31 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
         int steps = getLatestMetricValue("steps");
         gaugeSteps.setValue(steps > 0 ? (float) steps / goalSteps : 0f);
         gaugeSteps.setValueText(steps > 0 ? formatSteps(steps) : "—");
-        gaugeSteps.setSubText("meta " + formatSteps(goalSteps));
+        gaugeSteps.setSubText(getString(R.string.goal_short_fmt, formatSteps(goalSteps)));
 
         // Heart rate
         int hr = getLatestMetricValue("heart_rate");
         gaugeHeart.setValue(hr > 0 ? (float) hr / 200f : 0f);
         gaugeHeart.setValueText(hr > 0 ? String.valueOf(hr) : "—");
-        gaugeHeart.setSubText(hr > 0 ? "Normal" : "Sin datos");
+        gaugeHeart.setSubText(getString(hr > 0 ? R.string.normal_label : R.string.no_data));
 
         // Calories
         int cal = getLatestMetricValue("calories");
         gaugeCalories.setValue(cal > 0 ? (float) cal / goalCal : 0f);
         gaugeCalories.setValueText(cal > 0 ? String.valueOf(cal) : "—");
-        gaugeCalories.setSubText("meta " + goalCal);
+        gaugeCalories.setSubText(getString(R.string.goal_short_fmt, String.valueOf(goalCal)));
 
         // SpO2
         int spo2 = getLatestMetricValue("blood_oxygen");
         gaugeSpo2.setValue(spo2 > 0 ? (float) spo2 / 100f : 0f);
         gaugeSpo2.setValueText(spo2 > 0 ? spo2 + "%" : "—");
-        gaugeSpo2.setSubText(spo2 > 0 ? "Normal" : "Sin datos");
+        gaugeSpo2.setSubText(spo2 > 0 ? getString(R.string.normal_label) : getString(R.string.no_data));
 
         // Sleep
         String sleepData = prefs.getString(PREF_HEALTH_PREFIX + "sleep", "");
-        SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyze(sleepData);
+        // Today's sleep (the session you woke up from this morning), not just
+        // whatever the last synced session happens to be.
+        SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyzeDay(sleepData, todayStart());
         int sleepMin = sr.totalMinutes;
         gaugeSleep.setValue(sleepMin > 0 ? (float) sleepMin / goalSleep : 0f);
         if (sleepMin > 0) {
@@ -208,16 +212,16 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
 
             StringBuilder phases = new StringBuilder();
             if (sr.deepMin > 0)
-                phases.append("Prof: ").append(formatMins(sr.deepMin)).append("  ");
+                phases.append(getString(R.string.sleep_deep_abbr)).append(" ").append(formatMins(sr.deepMin)).append("  ");
             if (sr.lightMin > 0)
-                phases.append("Lig: ").append(formatMins(sr.lightMin)).append("  ");
+                phases.append(getString(R.string.sleep_light_abbr)).append(" ").append(formatMins(sr.lightMin)).append("  ");
             if (sr.remMin > 0)
                 phases.append("REM: ").append(formatMins(sr.remMin));
             String phasesStr = phases.toString().trim();
-            txtSleepPhases.setText(phasesStr.isEmpty() ? "Sin desglose" : phasesStr);
+            txtSleepPhases.setText(phasesStr.isEmpty() ? getString(R.string.sleep_no_breakdown) : phasesStr);
         } else {
             gaugeSleep.setValueText("—");
-            txtSleepPhases.setText("Sin datos");
+            txtSleepPhases.setText(R.string.no_data);
         }
     }
 
@@ -233,20 +237,42 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
         return h > 0 ? h + "h" + m + "m" : m + "m";
     }
 
+    /**
+     * Latest value recorded TODAY, or 0. Taking the last entry of the whole
+     * history — as this used to — surfaced a value from days ago as if it had
+     * just been measured, because a re-sync appends old records at the end.
+     */
     private int getLatestMetricValue(String metric) {
         String history = prefs.getString(PREF_HEALTH_PREFIX + metric, "");
         if (history.isEmpty())
             return 0;
-        String[] entries = history.split(",");
-        String last = entries[entries.length - 1].trim();
-        try {
-            if (last.contains(":")) {
-                return Integer.parseInt(last.split(":")[1]);
+        long dayStart = todayStart();
+        long dayEnd = dayStart + 86400L;
+        long bestTs = Long.MIN_VALUE;
+        int best = 0;
+        for (String entry : history.split(",")) {
+            String[] p = entry.trim().split(":");
+            if (p.length < 2)
+                continue;
+            try {
+                long ts = Long.parseLong(p[0]);
+                if (ts < dayStart || ts >= dayEnd || ts <= bestTs)
+                    continue;
+                bestTs = ts;
+                best = Integer.parseInt(p[1]);
+            } catch (Exception ignored) {
             }
-            return Integer.parseInt(last);
-        } catch (Exception e) {
-            return 0;
         }
+        return best;
+    }
+
+    private static long todayStart() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        c.set(java.util.Calendar.MINUTE, 0);
+        c.set(java.util.Calendar.SECOND, 0);
+        c.set(java.util.Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis() / 1000;
     }
 
     private void updateConnectionState(boolean connected) {
@@ -254,11 +280,11 @@ public class HomeFragment extends Fragment implements BleManager.BleStateListene
             return;
         if (connected) {
             homeStatusDot.setBackgroundResource(R.drawable.indicator_connected);
-            homeStatusText.setText("Conectado");
+            homeStatusText.setText(R.string.connected);
             homeStatusText.setTextColor(requireContext().getColor(R.color.status_connected));
         } else {
             homeStatusDot.setBackgroundResource(R.drawable.indicator_disconnected);
-            homeStatusText.setText("Desconectado");
+            homeStatusText.setText(R.string.disconnected);
             homeStatusText.setTextColor(requireContext().getColor(R.color.status_disconnected));
         }
     }
