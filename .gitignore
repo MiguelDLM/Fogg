@@ -36,3 +36,6 @@ example.png
 __pycache__/
 *.pyc
 dials/**
+
+# Device prefs dumps pulled off the phone for debugging (contain real health data)
+dial-sender/dial_sender_prefs.xml
