@@ -50,7 +50,7 @@ public class FindPhoneActivity extends AppCompatActivity {
         root.addView(icon);
 
         TextView title = new TextView(this);
-        title.setText("Tu reloj está buscando el teléfono");
+        title.setText(R.string.findphone_title);
         title.setTextColor(Color.WHITE);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setGravity(Gravity.CENTER);
@@ -58,7 +58,7 @@ public class FindPhoneActivity extends AppCompatActivity {
         root.addView(title);
 
         Button stop = new Button(this);
-        stop.setText("Detener");
+        stop.setText(R.string.findphone_stop);
         stop.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         stop.setAllCaps(false);
         stop.setOnClickListener(v -> {

@@ -17,6 +17,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 public class MainActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNav;
+    private BleManager.BleStateListener autoSyncListener;
 
     @Override
     protected void attachBaseContext(android.content.Context base) {
@@ -35,26 +36,27 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // TODO: call stopService(new Intent(this, BleForegroundService.class)) on
-        // explicit disconnect
         BleManager ble = BleManager.getInstance(this);
-        if (ble.getLastDeviceAddress() != null) {
-            Intent serviceIntent = new Intent(this, BleForegroundService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
-            } else {
-                startService(serviceIntent);
-            }
+        if (ble.getVerifiedDeviceAddress() != null && ble.isAutoConnectEnabled()) {
+            BleForegroundService.start(this);
+            requestBatteryOptimizationExemptionOnce();
         }
 
-        // Auto-sync when the session becomes ready
-        ble.setListener(new BleManager.BleStateListener() {
+        // Auto-sync when the session becomes ready. Kept for the whole life of
+        // the activity — it used to be dropped as soon as any fragment
+        // registered its own listener.
+        autoSyncListener = new BleManager.BleStateListener() {
             @Override
             public void onConnectionStateChange(boolean connected, boolean sessionReady) {
                 if (sessionReady) {
                     ble.syncTime();
                     ble.readBattery();
-                    ble.syncHealth();
+                    // onSessionReady() already has device info, firmware, battery
+                    // and the time/settings push queued for the next second. A
+                    // health READ fired into that burst goes unanswered, so let
+                    // the watch finish the post-connect routine first.
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .postDelayed(ble::syncHealth, 4000);
                 }
             }
 
@@ -81,13 +83,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFindPhoneRequest() {
                 runOnUiThread(() -> new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
-                        .setTitle("📍 Find Phone")
-                        .setMessage("Your watch is looking for this phone.")
-                        .setPositiveButton("Stop Ringing", (d, w) -> ble.stopFindPhoneAlert())
+                        .setTitle(R.string.findphone_dialog_title)
+                        .setMessage(R.string.findphone_title)
+                        .setPositiveButton(R.string.findphone_stop_ringing, (d, w) -> ble.stopFindPhoneAlert())
                         .setCancelable(false)
                         .show());
             }
-        });
+        };
+        ble.addListener(autoSyncListener);
 
         bottomNav = findViewById(R.id.bottomNav);
         bottomNav.setOnItemSelectedListener(item -> {
@@ -109,6 +112,37 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState == null) {
             bottomNav.setSelectedItemId(R.id.nav_status);
         }
+    }
+
+    /**
+     * Ask once to be exempted from Doze/battery optimisation. Without it the
+     * OS freezes the process during deep Doze and the retry loop simply never
+     * runs — this is what the original app requests too
+     * (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). It does not itself consume
+     * battery; it only stops Android from suspending an already idle loop.
+     */
+    private void requestBatteryOptimizationExemptionOnce() {
+        android.content.SharedPreferences sp = getSharedPreferences("dial_sender_prefs", MODE_PRIVATE);
+        if (sp.getBoolean("battery_opt_asked", false))
+            return;
+        try {
+            android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
+            if (pm != null && pm.isIgnoringBatteryOptimizations(getPackageName()))
+                return;
+            Intent i = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.net.Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+            sp.edit().putBoolean("battery_opt_asked", true).apply();
+        } catch (Exception ignored) {
+            // Some OEM ROMs do not expose the settings screen.
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (autoSyncListener != null)
+            BleManager.getInstance(this).removeListener(autoSyncListener);
     }
 
     private void loadFragment(Fragment fragment) {

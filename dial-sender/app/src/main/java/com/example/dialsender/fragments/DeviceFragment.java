@@ -31,6 +31,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.dialsender.R;
 import com.example.dialsender.ble.BleManager;
+import com.example.dialsender.ble.WatchFilter;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -95,7 +96,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         }
 
         bleManager = BleManager.getInstance(requireContext());
-        bleManager.setListener(this);
+        bleManager.addListener(this);
 
         btnConnect.setOnClickListener(v -> handleConnect());
 
@@ -278,7 +279,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     @Override
     public void onResume() {
         super.onResume();
-        bleManager.setListener(this);
+        bleManager.addListener(this);
         syncConnectionUi();
         checkNotificationListenerAccess();
     }
@@ -362,7 +363,33 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     @Override
     public void onPause() {
         super.onPause();
-        // Don't null out listener completely so connection callbacks still work
+        // Stay subscribed while paused so connection callbacks still land; the
+        // subscription is dropped in onDestroyView.
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        bleManager.removeListener(this);
+    }
+
+    /**
+     * handleConnect() returns early to ask for permissions; without this the
+     * user had to find and press "Conectar" a second time, with no hint why.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != 1)
+            return;
+        boolean granted = grantResults.length > 0;
+        for (int r : grantResults)
+            granted &= r == PackageManager.PERMISSION_GRANTED;
+        if (granted)
+            handleConnect();
+        else
+            Toast.makeText(requireContext(), R.string.enable_bt, Toast.LENGTH_SHORT).show();
     }
 
     // ========== BleStateListener callbacks ==========
@@ -380,6 +407,13 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             } else if (connected) {
                 txtStatus.setText(R.string.connecting);
                 txtStatus.setTextColor(getResources().getColor(R.color.status_scanning));
+            } else if (bleManager.isReconnecting()) {
+                // The background retry loop is running: tell the user instead of
+                // showing a flat "Desconectado" that looks like a dead app.
+                statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
+                txtStatus.setText(R.string.connecting);
+                txtStatus.setTextColor(getResources().getColor(R.color.status_scanning));
+                btnConnect.setText(R.string.reconnect);
             } else {
                 statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
                 txtStatus.setText(R.string.disconnected);
@@ -457,97 +491,203 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             }
         }
 
-        // Check already connected GATT devices first, then bonded devices
-        // (watch stops advertising when bonded, so scan finds nothing)
-        if (bluetoothManager != null && (ContextCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-                || Build.VERSION.SDK_INT < Build.VERSION_CODES.S)) {
+        // Devices the phone already knows about: an active GATT link first, then
+        // the bonded list (the watch stops advertising once it is bonded, so a
+        // scan alone would find nothing).
+        //
+        // Both lists are full of things that are not watches — headphones,
+        // speakers, car kits — so every candidate goes through WatchFilter,
+        // exactly like the original app checks its product-name list before
+        // offering a device for binding. Without this, a pair of BLE headphones
+        // with an open GATT link was picked as the single candidate and the app
+        // tried to talk the watch protocol to them.
+        if (bluetoothManager != null && hasConnectPermission()) {
+            // Only a watch we have actually completed a session with skips the
+            // picker. Without the "verified" flag a single bad tap would bind
+            // the app to the wrong device forever.
+            String lastAddress = bleManager.getVerifiedDeviceAddress();
+            if (lastAddress != null) {
+                for (BluetoothDevice d : bluetoothAdapter.getBondedDevices()) {
+                    if (lastAddress.equalsIgnoreCase(d.getAddress())) {
+                        txtStatus.setText(R.string.connecting);
+                        bleManager.connect(d);
+                        return;
+                    }
+                }
+            }
 
             List<BluetoothDevice> candidates = new ArrayList<>();
 
-            // 1. Active GATT connections
             for (BluetoothDevice d : bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)) {
-                candidates.add(d);
-            }
-
-            // 2. Bonded (paired) devices if no active GATT connections found
-            if (candidates.isEmpty()) {
-                for (BluetoothDevice d : bluetoothAdapter.getBondedDevices()) {
+                if (!WatchFilter.isExcluded(d) && !containsDevice(candidates, d)) {
                     candidates.add(d);
                 }
             }
+
+            if (candidates.isEmpty()) {
+                for (BluetoothDevice d : bluetoothAdapter.getBondedDevices()) {
+                    if (!WatchFilter.isExcluded(d) && !containsDevice(candidates, d)) {
+                        candidates.add(d);
+                    }
+                }
+            }
+
+            rankKnownFirst(candidates);
 
             if (candidates.size() == 1) {
                 txtStatus.setText(R.string.connecting);
                 bleManager.connect(candidates.get(0));
                 return;
             } else if (candidates.size() > 1) {
-                String[] names = new String[candidates.size()];
-                for (int i = 0; i < candidates.size(); i++) {
-                    BluetoothDevice d = candidates.get(i);
-                    String name = d.getName();
-                    names[i] = (name != null && !name.isEmpty() ? name : "Unknown") + " (" + d.getAddress() + ")";
-                }
-                new AlertDialog.Builder(requireContext())
-                        .setTitle(R.string.select_watch)
-                        .setItems(names, (dialog, which) -> {
-                            txtStatus.setText(R.string.connecting);
-                            bleManager.connect(candidates.get(which));
-                        })
-                        .show();
+                showDevicePicker(candidates);
                 return;
             }
+        }
+
+        startWatchScan();
+    }
+
+    /** Recognised watches float to the top of the picker. */
+    private void rankKnownFirst(List<BluetoothDevice> devices) {
+        final Context ctx = requireContext();
+        java.util.Collections.sort(devices, (a, b) -> {
+            boolean ka = WatchFilter.isKnownWatch(ctx, a);
+            boolean kb = WatchFilter.isKnownWatch(ctx, b);
+            if (ka == kb)
+                return 0;
+            return ka ? -1 : 1;
+        });
+    }
+
+    private boolean hasConnectPermission() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+                || ContextCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private static boolean containsDevice(List<BluetoothDevice> list, BluetoothDevice device) {
+        for (BluetoothDevice d : list) {
+            if (d.getAddress().equals(device.getAddress()))
+                return true;
+        }
+        return false;
+    }
+
+    private String describeDevice(BluetoothDevice d) {
+        String fallback = getString(R.string.unknown_device);
+        String name = hasConnectPermission() ? WatchFilter.displayName(d, fallback) : fallback;
+        String label = name + " (" + d.getAddress() + ")";
+        if (WatchFilter.isKnownWatch(requireContext(), d))
+            label = "⌚ " + label;
+        return label;
+    }
+
+    private void showDevicePicker(List<BluetoothDevice> devices) {
+        String[] names = new String[devices.size()];
+        for (int i = 0; i < devices.size(); i++) {
+            names[i] = describeDevice(devices.get(i));
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.select_watch)
+                .setItems(names, (dialog, which) -> {
+                    txtStatus.setText(R.string.connecting);
+                    bleManager.connect(devices.get(which));
+                })
+                .show();
+    }
+
+    /**
+     * Scans for advertising watches. Results are split into compatible devices
+     * (shown by default) and everything else, which is only offered behind an
+     * explicit "show all" so an unlisted model is still reachable.
+     */
+    private void startWatchScan() {
+        final android.bluetooth.le.BluetoothLeScanner scanner = bluetoothAdapter.getBluetoothLeScanner();
+        if (scanner == null) {
+            Toast.makeText(requireContext(), R.string.no_ble_found, Toast.LENGTH_SHORT).show();
+            return;
         }
 
         btnConnect.setText(R.string.scanning);
         btnConnect.setEnabled(false);
 
-        List<BluetoothDevice> foundDevices = new ArrayList<>();
-        BluetoothAdapter.LeScanCallback leScanCallback = (device, rssi, scanRecord) -> {
-            boolean exists = false;
-            for (BluetoothDevice d : foundDevices) {
-                if (d.getAddress().equals(device.getAddress())) {
-                    exists = true;
-                    break;
+        final List<BluetoothDevice> compatible = new ArrayList<>();
+        final List<BluetoothDevice> others = new ArrayList<>();
+
+        // A bonded watch stops advertising, so it can never show up in the scan.
+        // Seed the fallback list with the bonded devices we filtered out, so an
+        // unlisted model is still reachable through "show all".
+        if (hasConnectPermission()) {
+            for (BluetoothDevice d : bluetoothAdapter.getBondedDevices()) {
+                if (!WatchFilter.isExcluded(d) && !containsDevice(compatible, d))
+                    compatible.add(d);
+            }
+        }
+
+        final android.bluetooth.le.ScanCallback scanCallback = new android.bluetooth.le.ScanCallback() {
+            @Override
+            public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
+                if (result == null || result.getDevice() == null || !isAdded())
+                    return;
+                BluetoothDevice device = result.getDevice();
+                if (WatchFilter.isCandidate(requireContext(), result)) {
+                    if (!containsDevice(compatible, device))
+                        compatible.add(device);
+                } else if (!containsDevice(others, device)) {
+                    others.add(device);
                 }
             }
-            if (!exists)
-                foundDevices.add(device);
-        };
-        bluetoothAdapter.startLeScan(leScanCallback);
 
+            @Override
+            public void onScanFailed(int errorCode) {
+                if (!isAdded())
+                    return;
+                Toast.makeText(requireContext(),
+                        getString(R.string.scan_failed, errorCode), Toast.LENGTH_SHORT).show();
+            }
+        };
+
+        try {
+            android.bluetooth.le.ScanSettings settings = new android.bluetooth.le.ScanSettings.Builder()
+                    .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
+                    .build();
+            scanner.startScan(null, settings, scanCallback);
+        } catch (Exception e) {
+            btnConnect.setText(R.string.scan_connect);
+            btnConnect.setEnabled(true);
+            Toast.makeText(requireContext(), R.string.no_ble_found, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Same 10s window the original app uses for its bind screen.
         handler.postDelayed(() -> {
-            bluetoothAdapter.stopLeScan(leScanCallback);
+            try {
+                scanner.stopScan(scanCallback);
+            } catch (Exception ignored) {
+            }
             if (!isAdded())
                 return;
             btnConnect.setText(R.string.scan_connect);
             btnConnect.setEnabled(true);
 
-            if (foundDevices.isEmpty()) {
-                Toast.makeText(requireContext(), R.string.no_ble_found, Toast.LENGTH_SHORT).show();
-            } else if (foundDevices.size() == 1) {
-                txtStatus.setText(R.string.connecting);
-                bleManager.connect(foundDevices.get(0));
-            } else {
-                String[] names = new String[foundDevices.size()];
-                for (int i = 0; i < foundDevices.size(); i++) {
-                    BluetoothDevice d = foundDevices.get(i);
-                    if (ContextCompat.checkSelfPermission(requireContext(),
-                            Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-                            || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                        String name = d.getName();
-                        names[i] = (name != null && !name.isEmpty() ? name : "Unknown") + " (" + d.getAddress() + ")";
-                    } else {
-                        names[i] = "Unknown (" + d.getAddress() + ")";
-                    }
+            rankKnownFirst(compatible);
+
+            if (!compatible.isEmpty()) {
+                if (compatible.size() == 1) {
+                    txtStatus.setText(R.string.connecting);
+                    bleManager.connect(compatible.get(0));
+                } else {
+                    showDevicePicker(compatible);
                 }
+            } else if (!others.isEmpty()) {
                 new AlertDialog.Builder(requireContext())
-                        .setTitle(R.string.select_watch)
-                        .setItems(names, (dialog, which) -> {
-                            txtStatus.setText(R.string.connecting);
-                            bleManager.connect(foundDevices.get(which));
-                        })
+                        .setTitle(R.string.no_compatible_found_title)
+                        .setMessage(getString(R.string.no_compatible_found_msg, others.size()))
+                        .setPositiveButton(R.string.show_all_devices, (d, w) -> showDevicePicker(others))
+                        .setNegativeButton(R.string.cancel, null)
                         .show();
+            } else {
+                Toast.makeText(requireContext(), R.string.no_ble_found, Toast.LENGTH_SHORT).show();
             }
         }, 10000);
     }

@@ -66,7 +66,7 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         back.setOnClickListener(v -> finish());
         header.addView(back);
         TextView title = new TextView(this);
-        title.setText("Herramientas de desarrollo");
+        title.setText(R.string.devtools_title);
         title.setTextColor(Color.WHITE);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setTypeface(null, Typeface.BOLD);
@@ -74,10 +74,9 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         root.addView(header);
 
         // --- Find phone test ---
-        root.addView(sectionLabel("PRUEBA DE BUSCAR TELÉFONO"));
+        root.addView(sectionLabel(getString(R.string.devtools_findphone_section)));
         TextView hint = new TextView(this);
-        hint.setText("El reloj normalmente dispara esto y el teléfono suena hasta que lo detienes. "
-                + "Aquí puedes probar la alerta manualmente.");
+        hint.setText(R.string.devtools_findphone_hint);
         hint.setTextColor(0xFF9AA4B2);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         hint.setPadding(0, 0, 0, dp(10));
@@ -85,20 +84,20 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
 
         txtFindPhone = new TextView(this);
         Button btnFindPhone = new Button(this);
-        btnFindPhone.setText("Sonar / Detener");
+        btnFindPhone.setText(R.string.devtools_ring_stop);
         btnFindPhone.setOnClickListener(v -> {
             if (ble.isFindPhoneActive()) {
                 ble.stopFindPhoneAlert();
-                Toast.makeText(this, "Alerta detenida", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.devtools_alert_stopped, Toast.LENGTH_SHORT).show();
             } else {
                 ble.startFindPhoneAlert();
-                Toast.makeText(this, "Sonando… toca de nuevo para detener", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, R.string.devtools_ringing, Toast.LENGTH_LONG).show();
             }
         });
         root.addView(btnFindPhone);
 
         // --- BLE log ---
-        root.addView(sectionLabel("LOG BLE"));
+        root.addView(sectionLabel(getString(R.string.devtools_ble_section)));
         txtLogCount = new TextView(this);
         txtLogCount.setTextColor(0xFF6B7280);
         txtLogCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
@@ -122,13 +121,13 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         logBtns.setOrientation(LinearLayout.HORIZONTAL);
         logBtns.setPadding(0, dp(8), 0, 0);
         Button btnCopy = new Button(this);
-        btnCopy.setText("Copiar");
+        btnCopy.setText(R.string.action_copy);
         btnCopy.setOnClickListener(v -> copyLog());
         Button btnSave = new Button(this);
-        btnSave.setText("Guardar");
+        btnSave.setText(R.string.save);
         btnSave.setOnClickListener(v -> saveLog());
         Button btnClear = new Button(this);
-        btnClear.setText("Limpiar");
+        btnClear.setText(R.string.action_clear);
         btnClear.setOnClickListener(v -> {
             BleManager.clearLog();
             refreshLog();
@@ -162,21 +161,27 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
     @Override
     protected void onResume() {
         super.onResume();
-        ble.setListener(this);
+        ble.addListener(this);
         refreshLog();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ble.removeListener(this);
     }
 
     private void refreshLog() {
         List<String> lines = BleManager.getLogLines();
         if (lines.isEmpty()) {
-            txtLog.setText("Esperando eventos BLE…");
-            txtLogCount.setText("0 líneas");
+            txtLog.setText(R.string.devtools_waiting_ble);
+            txtLogCount.setText(getString(R.string.devtools_log_lines, 0));
         } else {
             StringBuilder sb = new StringBuilder();
             for (String l : lines)
                 sb.append(l).append("\n");
             txtLog.setText(sb.toString());
-            txtLogCount.setText(lines.size() + " líneas");
+            txtLogCount.setText(getString(R.string.devtools_log_lines, lines.size()));
         }
         logScroll.post(() -> logScroll.fullScroll(ScrollView.FOCUS_DOWN));
     }
@@ -184,18 +189,18 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
     private void copyLog() {
         String t = BleManager.getLogText();
         if (t.isEmpty()) {
-            Toast.makeText(this, "Sin log", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.devtools_no_log, Toast.LENGTH_SHORT).show();
             return;
         }
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(ClipData.newPlainText("BLE Log", t));
-        Toast.makeText(this, "Log copiado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.devtools_log_copied, Toast.LENGTH_SHORT).show();
     }
 
     private void saveLog() {
         String t = BleManager.getLogText();
         if (t.isEmpty()) {
-            Toast.makeText(this, "Sin log", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.devtools_no_log, Toast.LENGTH_SHORT).show();
             return;
         }
         try {
@@ -208,16 +213,16 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
             try (FileWriter w = new FileWriter(f)) {
                 w.write(t);
             }
-            Toast.makeText(this, "Guardado en Downloads/" + fn, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.devtools_saved_fmt, "Downloads/" + fn), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             try {
                 File f = new File(getExternalFilesDir(null), "ble_log.txt");
                 try (FileWriter w = new FileWriter(f)) {
                     w.write(t);
                 }
-                Toast.makeText(this, "Guardado en " + f.getAbsolutePath(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.devtools_saved_fmt, f.getAbsolutePath()), Toast.LENGTH_LONG).show();
             } catch (Exception e2) {
-                Toast.makeText(this, "Error: " + e2.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.error_fmt, e2.getMessage()), Toast.LENGTH_LONG).show();
             }
         }
     }

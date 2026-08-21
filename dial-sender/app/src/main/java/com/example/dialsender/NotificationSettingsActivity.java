@@ -43,7 +43,7 @@ public class NotificationSettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notification_settings);
         if (getSupportActionBar() != null)
-            getSupportActionBar().setTitle("Notificaciones");
+            getSupportActionBar().setTitle(R.string.notifications_title);
 
         pm = getPackageManager();
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);

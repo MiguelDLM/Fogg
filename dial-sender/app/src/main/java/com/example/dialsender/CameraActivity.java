@@ -57,7 +57,7 @@ public class CameraActivity extends AppCompatActivity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         hint = new TextView(this);
-        hint.setText("Pulsa el botón del reloj para disparar");
+        hint.setText(R.string.camera_hint);
         hint.setTextColor(Color.WHITE);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         hint.setPadding(0, dp(40), 0, 0);
@@ -97,7 +97,7 @@ public class CameraActivity extends AppCompatActivity {
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             recreate();
         } else {
-            Toast.makeText(this, "Permiso de cámara denegado", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.camera_perm_denied, Toast.LENGTH_SHORT).show();
             finish();
         }
     }
@@ -113,7 +113,7 @@ public class CameraActivity extends AppCompatActivity {
                 provider.unbindAll();
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture);
             } catch (Exception e) {
-                Toast.makeText(this, "Error de cámara: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.camera_error, e.getMessage()), Toast.LENGTH_LONG).show();
                 finish();
             }
         }, ContextCompat.getMainExecutor(this));
@@ -133,12 +133,12 @@ public class CameraActivity extends AppCompatActivity {
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
                     public void onImageSaved(@NonNull ImageCapture.OutputFileResults r) {
-                        Toast.makeText(CameraActivity.this, "Foto guardada", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(CameraActivity.this, R.string.camera_photo_saved, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
                     public void onError(@NonNull ImageCaptureException e) {
-                        Toast.makeText(CameraActivity.this, "Error al guardar: " + e.getMessage(),
+                        Toast.makeText(CameraActivity.this, getString(R.string.camera_save_error, e.getMessage()),
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -151,7 +151,7 @@ public class CameraActivity extends AppCompatActivity {
             ble.setCameraListener(this::takePhoto);
             ble.sendCamera(BleManager.CAMERA_ENTER);
         } else if (hint != null) {
-            hint.setText("Reloj no conectado · usa el botón en pantalla");
+            hint.setText(R.string.camera_hint_disconnected);
         }
     }
 

@@ -306,6 +306,14 @@
                     android:text="@string/settings_goal_steps"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"/>
+                <TextView
+                    android:id="@+id/lblStepsUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/unit_steps_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"/>
                 <EditText
                     android:id="@+id/etGoalSteps"
                     android:layout_width="80dp"
@@ -316,20 +324,7 @@
                     android:background="@drawable/bg_input_field"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
-                    android:gravity="center_vertical"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="  "
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <TextView
-                    android:id="@+id/lblStepsUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/unit_steps_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
+                    android:gravity="center_vertical|end"/>
             </LinearLayout>
 
             <LinearLayout
@@ -345,6 +340,14 @@
                     android:text="@string/settings_goal_sleep"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"/>
+                <TextView
+                    android:id="@+id/lblSleepUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/unit_minutes_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"/>
                 <EditText
                     android:id="@+id/etGoalSleep"
                     android:layout_width="80dp"
@@ -355,20 +358,7 @@
                     android:background="@drawable/bg_input_field"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
-                    android:gravity="center_vertical"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="  "
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <TextView
-                    android:id="@+id/lblSleepUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/unit_minutes_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
+                    android:gravity="center_vertical|end"/>
             </LinearLayout>
 
             <LinearLayout
@@ -384,6 +374,14 @@
                     android:text="@string/settings_goal_calories"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"/>
+                <TextView
+                    android:id="@+id/lblCalUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/unit_kcal_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"/>
                 <EditText
                     android:id="@+id/etGoalCalories"
                     android:layout_width="80dp"
@@ -394,20 +392,7 @@
                     android:background="@drawable/bg_input_field"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
-                    android:gravity="center_vertical"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="  "
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <TextView
-                    android:id="@+id/lblCalUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/unit_kcal_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
+                    android:gravity="center_vertical|end"/>
             </LinearLayout>
 
             <LinearLayout
@@ -422,6 +407,14 @@
                     android:text="@string/settings_goal_distance"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"/>
+                <TextView
+                    android:id="@+id/lblDistanceUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/unit_km"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"/>
                 <EditText
                     android:id="@+id/etGoalDistance"
                     android:layout_width="80dp"
@@ -432,20 +425,7 @@
                     android:background="@drawable/bg_input_field"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
-                    android:gravity="center_vertical"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="  "
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <TextView
-                    android:id="@+id/lblDistanceUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/unit_km"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
+                    android:gravity="center_vertical|end"/>
             </LinearLayout>
         </LinearLayout>
 
