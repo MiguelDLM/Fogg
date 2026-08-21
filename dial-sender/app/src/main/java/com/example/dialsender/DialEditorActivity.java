@@ -85,6 +85,21 @@ public class DialEditorActivity extends AppCompatActivity {
     private int canvasWidth = 466;
     private int canvasHeight = 466;
 
+    // Analog hands: default rotation-pivot tail in source-image pixels measured
+    // from the bottom of the (trimmed) hand bitmap. The preview pivot and the
+    // ctx byte DialCompiler writes are both derived from this value.
+    private static final int HAND_TAIL_PX = 24;
+
+    private static boolean isHandType(int type) {
+        return type == DialCompiler.TYPE_ARM_HOUR || type == DialCompiler.TYPE_ARM_MIN
+                || type == DialCompiler.TYPE_ARM_SEC;
+    }
+
+    /** Vertical rotation pivot of a hand layer, in source-image px from the bottom. */
+    private static float handTail(DialLayer l) {
+        return l.pivotTail > 0 ? l.pivotTail : HAND_TAIL_PX;
+    }
+
     // Drag state
     private float dragStartX, dragStartY;
     private float layerStartX, layerStartY;
@@ -94,6 +109,7 @@ public class DialEditorActivity extends AppCompatActivity {
     private final List<TimeGroup> timeGroups = new ArrayList<>();
     private TimeGroup pendingGroupTarget      = null;
     private DialLayer pendingGroupSourceLayer = null;
+    private DialLayer pendingStyleTarget      = null; // single placeholder awaiting a style
     private List<DialLayer> activeDragGroup             = new ArrayList<>();
     private List<float[]>   groupMemberStartPositions   = new ArrayList<>();
 
@@ -273,14 +289,19 @@ public class DialEditorActivity extends AppCompatActivity {
                         layer.posX = b.optInt("posx", 0);
                         layer.posY = b.optInt("posy", 0);
                         layer.scale = 1.0f;
+                        if (isHandType(elementType)) {
+                            // Preserve the original rotation pivot (ctx byte =
+                            // vertical pivot from the image bottom) on re-edit
+                            layer.pivotTail = b.optInt("ctx", 0);
+                        }
 
                         layers.add(layer);
                     }
-                    Toast.makeText(this, "Loaded dial elements", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.editor_loaded_elements, Toast.LENGTH_SHORT).show();
                     return;
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Toast.makeText(this, "Failed parsing edit folder", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.editor_edit_parse_error, Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -374,22 +395,70 @@ public class DialEditorActivity extends AppCompatActivity {
         for (int i = layers.size() - 1; i >= 0; i--) {
             DialLayer l = layers.get(i);
             if (l.locked) continue;
-            float w, h;
-            if (l.isColonSeparator) {
-                w = 16; h = 60;
-            } else if (l.pendingStyle) {
-                w = 40; h = 60;
-            } else {
-                Bitmap bmp = (l.frames != null && l.frames.length > 0) ? l.frames[0] : l.icon;
-                if (bmp == null) continue;
-                w = bmp.getWidth() * l.scale;
-                h = bmp.getHeight() * l.scale;
-            }
-            if (x >= l.posX && x <= l.posX + w && y >= l.posY && y <= l.posY + h) {
+            android.graphics.RectF r = layerScreenRect(l);
+            if (r != null && r.contains(x, y)) {
                 return i;
             }
         }
         return -1;
+    }
+
+    /**
+     * Bounding box of a layer exactly as the preview draws it: hands are pinned
+     * to the watch centre by their pivot, and digit groups span all rendered
+     * digits (not just one frame). Keeping hit-testing and drawing in sync is
+     * what makes taps select the layer the user actually touched.
+     */
+    private android.graphics.RectF layerScreenRect(DialLayer l) {
+        if (l.isColonSeparator) {
+            float[] cd = colonDimensions(l);
+            return new android.graphics.RectF(l.posX, l.posY, l.posX + cd[0], l.posY + cd[1]);
+        }
+        if (l.pendingStyle) {
+            return new android.graphics.RectF(l.posX, l.posY, l.posX + 40, l.posY + 60);
+        }
+        Bitmap bmp = getPreviewBitmap(l);
+        if (bmp == null) return null;
+        float w = bmp.getWidth() * l.scale;
+        float h = bmp.getHeight() * l.scale;
+        float x = l.posX, y = l.posY;
+        if (isHandType(l.nativeElementType)) {
+            x = canvasWidth / 2f - (bmp.getWidth() / 2f) * l.scale;
+            y = canvasHeight / 2f - (bmp.getHeight() - handTail(l)) * l.scale;
+        }
+        return new android.graphics.RectF(x, y, x + w, y + h);
+    }
+
+    /**
+     * Colon separator display size, derived from the styled digit sibling so the
+     * colon always matches the digits next to it. {width, height}.
+     */
+    private float[] colonDimensions(DialLayer colon) {
+        float h = 60, w = 16;
+        TimeGroup g = colon.timeGroupId != null ? findGroup(colon.timeGroupId) : null;
+        if (g != null) {
+            DialLayer donor = g.styledSiblingOf(colon);
+            if (donor != null && donor.frames != null && donor.frames.length > 0) {
+                h = donor.frames[0].getHeight() * donor.scale;
+                w = Math.max(8f, h * 0.28f);
+            }
+        }
+        return new float[] { w, h };
+    }
+
+    /** Renders the ":" separator as a bitmap (two dots) sized by colonDimensions(). */
+    private Bitmap colonBitmapFor(DialLayer colon) {
+        float[] cd = colonDimensions(colon);
+        int w = Math.max(4, Math.round(cd[0]));
+        int h = Math.max(8, Math.round(cd[1]));
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(Color.WHITE);
+        float r = Math.max(2f, Math.min(w * 0.28f, h * 0.09f));
+        c.drawCircle(w / 2f, h * 0.36f, r, p);
+        c.drawCircle(w / 2f, h * 0.64f, r, p);
+        return bmp;
     }
 
     /**
@@ -490,6 +559,11 @@ public class DialEditorActivity extends AppCompatActivity {
     // ===================== ADD ELEMENT DIALOG =====================
 
     private void showAddElementDialog() {
+        // A fresh add-element flow must not adopt into a stale placeholder
+        pendingStyleTarget      = null;
+        pendingGroupTarget      = null;
+        pendingGroupSourceLayer = null;
+
         String[] catNames = getCategoryNames();
         // Top-level: Background, Animated background, Scale (hour ring), then categories
         String[] topLevel = new String[catNames.length + 3];
@@ -752,7 +826,7 @@ public class DialEditorActivity extends AppCompatActivity {
         if (layer.timeGroupId != null && !layer.isColonSeparator) {
             options.add(getString(R.string.ungroup));
         }
-        options.add("Guardar como preset");
+        options.add(getString(R.string.save_as_preset));
         new AlertDialog.Builder(DialEditorActivity.this)
                 .setTitle(layer.name)
                 .setItems(options.toArray(new String[0]), (d, w) -> {
@@ -794,6 +868,7 @@ public class DialEditorActivity extends AppCompatActivity {
     }
 
     private void removePendingLayer(DialLayer layer) {
+        if (pendingStyleTarget == layer) pendingStyleTarget = null;
         String gid = layer.timeGroupId;
         if (gid != null) {
             TimeGroup group = findGroup(gid);
@@ -823,6 +898,8 @@ public class DialEditorActivity extends AppCompatActivity {
                 }
             }
         }
+        // The chosen style must fill this placeholder, not create a new layer
+        pendingStyleTarget = layer;
         showSourcePicker(layer.nativeElementType);
     }
 
@@ -885,18 +962,22 @@ public class DialEditorActivity extends AppCompatActivity {
                         target.frameCount    = donor.frameCount;
                         target.isSpriteSheet = donor.isSpriteSheet;
                         target.pendingStyle  = false;
+                        relayoutTimeGroup(group);
                         refreshAll();
                     } else if (path == null) {
+                        pendingStyleTarget = target;
                         pendingElementType = elementType;
                         pickImageFromGallery();
                     } else if ("__FONT__".equals(path)) {
+                        pendingStyleTarget = target;
                         showFontCreator(elementType);
                     } else if ("__SVG__".equals(path)) {
+                        pendingStyleTarget = target;
                         pendingElementType = elementType;
                         pickSvgFromGallery();
                     } else {
+                        pendingStyleTarget = target;
                         loadPreset(path, elementType);
-                        target.pendingStyle = false;
                     }
                 });
             }
@@ -1385,6 +1466,8 @@ public class DialEditorActivity extends AppCompatActivity {
                         layer.posY = canvasHeight / 4f;
                         layers.add(layer);
                         selectedLayerIndex = layers.size() - 1;
+                        applyGroupPropagation(layer);
+                        adoptStyleIntoPending(layer);
                         refreshAll();
                         Toast.makeText(this, "\u2713 " + name + " \u2014 " + frames.length + " frames",
                                 Toast.LENGTH_SHORT).show();
@@ -1809,7 +1892,7 @@ public class DialEditorActivity extends AppCompatActivity {
             else if (type == DialCompiler.TYPE_BATT_STRIP)
                 subPath = "control/battery_strip";
             else {
-                Toast.makeText(this, "Cannot save this type as preset", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.editor_preset_unsupported, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -1831,9 +1914,9 @@ public class DialEditorActivity extends AppCompatActivity {
                             new java.io.FileOutputStream(new java.io.File(targetDir, fname)));
                 }
             }
-            Toast.makeText(this, "Layer saved as custom preset!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.editor_preset_saved, Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Error saving preset: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_fmt, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1902,6 +1985,7 @@ public class DialEditorActivity extends AppCompatActivity {
                 layers.add(layer);
                 selectedLayerIndex = layers.size() - 1;
                 applyGroupPropagation(layer);
+                adoptStyleIntoPending(layer);
                 refreshAll();
                 Toast.makeText(this, "✓ " + name, Toast.LENGTH_SHORT).show();
                 return;
@@ -1963,6 +2047,7 @@ public class DialEditorActivity extends AppCompatActivity {
             layers.add(layer);
             selectedLayerIndex = layers.size() - 1;
             applyGroupPropagation(layer);
+            adoptStyleIntoPending(layer);
             refreshAll();
 
             Toast.makeText(this, "✓ " + name + " — " + frames.length + " frames", Toast.LENGTH_SHORT).show();
@@ -1973,6 +2058,7 @@ public class DialEditorActivity extends AppCompatActivity {
 
     private void applyGroupPropagation(DialLayer justLoaded) {
         if (pendingGroupTarget == null || pendingGroupSourceLayer == null) return;
+        TimeGroup group = pendingGroupTarget;
         pendingGroupSourceLayer.frames        = justLoaded.frames != null ? justLoaded.frames.clone() : null;
         pendingGroupSourceLayer.icon          = justLoaded.icon;
         pendingGroupSourceLayer.scale         = justLoaded.scale;
@@ -1980,7 +2066,7 @@ public class DialEditorActivity extends AppCompatActivity {
         pendingGroupSourceLayer.isSpriteSheet = justLoaded.isSpriteSheet;
         pendingGroupSourceLayer.pendingStyle  = false;
         layers.remove(justLoaded);
-        for (DialLayer sibling : pendingGroupTarget.parts) {
+        for (DialLayer sibling : group.parts) {
             if (sibling == pendingGroupSourceLayer || sibling.isColonSeparator) continue;
             sibling.frames        = pendingGroupSourceLayer.frames != null ? pendingGroupSourceLayer.frames.clone() : null;
             sibling.icon          = pendingGroupSourceLayer.icon;
@@ -1989,8 +2075,67 @@ public class DialEditorActivity extends AppCompatActivity {
             sibling.isSpriteSheet = pendingGroupSourceLayer.isSpriteSheet;
             sibling.pendingStyle  = false;
         }
+        selectedLayerIndex = layers.indexOf(pendingGroupSourceLayer);
         pendingGroupTarget      = null;
         pendingGroupSourceLayer = null;
+        relayoutTimeGroup(group);
+    }
+
+    /**
+     * If a single pending placeholder was waiting for this style, move the
+     * freshly created layer's bitmaps into it instead of leaving both a styled
+     * duplicate and an orphaned placeholder on the canvas.
+     */
+    private boolean adoptStyleIntoPending(DialLayer created) {
+        if (pendingStyleTarget == null || created == pendingStyleTarget) return false;
+        DialLayer target = pendingStyleTarget;
+        pendingStyleTarget = null;
+        if (!layers.contains(target)) return false;
+        target.frames        = created.frames;
+        target.icon          = created.icon;
+        target.scale         = created.scale;
+        target.frameCount    = created.frameCount;
+        target.isSpriteSheet = created.isSpriteSheet;
+        target.pendingStyle  = false;
+        layers.remove(created);
+        selectedLayerIndex = layers.indexOf(target);
+        if (target.timeGroupId != null) {
+            relayoutTimeGroup(findGroup(target.timeGroupId));
+        }
+        return true;
+    }
+
+    /**
+     * Re-spaces the parts of a time group using their actual rendered widths.
+     * The placeholder layout assumes 40px-wide elements; real digit styles are
+     * usually wider, so without this pass hours/colon/minutes overlap both in
+     * the preview and on the watch. The group's visual centre is preserved.
+     */
+    private void relayoutTimeGroup(TimeGroup group) {
+        if (group == null || group.parts.isEmpty()) return;
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
+        float centerY = 0;
+        List<float[]> sizes = new ArrayList<>();
+        for (DialLayer part : group.parts) {
+            android.graphics.RectF r = layerScreenRect(part);
+            float w = r != null ? r.width() : 40;
+            float h = r != null ? r.height() : 60;
+            sizes.add(new float[] { w, h });
+            minX = Math.min(minX, part.posX);
+            maxX = Math.max(maxX, part.posX + w);
+            centerY += part.posY + h / 2f;
+        }
+        centerY /= group.parts.size();
+        float groupCenterX = (minX + maxX) / 2f;
+        float totalW = 0;
+        for (float[] s : sizes) totalW += s[0];
+        float x = groupCenterX - totalW / 2f;
+        for (int i = 0; i < group.parts.size(); i++) {
+            DialLayer part = group.parts.get(i);
+            part.posX = x;
+            part.posY = centerY - sizes.get(i)[1] / 2f;
+            x += sizes.get(i)[0];
+        }
     }
 
     // ===================== GALLERY PICK =====================
@@ -2037,16 +2182,19 @@ public class DialEditorActivity extends AppCompatActivity {
                 is.close();
 
                 if (bmp == null) {
-                    Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.editor_image_load_error, Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                if (pendingElementType == DialCompiler.TYPE_BACKGROUND) {
-                    addBackgroundLayer(bmp, pendingElementType);
-                    pendingElementType = -1;
+                if (pendingElementType > 0 && pendingElementType != DialCompiler.TYPE_BACKGROUND) {
+                    // Element art picked from the gallery: slice it as a vertical
+                    // sprite sheet (multi-frame types) or keep it as one image —
+                    // never turn it into a fullscreen background.
+                    addSpriteSheetLayer(bmp, pendingElementType);
                 } else {
-                    addBackgroundLayer(bmp, -1);
+                    addBackgroundLayer(bmp, DialCompiler.TYPE_BACKGROUND);
                 }
+                pendingElementType = -1;
             } catch (Exception e) {
                 Toast.makeText(this, "Error: " + e.getClass().getSimpleName() + ": " + e.getMessage(),
                         Toast.LENGTH_LONG).show();
@@ -2069,10 +2217,10 @@ public class DialEditorActivity extends AppCompatActivity {
                 fos.close();
                 is.close();
 
-                Toast.makeText(this, "Fuente cargada con éxito", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.font_loaded, Toast.LENGTH_SHORT).show();
                 // Font list will refresh when user clicks "Add Layer" again
             } catch (Exception e) {
-                Toast.makeText(this, "Error al cargar fuente: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.font_load_error, e.getMessage()), Toast.LENGTH_SHORT).show();
             }
         } else if (requestCode == PICK_SVG_CODE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             showSVGEditor(data.getData(), pendingElementType);
@@ -2093,7 +2241,7 @@ public class DialEditorActivity extends AppCompatActivity {
                     is.close();
                     gifMovie = android.graphics.Movie.decodeByteArray(gifData, 0, gifData.length);
                 } catch (Exception e) {
-                    Toast.makeText(this, "Error al leer GIF", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.gif_read_error, Toast.LENGTH_SHORT).show();
                     return;
                 }
             } else {
@@ -2130,15 +2278,15 @@ public class DialEditorActivity extends AppCompatActivity {
             rg.setOnCheckedChangeListener((g, id) -> {
                 int ms = id == R.id.rb100ms ? 100 : id == R.id.rb500ms ? 500 : 200;
                 long est = finalDuration > 0 ? Math.min(15, finalDuration / ms) : 1;
-                tvCount.setText("→ " + est + " frames (máx 15)");
+                tvCount.setText(getString(R.string.frames_estimate, (int) est, 15));
             });
-            tvInfo.setText("Duración: " + finalDuration + " ms");
+            tvInfo.setText(getString(R.string.anim_duration_fmt, (int) finalDuration));
             long estDefault = finalDuration > 0 ? Math.min(15, finalDuration / 200) : 1;
-            tvCount.setText("→ " + estDefault + " frames (máx 15)");
+            tvCount.setText(getString(R.string.frames_estimate, (int) estDefault, 15));
 
             new AlertDialog.Builder(this)
                     .setView(dialogView)
-                    .setPositiveButton("Importar", (dlg, w) -> {
+                    .setPositiveButton(R.string.action_import, (dlg, w) -> {
                         int checkedId = rg.getCheckedRadioButtonId();
                         int ms = checkedId == R.id.rb100ms ? 100 : checkedId == R.id.rb500ms ? 500 : 200;
                         EditText etInterval = dialogView.findViewById(R.id.etManualInterval);
@@ -2167,7 +2315,7 @@ public class DialEditorActivity extends AppCompatActivity {
                         final int extractionLimit = finalMaxFrames;
 
                         android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
-                        progress.setMessage("Extrayendo frames...");
+                        progress.setMessage(getString(R.string.extracting_frames));
                         progress.setCancelable(false);
                         progress.show();
                         new Thread(() -> {
@@ -2177,7 +2325,7 @@ public class DialEditorActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 progress.dismiss();
                                 if (frames == null || frames.length == 0) {
-                                    Toast.makeText(this, "No se pudo extraer frames", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(this, R.string.frames_extract_error, Toast.LENGTH_SHORT).show();
                                     return;
                                 }
                                 DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0],
@@ -2199,13 +2347,13 @@ public class DialEditorActivity extends AppCompatActivity {
                                 layer.locked = false;
                                 layers.add(0, layer);
                                 selectedLayerIndex = 0;
-                                Toast.makeText(this, "\u2713 " + frames.length + " frames importados",
+                                Toast.makeText(this, getString(R.string.frames_imported, frames.length),
                                         Toast.LENGTH_SHORT).show();
                                 refreshAll();
                             });
                         }).start();
                     })
-                    .setNegativeButton("Cancelar", null)
+                    .setNegativeButton(R.string.cancel, null)
                     .show();
         }
     }
@@ -2352,6 +2500,8 @@ public class DialEditorActivity extends AppCompatActivity {
 
         layers.add(layer);
         selectedLayerIndex = layers.size() - 1;
+        applyGroupPropagation(layer);
+        adoptStyleIntoPending(layer);
         refreshAll();
     }
 
@@ -2448,7 +2598,6 @@ public class DialEditorActivity extends AppCompatActivity {
         }
         // Multi-digit combinations
         int[] indices;
-        int spacing = 2; // Better spacing for preview
         switch (layer.nativeElementType) {
             case DialCompiler.TYPE_DIGITAL_HOUR:
                 indices = new int[] { 1, 2 }; // "12"
@@ -2469,7 +2618,6 @@ public class DialEditorActivity extends AppCompatActivity {
                 // Show "12.3" — Frame 10 is usually the dot
                 if (layer.frames.length > 10) {
                     indices = new int[] { 1, 2, 10, 3 };
-                    spacing = 0; // Tight spacing for distance + dot
                 } else {
                     indices = new int[] { 4 };
                 }
@@ -2478,27 +2626,49 @@ public class DialEditorActivity extends AppCompatActivity {
                 int fi = getPreviewFrameIndex(layer.nativeElementType, layer.frames.length);
                 return layer.frames[Math.min(fi, layer.frames.length - 1)];
         }
-        
-        // Combine digits
-        int totalW = 0;
+
+        // The watch advances exactly one frame-width per digit with no extra
+        // spacing — render the preview the same way so on-screen positions
+        // match the device pixel-for-pixel.
+        int slotW = layer.frames[0].getWidth();
         int maxH = 0;
         for (int idx : indices) {
-            Bitmap b = layer.frames[Math.min(idx, layer.frames.length - 1)];
-            totalW += b.getWidth() + (idx == 10 ? -2 : spacing); // Closer dot
-            maxH = Math.max(maxH, b.getHeight());
+            maxH = Math.max(maxH, layer.frames[Math.min(idx, layer.frames.length - 1)].getHeight());
         }
-        Bitmap combined = Bitmap.createBitmap(Math.max(1, totalW), maxH, Bitmap.Config.ARGB_8888);
+        Bitmap combined = Bitmap.createBitmap(Math.max(1, slotW * indices.length), Math.max(1, maxH),
+                Bitmap.Config.ARGB_8888);
         Canvas cc = new Canvas(combined);
-        int curX = 0;
-        for (int idx : indices) {
-            Bitmap b = layer.frames[Math.min(idx, layer.frames.length - 1)];
-            cc.drawBitmap(b, curX, (maxH - b.getHeight()) / 2f, null);
-            curX += b.getWidth() + (idx == 10 ? -2 : spacing);
+        for (int i = 0; i < indices.length; i++) {
+            Bitmap b = layer.frames[Math.min(indices[i], layer.frames.length - 1)];
+            cc.drawBitmap(b, i * slotW, (maxH - b.getHeight()) / 2f, null);
         }
         return combined;
     }
 
     private void updatePreview() {
+        Bitmap preview = renderComposite(true);
+
+        // Use a single ImageView managed by the container
+        if (previewImage == null) {
+            previewImage = new ImageView(this);
+            previewImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            previewContainer.addView(previewImage,
+                    new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+        previewImage.setImageBitmap(preview);
+
+        txtLayerCount.setText(String.valueOf(layers.size()));
+    }
+
+    /**
+     * Renders all layers onto a canvas-sized bitmap. With editorDecorations the
+     * result includes selection borders and pending-style placeholders (editor
+     * preview); without them it is the clean composite used as the dial's
+     * compiled preview image, so both always stay in sync.
+     */
+    private Bitmap renderComposite(boolean editorDecorations) {
         Bitmap preview = Bitmap.createBitmap(canvasWidth, canvasHeight, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(preview);
         canvas.drawColor(Color.BLACK);
@@ -2507,22 +2677,22 @@ public class DialEditorActivity extends AppCompatActivity {
             DialLayer layer = layers.get(i);
 
             if (layer.isColonSeparator) {
-                Paint colonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                colonPaint.setColor(Color.WHITE);
-                colonPaint.setTextSize(48f);
-                colonPaint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(":", layer.posX, layer.posY + 48f, colonPaint);
-                if (i == selectedLayerIndex) {
+                Bitmap colonBmp = colonBitmapFor(layer);
+                canvas.drawBitmap(colonBmp, layer.posX, layer.posY, null);
+                if (editorDecorations && i == selectedLayerIndex) {
                     Paint border = new Paint();
                     border.setStyle(Paint.Style.STROKE);
                     border.setColor(Color.parseColor("#58A6FF"));
                     border.setStrokeWidth(2);
-                    canvas.drawRect(layer.posX, layer.posY, layer.posX + 16, layer.posY + 60, border);
+                    canvas.drawRect(layer.posX, layer.posY,
+                            layer.posX + colonBmp.getWidth(), layer.posY + colonBmp.getHeight(), border);
                 }
                 continue;
             }
 
             if (layer.pendingStyle) {
+                if (!editorDecorations)
+                    continue;
                 float px = layer.posX, py = layer.posY;
                 int pw = 40, ph = 60;
                 Paint bg = new Paint();
@@ -2555,43 +2725,43 @@ public class DialEditorActivity extends AppCompatActivity {
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             paint.setAlpha((int) (layer.alpha * 255));
 
-            boolean isHand = (layer.nativeElementType == DialCompiler.TYPE_ARM_HOUR ||
-                              layer.nativeElementType == DialCompiler.TYPE_ARM_MIN ||
-                              layer.nativeElementType == DialCompiler.TYPE_ARM_SEC);
+            boolean isHand = isHandType(layer.nativeElementType);
 
             Matrix m = new Matrix();
             float scaledW = drawBmp.getWidth() * layer.scale;
             float scaledH = drawBmp.getHeight() * layer.scale;
             m.postScale(layer.scale, layer.scale);
-            
+
             float drawX = layer.posX;
             float drawY = layer.posY;
 
             if (isHand) {
-                // FORCE TO CENTER in editor too
-                // Pivot point is horizontally center, and 24px (scaled) from the BOTTOM of the image
+                // Hands are pinned to the watch centre by their rotation pivot:
+                // horizontally the image middle, vertically handTail() px from the
+                // bottom — the same pivot DialCompiler writes as ctx/cty.
                 float pivotX = (drawBmp.getWidth() / 2f) * layer.scale;
-                float pivotY = (drawBmp.getHeight() - 24f) * layer.scale;
-                
+                float pivotY = (drawBmp.getHeight() - handTail(layer)) * layer.scale;
+
                 drawX = (canvasWidth / 2f) - pivotX;
                 drawY = (canvasHeight / 2f) - pivotY;
-                
+
                 float mockRotation = layer.rotation;
                 if (mockRotation == 0) {
                     if (layer.nativeElementType == DialCompiler.TYPE_ARM_HOUR) mockRotation = 90; // 3h
                     else if (layer.nativeElementType == DialCompiler.TYPE_ARM_MIN) mockRotation = 0; // 0m
                     else if (layer.nativeElementType == DialCompiler.TYPE_ARM_SEC) mockRotation = 270; // 45s
                 }
-                
-                m.postRotate(mockRotation, pivotX / layer.scale, pivotY / layer.scale);
+
+                // postRotate runs after postScale, so the pivot is in scaled coords
+                m.postRotate(mockRotation, pivotX, pivotY);
             } else if (layer.rotation != 0) {
                 m.postRotate(layer.rotation, scaledW / 2, scaledH / 2);
             }
-            
+
             m.postTranslate(drawX, drawY);
             canvas.drawBitmap(drawBmp, m, paint);
 
-            if (i == selectedLayerIndex) {
+            if (editorDecorations && i == selectedLayerIndex) {
                 Paint border = new Paint();
                 border.setStyle(Paint.Style.STROKE);
                 border.setColor(Color.parseColor("#58A6FF"));
@@ -2599,19 +2769,7 @@ public class DialEditorActivity extends AppCompatActivity {
                 canvas.drawRect(drawX, drawY, drawX + scaledW, drawY + scaledH, border);
             }
         }
-
-        // Use a single ImageView managed by the container
-        if (previewImage == null) {
-            previewImage = new ImageView(this);
-            previewImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            previewContainer.addView(previewImage,
-                    new FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-        }
-        previewImage.setImageBitmap(preview);
-
-        txtLayerCount.setText(String.valueOf(layers.size()));
+        return preview;
     }
 
     private void updateControls() {
@@ -2627,7 +2785,7 @@ public class DialEditorActivity extends AppCompatActivity {
             boolean isBg = layer.layerType == DialLayer.TYPE_BACKGROUND;
             btnLockBg.setVisibility(isBg ? View.VISIBLE : View.GONE);
             if (isBg) {
-                btnLockBg.setText(layer.locked ? "Desbloquear fondo" : "Bloquear fondo");
+                btnLockBg.setText(layer.locked ? R.string.unlock_bg : R.string.lock_bg);
             }
         } else {
             selectedLayerControls.setVisibility(View.GONE);
@@ -2668,7 +2826,7 @@ public class DialEditorActivity extends AppCompatActivity {
                     File targetFile = new File(userDialsDir, name + ".bin");
                     boolean isSameNameAsEditing = suggestedDialName != null && suggestedDialName.equals(name);
                     if (targetFile.exists() && !isSameNameAsEditing) {
-                        Toast.makeText(this, "Name already exists. Please choose another.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, R.string.name_exists, Toast.LENGTH_LONG).show();
                         return;
                     }
 
@@ -2686,25 +2844,9 @@ public class DialEditorActivity extends AppCompatActivity {
             try {
                 DialCompiler compiler = new DialCompiler(canvasWidth, canvasHeight);
 
-                // Auto-generate preview from current canvas state
-                // Use representative frames (including two-digit pairs)
-                Bitmap previewBmp = Bitmap.createBitmap(canvasWidth, canvasHeight, Bitmap.Config.ARGB_8888);
-                Canvas c = new Canvas(previewBmp);
-                c.drawColor(Color.BLACK);
-                for (DialLayer l : layers) {
-                    Bitmap bmp = getPreviewBitmap(l);
-                    if (bmp != null) {
-                        Matrix m = new Matrix();
-                        m.postScale(l.scale, l.scale);
-                        if (l.rotation != 0) {
-                            float sw = bmp.getWidth() * l.scale;
-                            float sh = bmp.getHeight() * l.scale;
-                            m.postRotate(l.rotation, sw / 2, sh / 2);
-                        }
-                        m.postTranslate(l.posX, l.posY);
-                        c.drawBitmap(bmp, m, null);
-                    }
-                }
+                // Auto-generate preview from current canvas state using the exact
+                // same renderer as the editor preview (hands centred + rotated)
+                Bitmap previewBmp = renderComposite(false);
 
                 // RESIZE PREVIEW TO 280x280 (Required by chipset)
                 // normalizeForWatch quantizes to RGB565 + flattens alpha
@@ -2722,45 +2864,32 @@ public class DialEditorActivity extends AppCompatActivity {
                 compiler.addBlock(previewBlock);
 
                 for (DialLayer layer : layers) {
-                    if (layer.isColonSeparator) continue;
                     if (layer.pendingStyle) continue;
+                    if (layer.isColonSeparator) {
+                        // Compile the ":" separator as a static decoration so the
+                        // watch shows the same time layout as the editor preview.
+                        Bitmap colonBmp = colonBitmapFor(layer);
+                        DialCompiler.DialBlock colonBlock = new DialCompiler.DialBlock();
+                        colonBlock.type = DialCompiler.TYPE_BERRY;
+                        colonBlock.images = new Bitmap[] { colonBmp };
+                        colonBlock.frames = 1;
+                        colonBlock.width = colonBmp.getWidth();
+                        colonBlock.height = colonBmp.getHeight();
+                        colonBlock.x = Math.round(layer.posX);
+                        colonBlock.y = Math.round(layer.posY);
+                        colonBlock.hasAlpha = true;
+                        compiler.addBlock(colonBlock);
+                        continue;
+                    }
                     DialCompiler.DialBlock block = new DialCompiler.DialBlock();
                     block.type = layer.nativeElementType;
 
-                    // Default pos (top-left for alignment 9)
+                    // All non-hand blocks anchor by their TOP-LEFT corner at
+                    // (posx, posy) — same convention the desktop designer uses.
                     block.x = (int) layer.posX;
                     block.y = (int) layer.posY;
 
-                    boolean isHand = (block.type == DialCompiler.TYPE_ARM_HOUR ||
-                            block.type == DialCompiler.TYPE_ARM_MIN ||
-                            block.type == DialCompiler.TYPE_ARM_SEC);
-
-                    // For alignment 10 (numeric), the watch uses the center point.
-                    // If we placed it at posX,posY as top-left, we must adjust to center.
-                    boolean isNumeric = (block.type == DialCompiler.TYPE_DIGITAL_HOUR || 
-                            block.type == DialCompiler.TYPE_DIGITAL_MIN ||
-                            block.type == DialCompiler.TYPE_SECONDS || 
-                            block.type == DialCompiler.TYPE_STEPS || 
-                            block.type == DialCompiler.TYPE_HEART ||
-                            block.type == DialCompiler.TYPE_CALORIE || 
-                            block.type == DialCompiler.TYPE_DISTANCE || 
-                            block.type == DialCompiler.TYPE_BATTERY ||
-                            block.type == DialCompiler.TYPE_TEMP || 
-                            block.type == DialCompiler.TYPE_DAY || 
-                            block.type == DialCompiler.TYPE_MONTH ||
-                            block.type == DialCompiler.TYPE_YEAR || 
-                            block.type == DialCompiler.TYPE_HOUR_HI || 
-                            block.type == DialCompiler.TYPE_HOUR_LO ||
-                            block.type == DialCompiler.TYPE_MIN_HI || 
-                            block.type == DialCompiler.TYPE_MIN_LO);
-
-                    if (isNumeric && layer.frames != null && layer.frames.length > 0) {
-                        Bitmap previewBmpForSize = getPreviewBitmap(layer);
-                        int totalW = Math.round(previewBmpForSize.getWidth() * layer.scale);
-                        int totalH = Math.round(previewBmpForSize.getHeight() * layer.scale);
-                        block.x = (int) (layer.posX + totalW / 2);
-                        block.y = (int) (layer.posY + totalH / 2);
-                    }
+                    boolean isHand = isHandType(block.type);
 
                     if (block.type == DialCompiler.TYPE_BACKGROUND) {
                         int frameCount = 1;
@@ -2843,15 +2972,14 @@ public class DialEditorActivity extends AppCompatActivity {
                             block.type != DialCompiler.TYPE_ANIM &&
                             block.type != DialCompiler.TYPE_PREVIEW);
 
-                    // Analog hands: use RAW compression & set pivot to canvas center
-                    if (block.type == DialCompiler.TYPE_ARM_HOUR ||
-                            block.type == DialCompiler.TYPE_ARM_MIN ||
-                            block.type == DialCompiler.TYPE_ARM_SEC) {
+                    // Analog hands: RAW compression, pivot placed at the canvas
+                    // centre. pivotTail is in final (scaled) image pixels because
+                    // the frames were rescaled above.
+                    if (isHand) {
                         block.compress = 0;
-                        // Watch firmware uses pos_x/pos_y as the rotation pivot point.
-                        // Center of 466x466 canvas = (233, 233)
                         block.x = canvasWidth / 2;
                         block.y = canvasHeight / 2;
+                        block.pivotTail = Math.max(1, Math.round(handTail(layer) * layer.scale));
                     }
 
                     compiler.addBlock(block);
@@ -2913,20 +3041,24 @@ public class DialEditorActivity extends AppCompatActivity {
                                         progressText.setPadding(0, 20, 0, 0);
                                         layout.addView(progressText);
 
+                                        final com.example.dialsender.ble.BleManager.BleStateListener[] xferListener =
+                                                new com.example.dialsender.ble.BleManager.BleStateListener[1];
+
                                         androidx.appcompat.app.AlertDialog progressDialog = new AlertDialog.Builder(
                                                 DialEditorActivity.this)
                                                 .setTitle(getString(R.string.transfer))
                                                 .setView(layout)
-                                                .setNegativeButton("Cancelar", (d2, w2) -> {
+                                                .setNegativeButton(R.string.cancel, (d2, w2) -> {
                                                     bleManager.cancelTransfer();
-                                                    bleManager.setListener(null);
+                                                    if (xferListener[0] != null)
+                                                        bleManager.removeListener(xferListener[0]);
                                                 })
                                                 .setCancelable(false)
                                                 .create();
 
                                         progressDialog.show();
 
-                                        bleManager.setListener(
+                                        xferListener[0] =
                                                 new com.example.dialsender.ble.BleManager.BleStateListener() {
                                                     @Override
                                                     public void onConnectionStateChange(boolean connected,
@@ -2954,13 +3086,23 @@ public class DialEditorActivity extends AppCompatActivity {
                                                         progressDialog.dismiss();
                                                         Toast.makeText(DialEditorActivity.this, R.string.dial_sent_ok,
                                                                 Toast.LENGTH_LONG).show();
-                                                        bleManager.setListener(null);
+                                                        bleManager.removeListener(xferListener[0]);
+                                                    }
+
+                                                    @Override
+                                                    public void onTransferFailed(String reason) {
+                                                        progressDialog.dismiss();
+                                                        Toast.makeText(DialEditorActivity.this,
+                                                                getString(R.string.transfer_failed, reason),
+                                                                Toast.LENGTH_LONG).show();
+                                                        bleManager.removeListener(xferListener[0]);
                                                     }
 
                                                     @Override
                                                     public void onLogUpdated() {
                                                     }
-                                                });
+                                                };
+                                        bleManager.addListener(xferListener[0]);
 
                                         bleManager.startFileTransfer(fileBytesToSend);
                                     } catch (Exception e) {
@@ -2975,7 +3117,7 @@ public class DialEditorActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         btnUpload.setEnabled(true);
                         btnUpload.setText(R.string.compile);
-                        Toast.makeText(this, "Compilation failed", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, R.string.compile_failed, Toast.LENGTH_SHORT).show();
                     });
                 }
             } catch (Exception e) {
@@ -3020,7 +3162,7 @@ public class DialEditorActivity extends AppCompatActivity {
             containerBattery.setVisibility(View.VISIBLE);
             int defFrames = DialCompiler.getDefaultFrameCount(elementType);
             seekLevels.setProgress(defFrames);
-            txtLevels.setText(defFrames + " levels");
+            txtLevels.setText(getString(R.string.levels_count, defFrames));
         } else {
             containerBattery.setVisibility(View.GONE);
         }
@@ -3028,7 +3170,7 @@ public class DialEditorActivity extends AppCompatActivity {
         seekLevels.setOnSeekBarChangeListener(new SimpleSeekListener() {
             @Override
             public void onProgressChanged(SeekBar sb, int val, boolean user) {
-                txtLevels.setText(val + " levels");
+                txtLevels.setText(getString(R.string.levels_count, val));
             }
         });
 
@@ -3240,7 +3382,7 @@ public class DialEditorActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 levels[0] = Math.max(1, progress);
-                txtLevels.setText("Levels: " + levels[0]);
+                txtLevels.setText(getString(R.string.levels_count, levels[0]));
             }
         });
 
@@ -3257,13 +3399,13 @@ public class DialEditorActivity extends AppCompatActivity {
         updatePreview.run();
 
         new AlertDialog.Builder(this)
-                .setTitle("SVG Editor")
+                .setTitle(R.string.svg_generator)
                 .setView(view)
-                .setPositiveButton("Add", (dialog, which) -> {
+                .setPositiveButton(R.string.action_add, (dialog, which) -> {
                     // Generate Layer
                     generateSVGLayerFromAsset(assetPath, elementType, tintColor[0], levels[0], switchClip.isChecked());
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -3369,7 +3511,7 @@ public class DialEditorActivity extends AppCompatActivity {
                 layers.add(layer);
                 refreshAll();
             }
-            Toast.makeText(this, "Added SVG Layer", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.svg_layer_added, Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3496,6 +3638,8 @@ public class DialEditorActivity extends AppCompatActivity {
             layer.posY = canvasHeight / 2f - h / 2f;
             layers.add(layer);
             selectedLayerIndex = layers.size() - 1;
+            applyGroupPropagation(layer);
+            adoptStyleIntoPending(layer);
             refreshAll();
 
             Toast.makeText(this, "✓ " + name, Toast.LENGTH_SHORT).show();

@@ -240,19 +240,25 @@ public class DialsFragment extends Fragment {
             layout.addView(msgView);
 
             final boolean[] done = {false};
+            // Boxed so the cancel lambda below, declared before the listener
+            // itself exists, can still unsubscribe it.
+            final com.example.dialsender.ble.BleManager.BleStateListener[] xferListener =
+                    new com.example.dialsender.ble.BleManager.BleStateListener[1];
 
             androidx.appcompat.app.AlertDialog transferDialog = new AlertDialog.Builder(requireContext())
                     .setTitle(getString(R.string.transfer))
                     .setView(layout)
-                    .setNegativeButton("Cancelar", (d, w) -> {
+                    .setNegativeButton(R.string.cancel, (d, w) -> {
                         done[0] = true;
                         bleManager.cancelTransfer();
+                        if (xferListener[0] != null)
+                            bleManager.removeListener(xferListener[0]);
                     })
                     .setCancelable(false)
                     .create();
             transferDialog.show();
 
-            bleManager.setListener(new com.example.dialsender.ble.BleManager.BleStateListener() {
+            xferListener[0] = new com.example.dialsender.ble.BleManager.BleStateListener() {
                 @Override
                 public void onConnectionStateChange(boolean connected, boolean sessionReady) {
                 }
@@ -276,6 +282,7 @@ public class DialsFragment extends Fragment {
                 public void onTransferComplete() {
                     if (done[0]) return;
                     done[0] = true;
+                    bleManager.removeListener(xferListener[0]);
                     transferDialog.dismiss();
                     if (isAdded()) {
                         Toast.makeText(requireContext(), R.string.dial_sent_ok, Toast.LENGTH_LONG).show();
@@ -286,6 +293,7 @@ public class DialsFragment extends Fragment {
                 public void onTransferFailed(String reason) {
                     if (done[0]) return;
                     done[0] = true;
+                    bleManager.removeListener(xferListener[0]);
                     transferDialog.dismiss();
                     if (isAdded()) {
                         Toast.makeText(requireContext(), getString(R.string.transfer_failed, reason), Toast.LENGTH_LONG).show();
@@ -295,7 +303,8 @@ public class DialsFragment extends Fragment {
                 @Override
                 public void onLogUpdated() {
                 }
-            });
+            };
+            bleManager.addListener(xferListener[0]);
 
             bleManager.startFileTransfer(fileBytesToSend);
 
@@ -362,19 +371,25 @@ public class DialsFragment extends Fragment {
             layout.addView(msgView);
 
             final boolean[] done = {false};
+            // Boxed so the cancel lambda below, declared before the listener
+            // itself exists, can still unsubscribe it.
+            final com.example.dialsender.ble.BleManager.BleStateListener[] xferListener =
+                    new com.example.dialsender.ble.BleManager.BleStateListener[1];
 
             androidx.appcompat.app.AlertDialog transferDialog = new AlertDialog.Builder(requireContext())
                     .setTitle(getString(R.string.transfer))
                     .setView(layout)
-                    .setNegativeButton("Cancelar", (d, w) -> {
+                    .setNegativeButton(R.string.cancel, (d, w) -> {
                         done[0] = true;
                         bleManager.cancelTransfer();
+                        if (xferListener[0] != null)
+                            bleManager.removeListener(xferListener[0]);
                     })
                     .setCancelable(false)
                     .create();
             transferDialog.show();
 
-            bleManager.setListener(new com.example.dialsender.ble.BleManager.BleStateListener() {
+            xferListener[0] = new com.example.dialsender.ble.BleManager.BleStateListener() {
                 @Override
                 public void onConnectionStateChange(boolean connected, boolean sessionReady) {
                 }
@@ -398,6 +413,7 @@ public class DialsFragment extends Fragment {
                 public void onTransferComplete() {
                     if (done[0]) return;
                     done[0] = true;
+                    bleManager.removeListener(xferListener[0]);
                     transferDialog.dismiss();
                     if (isAdded()) {
                         Toast.makeText(requireContext(), R.string.dial_sent_ok, Toast.LENGTH_LONG).show();
@@ -408,6 +424,7 @@ public class DialsFragment extends Fragment {
                 public void onTransferFailed(String reason) {
                     if (done[0]) return;
                     done[0] = true;
+                    bleManager.removeListener(xferListener[0]);
                     transferDialog.dismiss();
                     if (isAdded()) {
                         Toast.makeText(requireContext(), getString(R.string.transfer_failed, reason), Toast.LENGTH_LONG).show();
@@ -417,7 +434,8 @@ public class DialsFragment extends Fragment {
                 @Override
                 public void onLogUpdated() {
                 }
-            });
+            };
+            bleManager.addListener(xferListener[0]);
 
             bleManager.startFileTransfer(fileBytesToSend);
 

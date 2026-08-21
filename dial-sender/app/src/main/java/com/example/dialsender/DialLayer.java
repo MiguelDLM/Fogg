@@ -35,6 +35,10 @@ public class DialLayer {
     // Animation interval (ms per frame, for TYPE_ANIM blocks only)
     public int animIntervalMs = 100;
 
+    // Analog hands: vertical rotation pivot in source-image px from the BOTTOM
+    // (firmware ctx byte). 0 = use the editor default tail.
+    public int pivotTail = 0;
+
     // Full composite bitmap for sprite-sheets loaded from file
     public Bitmap compositeImage;
 

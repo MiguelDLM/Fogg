@@ -426,6 +426,7 @@ public class DialCompiler {
         public boolean hasAlpha = false;
         public int compress = 4; // Default to RLE (4=RLE in comp_decomp)
         public int animIntervalMs = 0; // For TYPE_ANIM: frame duration in ms (stored as centX)
+        public int pivotTail = 0; // For hands: vertical rotation pivot in px from the image BOTTOM (already scaled)
 
         /**
          * Returns the color space string for the dial_desc.json.
@@ -478,34 +479,27 @@ public class DialCompiler {
             jsonBlock.put("posx", block.x);
             jsonBlock.put("posy", block.y);
             jsonBlock.put("w", block.width);
-            // align=10 for numeric scroll elements, align=9 for rest (including hands)
-            int alignment;
-            if (block.type == TYPE_DIGITAL_HOUR || block.type == TYPE_DIGITAL_MIN ||
-                    block.type == TYPE_SECONDS || block.type == TYPE_STEPS || block.type == TYPE_HEART ||
-                    block.type == TYPE_CALORIE || block.type == TYPE_DISTANCE || block.type == TYPE_BATTERY ||
-                    block.type == TYPE_TEMP || block.type == TYPE_DAY || block.type == TYPE_MONTH ||
-                    block.type == TYPE_YEAR || block.type == TYPE_HOUR_HI || block.type == TYPE_HOUR_LO ||
-                    block.type == TYPE_MIN_HI || block.type == TYPE_MIN_LO) {
-                alignment = 10;
-            } else {
-                alignment = 9;
-            }
-            jsonBlock.put("alnx", alignment);
-            // centX for ANIM = frame interval in 10ms units (animIntervalMs / 10)
+            // Alignment semantics verified against original dials (same convention
+            // the desktop dial-designer uses): hands and animations require align=9;
+            // every other block uses align=0 and anchors by its TOP-LEFT corner at
+            // (posx, posy). align=10 + centre-anchoring mispositions elements.
+            boolean isHand = block.type == TYPE_ARM_HOUR || block.type == TYPE_ARM_MIN
+                    || block.type == TYPE_ARM_SEC;
+            jsonBlock.put("alnx", (isHand || block.type == TYPE_ANIM) ? 9 : 0);
             if (block.type == TYPE_ANIM) {
-                jsonBlock.put("ctx", block.animIntervalMs / 10);
+                // centX = frame interval in 10ms units; the watch needs it nonzero
+                jsonBlock.put("ctx", Math.max(1, block.animIntervalMs / 10));
                 jsonBlock.put("cty", 0);
-            } else if (block.type == TYPE_ARM_HOUR || block.type == TYPE_ARM_MIN || block.type == TYPE_ARM_SEC) {
-                // FORCE POSITION TO CENTER for hands (ignore user movement for now as it's too unstable)
+            } else if (isHand) {
+                // Hands anchor by their rotation pivot: posx/posy place that pivot at
+                // the watch centre. Byte order verified against original dials:
+                //   ctx = VERTICAL pivot measured from the image BOTTOM
+                //   cty = HORIZONTAL pivot from the left (= width / 2)
+                // Swapping them makes the hand orbit around the wrong point.
                 jsonBlock.put("posx", deviceWidth / 2);
                 jsonBlock.put("posy", deviceHeight / 2);
-                
-                // centX = horizontal middle of hand image
-                jsonBlock.put("ctx", block.width / 2);
-                
-                // centY = tail length from bottom. 
-                // Using 24px as default tail to ensure it covers the center pin.
-                jsonBlock.put("cty", 24); 
+                jsonBlock.put("ctx", block.pivotTail > 0 ? block.pivotTail : 24);
+                jsonBlock.put("cty", block.width / 2);
             } else {
                 jsonBlock.put("ctx", 0);
                 jsonBlock.put("cty", 0);
