@@ -76,13 +76,10 @@ public class WeatherDetailActivity extends AppCompatActivity {
         refresh.setPadding(dp(12), dp(6), dp(12), dp(6));
         refresh.setClickable(true);
         refresh.setOnClickListener(v -> {
-            BleManager ble = BleManager.getInstance(this);
-            if (ble.isSessionReady()) {
-                android.widget.Toast.makeText(this, getString(R.string.weather_refreshing), android.widget.Toast.LENGTH_SHORT).show();
-                WeatherSync.syncIfPossible(this, ble);
-            } else {
-                android.widget.Toast.makeText(this, getString(R.string.status_not_connected), android.widget.Toast.LENGTH_SHORT).show();
-            }
+            // Fetches with a fresh location fix and refreshes the cached forecast;
+            // the watch is updated too when connected.
+            android.widget.Toast.makeText(this, getString(R.string.weather_refreshing), android.widget.Toast.LENGTH_SHORT).show();
+            WeatherSync.syncIfPossible(this, BleManager.getInstance(this));
         });
         header.addView(refresh);
 

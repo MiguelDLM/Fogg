@@ -45,13 +45,15 @@ public final class WeatherSync {
     private WeatherSync() {
     }
 
-    /** Fetch + push weather on a background thread. Safe to call any time. */
+    /**
+     * Fetch + push weather on a background thread. Safe to call any time.
+     * The forecast is always fetched and cached for the app UI; it is pushed
+     * to the watch only when a BLE session is ready.
+     */
     public static void syncIfPossible(Context context, BleManager ble) {
-        if (ble == null || !ble.isSessionReady())
-            return;
         final Context appCtx = context.getApplicationContext();
         new Thread(() -> {
-            double[] loc = lastKnownLocation(appCtx);
+            double[] loc = currentLocation(appCtx);
             // Retry a few times: right after launch the network/DNS may not be
             // ready yet (observed transient "Unable to resolve host").
             for (int attempt = 1; attempt <= 4; attempt++) {
@@ -59,7 +61,8 @@ public final class WeatherSync {
                     List<BleManager.WeatherDay> days = fetch(loc[0], loc[1]);
                     if (!days.isEmpty()) {
                         String city = resolveCity(appCtx, loc[0], loc[1]);
-                        ble.sendWeather(days, city);
+                        if (ble != null && ble.isSessionReady())
+                            ble.sendWeather(days, city);
                         // Cache today's weather + a short forecast so the UI can
                         // show a chip and a full detail screen.
                         BleManager.WeatherDay t = days.get(0);
@@ -83,6 +86,8 @@ public final class WeatherSync {
                                 .putInt("weather_pop", t.precipitation)
                                 .putString("weather_city", city)
                                 .putString("weather_forecast", fc.toString())
+                                .putFloat("weather_lat", (float) loc[0])
+                                .putFloat("weather_lon", (float) loc[1])
                                 .putLong("weather_time", System.currentTimeMillis())
                                 .apply();
                         Log.i(TAG, "weather pushed (" + days.size() + " days)");
@@ -96,18 +101,34 @@ public final class WeatherSync {
         }, "weather-sync").start();
     }
 
-    @SuppressLint("MissingPermission")
-    private static double[] lastKnownLocation(Context ctx) {
+    private static boolean hasLocationPermission(Context ctx) {
+        return ContextCompat.checkSelfPermission(ctx,
+                android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(ctx,
+                        android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Resolves the location to use for the forecast, most reliable first:
+     * 1. a fresh single-shot GPS/network fix (so we never stay stuck on a stale
+     *    or IP/VPN-derived position),
+     * 2. the most recent last-known fix across providers,
+     * 3. the coordinates of the last successful weather fetch,
+     * 4. a hardcoded fallback.
+     */
+    private static double[] currentLocation(Context ctx) {
         try {
-            boolean fine = ContextCompat.checkSelfPermission(ctx,
-                    android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-            boolean coarse = ContextCompat.checkSelfPermission(ctx,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-            if (fine || coarse) {
+            if (hasLocationPermission(ctx)) {
+                Location fresh = requestFreshFix(ctx);
+                if (fresh != null) {
+                    Log.i(TAG, "using fresh " + fresh.getProvider() + " fix");
+                    return new double[] { fresh.getLatitude(), fresh.getLongitude() };
+                }
                 LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
                 if (lm != null) {
-                    // Prefer GPS over network/WiFi — GPS fix wins immediately;
-                    // otherwise keep the most recent network fix as fallback.
+                    // No fresh fix — fall back to the most RECENT last-known fix.
+                    // (A VPN can make IP-derived network fixes wrong, but a newer
+                    // real fix always beats an older one.)
                     Location best = null;
                     for (String provider : new String[] {
                             LocationManager.GPS_PROVIDER,
@@ -120,8 +141,6 @@ public final class WeatherSync {
                             continue;
                         }
                         if (l == null) continue;
-                        if (LocationManager.GPS_PROVIDER.equals(provider))
-                            return new double[] { l.getLatitude(), l.getLongitude() };
                         if (best == null || l.getTime() > best.getTime())
                             best = l;
                     }
@@ -132,7 +151,56 @@ public final class WeatherSync {
         } catch (Exception e) {
             Log.w(TAG, "location lookup failed: " + e.getMessage());
         }
+        // Coordinates of the last successful fetch, if any
+        android.content.SharedPreferences prefs =
+                ctx.getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+        float lat = prefs.getFloat("weather_lat", Float.NaN);
+        float lon = prefs.getFloat("weather_lon", Float.NaN);
+        if (!Float.isNaN(lat) && !Float.isNaN(lon))
+            return new double[] { lat, lon };
         return new double[] { FALLBACK_LAT, FALLBACK_LON };
+    }
+
+    /** Requests one fresh location fix (GPS preferred, network fallback), max ~12 s. */
+    @SuppressLint("MissingPermission")
+    private static Location requestFreshFix(Context ctx) {
+        LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+        if (lm == null)
+            return null;
+        String provider = null;
+        try {
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER))
+                provider = LocationManager.GPS_PROVIDER;
+            else if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
+                provider = LocationManager.NETWORK_PROVIDER;
+        } catch (Exception ignored) {
+        }
+        if (provider == null)
+            return null;
+
+        final Location[] holder = new Location[1];
+        final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        android.os.HandlerThread ht = new android.os.HandlerThread("weather-loc");
+        ht.start();
+        android.location.LocationListener listener = new android.location.LocationListener() {
+            @Override public void onLocationChanged(Location location) {
+                holder[0] = location;
+                latch.countDown();
+            }
+            @Override public void onStatusChanged(String p, int status, android.os.Bundle extras) { }
+            @Override public void onProviderEnabled(String p) { }
+            @Override public void onProviderDisabled(String p) { latch.countDown(); }
+        };
+        try {
+            lm.requestSingleUpdate(provider, listener, ht.getLooper());
+            latch.await(12, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Log.w(TAG, "fresh fix failed: " + e.getMessage());
+        } finally {
+            try { lm.removeUpdates(listener); } catch (Exception ignored) { }
+            ht.quitSafely();
+        }
+        return holder[0];
     }
 
     private static List<BleManager.WeatherDay> fetch(double lat, double lon) throws Exception {
