@@ -13,7 +13,7 @@ All documentation was derived by static analysis of the decompiled Android APK l
 | # | File | Description |
 |---|------|-------------|
 | 01 | [01-BLE-COMMUNICATION.md](./01-BLE-COMMUNICATION.md) | BLE transport layer: GATT services, packet framing, CRC16, connection lifecycle, DFU address calculation |
-| 02 | [02-COMMAND-PROTOCOL.md](./02-COMMAND-PROTOCOL.md) | Command system: `BleKey`, `BleCommand`, `BleKeyFlag` enumerations, packet construction, full command map (240+ entries) |
+| 02 | [02-COMMAND-PROTOCOL.md](./02-COMMAND-PROTOCOL.md) | Command system: `BleKey`, `BleCommand`, `BleKeyFlag` enumerations, packet construction, full command map (all 242 keys, regenerated from the enum) |
 | 03 | [03-HEALTH-DATA.md](./03-HEALTH-DATA.md) | Health data entities: heart rate, SpO2, blood pressure, sleep stages, temperature, HRV, ECG, blood glucose |
 | 04 | [04-NOTIFICATIONS.md](./04-NOTIFICATIONS.md) | Phone notification forwarding: payload format, app ID mapping, notification lifecycle |
 | 05 | [05-WATCHFACE-DIAL.md](./05-WATCHFACE-DIAL.md) | Watch face compilation pipeline, binary format, transfer procedure, widget configuration |
@@ -21,6 +21,7 @@ All documentation was derived by static analysis of the decompiled Android APK l
 | 07 | [07-PRIVACY-ANALYSIS.md](./07-PRIVACY-ANALYSIS.md) | Privacy and tracking analysis: telemetry endpoints, PII collected, cloud sync targets, third-party SDKs |
 | 08 | [08-DATA-SYNC.md](./08-DATA-SYNC.md) | Health data synchronisation: sync flow, pagination, cloud API endpoints, data serialisation |
 | 09 | [09-SUPPORTED-PLATFORMS.md](./09-SUPPORTED-PLATFORMS.md) | Hardware platforms and device support: JieLi, Nordic, Goodix, MTK chipset variants, feature matrix |
+| 11 | [11-DEVICE-INFO-CAPABILITIES.md](./11-DEVICE-INFO-CAPABILITIES.md) | `DEVICE_INFO` (0x023E) capability block: supported-key list, ~100 feature flags, IO buffer size, exact field order |
 
 ---
 

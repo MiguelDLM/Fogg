@@ -392,8 +392,7 @@ procedure sendMessage(packet: byte[]):
 
 **Source:** `BleConnector.java`
 
-> **CORRECTION (verified against live capture — see
-> [10-CAPTURE-FINDINGS.md](./10-CAPTURE-FINDINGS.md)):** Steps 7–9 below do not
+> **CORRECTION (verified against a live capture):** Steps 7–9 below do not
 > match the real app. After enabling notifications and negotiating MTU, the app
 > sends one fixed **SESSION CREATE** frame (`cmd=0x03 key=0x02 flag=0x20`,
 > payload `FF FF FF FF`, constant CRC `B1 B2`) — no IDENTITY nonce, no
