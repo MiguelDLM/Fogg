@@ -704,4 +704,18 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="notif_ble_connected">Reloj conectado</string>
     <string name="notif_ble_searching">Buscando reloj…</string>
     <string name="notif_ble_disconnect">Desconectar</string>
+
+    <!-- User profile (sent to the watch as USER_PROFILE 0x0206) -->
+    <string name="profile_title">Mi perfil</string>
+    <string name="profile_name_hint">Tu nombre</string>
+    <string name="profile_default_name">Mi perfil</string>
+    <string name="profile_change_photo">Cambiar foto</string>
+    <string name="profile_sex">Sexo</string>
+    <string name="profile_male">Hombre</string>
+    <string name="profile_female">Mujer</string>
+    <string name="profile_age">Edad (años)</string>
+    <string name="profile_height_cm">Altura (cm)</string>
+    <string name="profile_weight_kg">Peso (kg)</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
 </resources>

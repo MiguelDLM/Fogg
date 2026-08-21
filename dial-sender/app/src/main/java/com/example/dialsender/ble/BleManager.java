@@ -1063,6 +1063,28 @@ public class BleManager {
             return;
         }
 
+        // Empty UPDATE acks for the settings we write. Recognised so they stop
+        // showing up as "Unhandled response" noise in the log.
+        if (isReply && cmd == 0x02 && (key == 0x06 || key == 0x07)
+                && flag == BleKeyFlag.UPDATE.getValue()) {
+            log((key == 0x06 ? "USER_PROFILE" : "STEP_GOAL") + " ack");
+            return;
+        }
+
+        // User profile READ reply (Cmd=0x02, Key=0x06, FLAG=READ).
+        if (isReply && cmd == 0x02 && key == 0x06 && flag == BleKeyFlag.READ.getValue()
+                && data.length >= 20) {
+            ByteBuffer bb = ByteBuffer.wrap(data, 9, 11).order(ByteOrder.LITTLE_ENDIAN);
+            int unit = bb.get() & 0xFF;
+            int gender = bb.get() & 0xFF;
+            int age = bb.get() & 0xFF;
+            float height = bb.getFloat();
+            float weight = bb.getFloat();
+            log("Rx USER_PROFILE: unit=" + unit + " gender=" + gender + " age=" + age
+                    + " height=" + height + "cm weight=" + weight + "kg");
+            return;
+        }
+
         // Battery response (Cmd=0x02, Key=0x03)
         if (isReply && cmd == 0x02 && key == 0x03) {
             int battery = (data.length > 9) ? (data[9] & 0xFF) : 0;
@@ -2336,8 +2358,111 @@ public class BleManager {
         sendTimeZone();
         sendTime();
         sendHourSystem();
+        sendUserProfile();
+        sendStepGoal();
         isSending = true;
         sendNextChunk();
+        // Read the profile back so a firmware that accepts the frame but
+        // decodes it differently shows up in the log instead of silently
+        // skewing every calorie figure the watch reports afterwards.
+        handler.postDelayed(this::readUserProfile, 600);
+    }
+
+    // Gender codes on the wire, from UserInfoActivity in the original app:
+    // it renders R.string.female for 0 and R.string.male for anything else.
+    public static final int GENDER_FEMALE = 0;
+    public static final int GENDER_MALE = 1;
+    // 0 = metric, 1 = imperial (MeasureUnitSettingsActivity maps picker index
+    // 0 to 0 and everything else to 1).
+    private static final int UNIT_METRIC = 0;
+    private static final int UNIT_IMPERIAL = 1;
+
+    /**
+     * SET USER_PROFILE (BleKey 0x0206, UPDATE) — 11 bytes.
+     *
+     * The watch computes calories and stride-based distance on-device, so
+     * without this it uses firmware defaults and every derived figure the app
+     * later reads back is wrong. The app had never sent it.
+     *
+     *   [0] unit    uint8   0 = metric, 1 = imperial
+     *   [1] gender  uint8   0 = female, 1 = male
+     *   [2] age     uint8   years
+     *   [3] height  float32 LITTLE-endian, centimetres
+     *   [7] weight  float32 LITTLE-endian, kilograms
+     *
+     * Note the endianness: the two floats are little-endian while the rest of
+     * this protocol is big-endian. That is not a transcription slip — the SDK
+     * passes ByteOrder.LITTLE_ENDIAN explicitly for both, against a writer
+     * whose default is big-endian.
+     */
+    public void sendUserProfile() {
+        if (!isSessionReady()) return;
+
+        int gender = prefs.getInt("profile_gender", GENDER_MALE);
+        int age = prefs.getInt("profile_age", 30);
+        float heightCm = prefs.getFloat("profile_height_cm", 170f);
+        float weightKg = prefs.getFloat("profile_weight_kg", 70f);
+        int unit = "lb".equals(prefs.getString("unit_weight", "kg")) ? UNIT_IMPERIAL : UNIT_METRIC;
+
+        // Keep the watch out of arithmetic that would divide by zero or
+        // overflow the age byte; fall back to the defaults instead.
+        if (age < 1 || age > 120) age = 30;
+        if (heightCm < 50f || heightCm > 250f) heightCm = 170f;
+        if (weightKg < 10f || weightKg > 300f) weightKg = 70f;
+
+        ByteBuffer bb = ByteBuffer.allocate(11).order(ByteOrder.LITTLE_ENDIAN);
+        bb.put((byte) unit);
+        bb.put((byte) (gender == GENDER_FEMALE ? GENDER_FEMALE : GENDER_MALE));
+        bb.put((byte) age);
+        bb.putFloat(heightCm);
+        bb.putFloat(weightKg);
+
+        log("Tx USER_PROFILE: unit=" + unit + " gender=" + gender + " age=" + age
+                + " height=" + heightCm + "cm weight=" + weightKg + "kg");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x06, (byte) 0x00, bb.array()));
+    }
+
+    /**
+     * SET STEP_GOAL (BleKey 0x0207, UPDATE) — int32, big-endian.
+     *
+     * The goal already existed as a phone-side pref driving the Status ring; it
+     * just never reached the watch, so the two showed different targets.
+     */
+    public void sendStepGoal() {
+        if (!isSessionReady()) return;
+
+        int goal = prefs.getInt("goal_steps", 10000);
+        if (goal < 1 || goal > 200000) goal = 10000;
+
+        byte[] payload = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(goal).array();
+        log("Tx STEP_GOAL: " + goal);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x07, (byte) 0x00, payload));
+    }
+
+    /**
+     * READ USER_PROFILE (0x0206). The watch echoes the same 11-byte layout, so
+     * this is what confirms the little-endian floats were understood rather
+     * than merely acknowledged.
+     */
+    public void readUserProfile() {
+        if (!isSessionReady()) return;
+        log("Reading user profile (0x0206)...");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x06, (byte) 0x10, null));
+        isSending = true;
+        sendNextChunk();
+    }
+
+    /**
+     * Push profile and goal after the user edits them, without waiting for the
+     * next connection.
+     */
+    public void syncUserProfileAndGoals() {
+        if (!isSessionReady()) return;
+        sendUserProfile();
+        sendStepGoal();
+        isSending = true;
+        sendNextChunk();
+        handler.postDelayed(this::readUserProfile, 600);
     }
 
     /**

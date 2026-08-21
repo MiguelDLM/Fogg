@@ -28,6 +28,7 @@ import com.example.dialsender.DeveloperToolsActivity;
 import com.example.dialsender.LocaleHelper;
 import com.example.dialsender.NotificationSettingsActivity;
 import com.example.dialsender.R;
+import com.example.dialsender.ble.BleManager;
 import android.widget.RadioButton;
 
 public class SettingsFragment extends Fragment {
@@ -185,10 +186,14 @@ public class SettingsFragment extends Fragment {
         });
 
         // Goal fields (save on focus lost)
-        setupGoalField(view, R.id.etGoalSteps,    "goal_steps",     10000);
-        setupGoalField(view, R.id.etGoalSleep,    "goal_sleep_min", 480);
-        setupGoalField(view, R.id.etGoalCalories, "goal_calories",  500);
-        setupGoalField(view, R.id.etGoalDistance, "goal_distance",  5);
+        // Only the step goal has a verified write encoding (STEP_GOAL 0x0207,
+        // int32 BE). The original app reads the calorie/distance/sleep goals
+        // from the watch but never writes them, so those three stay phone-side
+        // until their payloads can be confirmed rather than guessed.
+        setupGoalField(view, R.id.etGoalSteps,    "goal_steps",     10000, true);
+        setupGoalField(view, R.id.etGoalSleep,    "goal_sleep_min", 480, false);
+        setupGoalField(view, R.id.etGoalCalories, "goal_calories",  500, false);
+        setupGoalField(view, R.id.etGoalDistance, "goal_distance",  5, false);
 
         // Distance unit label initial state
         TextView lblDist = view.findViewById(R.id.lblDistanceUnit);
@@ -246,23 +251,103 @@ public class SettingsFragment extends Fragment {
         box.setPadding(pad, pad, pad, 0);
 
         final EditText etName = new EditText(requireContext());
-        etName.setHint("Tu nombre");
+        etName.setHint(getString(R.string.profile_name_hint));
         etName.setText(prefs.getString("profile_name", ""));
         box.addView(etName);
 
+        // Sex, age, height and weight are what the watch needs to compute
+        // calories and stride-based distance on-device (USER_PROFILE 0x0206).
+        final RadioGroup rgSex = new RadioGroup(requireContext());
+        rgSex.setOrientation(RadioGroup.HORIZONTAL);
+        RadioButton rbMale = new RadioButton(requireContext());
+        rbMale.setId(View.generateViewId());
+        rbMale.setText(getString(R.string.profile_male));
+        RadioButton rbFemale = new RadioButton(requireContext());
+        rbFemale.setId(View.generateViewId());
+        rbFemale.setText(getString(R.string.profile_female));
+        rgSex.addView(rbMale);
+        rgSex.addView(rbFemale);
+        boolean isFemale = prefs.getInt("profile_gender", BleManager.GENDER_MALE) == BleManager.GENDER_FEMALE;
+        rgSex.check(isFemale ? rbFemale.getId() : rbMale.getId());
+        box.addView(labelled(getString(R.string.profile_sex)));
+        box.addView(rgSex);
+
+        final EditText etAge = numberField(getString(R.string.profile_age),
+                String.valueOf(prefs.getInt("profile_age", 30)), box);
+        final EditText etHeight = numberField(getString(R.string.profile_height_cm),
+                trimFloat(prefs.getFloat("profile_height_cm", 170f)), box);
+        final EditText etWeight = numberField(getString(R.string.profile_weight_kg),
+                trimFloat(prefs.getFloat("profile_weight_kg", 70f)), box);
+
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("Mi perfil")
+                .setTitle(getString(R.string.profile_title))
                 .setView(box)
-                .setNeutralButton("Cambiar foto", (d, w) ->
+                .setNeutralButton(getString(R.string.profile_change_photo), (d, w) ->
                         pickPhoto.launch(new String[] { "image/*" }))
-                .setPositiveButton("Guardar", (d, w) -> {
+                .setPositiveButton(getString(R.string.action_save), (d, w) -> {
                     String name = etName.getText().toString().trim();
-                    prefs.edit().putString("profile_name", name.isEmpty() ? "Mi perfil" : name).apply();
+                    String fallback = getString(R.string.profile_default_name);
+                    SharedPreferences.Editor e = prefs.edit();
+                    e.putString("profile_name", name.isEmpty() ? fallback : name);
+                    e.putInt("profile_gender", rgSex.getCheckedRadioButtonId() == rbFemale.getId()
+                            ? BleManager.GENDER_FEMALE : BleManager.GENDER_MALE);
+                    // An unparseable or blank field keeps the stored value
+                    // rather than resetting the user to a default.
+                    e.putInt("profile_age", parseInt(etAge, prefs.getInt("profile_age", 30)));
+                    e.putFloat("profile_height_cm",
+                            parseFloat(etHeight, prefs.getFloat("profile_height_cm", 170f)));
+                    e.putFloat("profile_weight_kg",
+                            parseFloat(etWeight, prefs.getFloat("profile_weight_kg", 70f)));
+                    e.apply();
                     if (txtProfileName != null)
-                        txtProfileName.setText(name.isEmpty() ? "Mi perfil" : name);
+                        txtProfileName.setText(name.isEmpty() ? fallback : name);
+                    pushProfileToWatch();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.action_cancel), null)
                 .show();
+    }
+
+    private TextView labelled(String text) {
+        TextView tv = new TextView(requireContext());
+        tv.setText(text);
+        tv.setPadding(0, dp(12), 0, 0);
+        return tv;
+    }
+
+    /**
+     * Labelled numeric field. The label is a separate view rather than the
+     * hint: these fields always start populated, and a hint on a non-empty
+     * EditText is invisible, leaving three unlabelled numbers.
+     */
+    private EditText numberField(String label, String value, ViewGroup parent) {
+        parent.addView(labelled(label));
+        EditText et = new EditText(requireContext());
+        et.setText(value);
+        et.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        parent.addView(et);
+        return et;
+    }
+
+    private static int parseInt(EditText et, int fallback) {
+        try {
+            return Integer.parseInt(et.getText().toString().trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static float parseFloat(EditText et, float fallback) {
+        try {
+            return Float.parseFloat(et.getText().toString().trim().replace(',', '.'));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /** 170.0 -> "170", 70.5 -> "70.5". */
+    private static String trimFloat(float v) {
+        return v == Math.rint(v) ? String.valueOf((int) v) : String.valueOf(v);
     }
 
     private int dp(int v) {
@@ -270,18 +355,31 @@ public class SettingsFragment extends Fragment {
                 android.util.TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
     }
 
-    private void setupGoalField(View root, int editTextId, String prefKey, int defaultVal) {
+    private void setupGoalField(View root, int editTextId, String prefKey, int defaultVal,
+                                boolean pushToWatch) {
         EditText et = root.findViewById(editTextId);
         et.setText(String.valueOf(prefs.getInt(prefKey, defaultVal)));
         et.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
                 try {
                     int val = Integer.parseInt(et.getText().toString().trim());
+                    boolean changed = val != prefs.getInt(prefKey, defaultVal);
                     prefs.edit().putInt(prefKey, val).apply();
+                    if (changed && pushToWatch)
+                        pushProfileToWatch();
                 } catch (NumberFormatException ignored) {
                     et.setText(String.valueOf(prefs.getInt(prefKey, defaultVal)));
                 }
             }
         });
+    }
+
+    /**
+     * Send profile and step goal to the watch. Does nothing when no session is
+     * up — the values are in prefs and go out on the next connect.
+     */
+    private void pushProfileToWatch() {
+        BleManager.getInstance(requireContext().getApplicationContext())
+                .syncUserProfileAndGoals();
     }
 }

@@ -704,4 +704,18 @@ Pick an activity above to record your first one.</string>
     <string name="notif_ble_connected">Watch connected</string>
     <string name="notif_ble_searching">Looking for watch…</string>
     <string name="notif_ble_disconnect">Disconnect</string>
+
+    <!-- User profile (sent to the watch as USER_PROFILE 0x0206) -->
+    <string name="profile_title">My profile</string>
+    <string name="profile_name_hint">Your name</string>
+    <string name="profile_default_name">My profile</string>
+    <string name="profile_change_photo">Change photo</string>
+    <string name="profile_sex">Sex</string>
+    <string name="profile_male">Male</string>
+    <string name="profile_female">Female</string>
+    <string name="profile_age">Age (years)</string>
+    <string name="profile_height_cm">Height (cm)</string>
+    <string name="profile_weight_kg">Weight (kg)</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
 </resources>
