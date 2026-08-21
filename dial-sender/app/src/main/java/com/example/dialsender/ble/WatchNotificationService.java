@@ -14,6 +14,13 @@ import java.util.Set;
 
 public class WatchNotificationService extends NotificationListenerService {
 
+    /** Follow the language chosen in the app, not the system one. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(com.example.dialsender.LocaleHelper.wrap(base));
+    }
+
+
     private static final String PREF_NAME = "dial_sender_prefs";
     private static final String PREF_NOTIF_PACKAGES = "notif_enabled_packages";
     private static final int CATEGORY_CALL = 1;

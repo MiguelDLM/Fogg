@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and below (fullBackupContent).
+
+  Health history, the paired watch and the BLE log stay on the device: they are
+  personal measurements and a device binding that is meaningless on another
+  phone. Only the UI preferences are worth restoring, and those live in the same
+  prefs file, so the whole file is excluded rather than backed up wholesale.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="dial_sender_prefs.xml"/>
+</full-backup-content>

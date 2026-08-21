@@ -84,15 +84,39 @@ public class BleManager {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private BleStateListener listener;
+    /**
+     * Every interested screen, not one slot. This used to be a single
+     * reference and whichever fragment resumed last silently unsubscribed
+     * everyone else — MainActivity's auto-sync-on-connect died the moment you
+     * opened the Reloj tab.
+     */
+    private final java.util.concurrent.CopyOnWriteArrayList<BleStateListener> listeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean isConnected = false;
 
     private final ConcurrentLinkedQueue<byte[]> commandQueue = new ConcurrentLinkedQueue<>();
     private boolean isSending = false;
     private int currentMtu = 23;
     private int ioBufferSize = 480;
+    private volatile BleDeviceInfo deviceInfo = null;
     private int packetsSent = 0;
     private byte[] lastChunkSent = null;
+
+    // Reassembly of a logical frame split across several notifications.
+    // The header's length field (bytes 2..3) counts cmd+key+flag+payload, so a
+    // full frame is that value + 6. A health page is 1024 payload bytes, which
+    // arrives as three notifications at MTU 512 — without reassembly the tail
+    // two were dropped and only the first ~500 bytes were ever parsed.
+    private byte[] rxAssembly = null;
+    private int rxFilled = 0;
+    private static final long RX_ASSEMBLY_TIMEOUT_MS = 5000;
+    private final Runnable rxAssemblyTimeout = () -> {
+        if (rxAssembly != null) {
+            log("Rx reassembly timed out with " + rxFilled + "/" + rxAssembly.length + " bytes — discarding");
+            rxAssembly = null;
+            rxFilled = 0;
+        }
+    };
     private int writeRetryCount = 0;
     private static final int MAX_WRITE_RETRIES = 3;
     private static final long WRITE_TIMEOUT_MS = 5000;
@@ -194,18 +218,69 @@ public class BleManager {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    public static BleManager getInstance(Context context) {
+    public static synchronized BleManager getInstance(Context context) {
         if (instance == null) {
             instance = new BleManager(context);
         }
         return instance;
     }
 
-    public void setListener(BleStateListener listener) {
-        this.listener = listener;
-        if (listener != null) {
-            listener.onConnectionStateChange(isConnected, connectionState == ConnectionState.SESSION_READY);
+    /** Subscribe. Idempotent; the new listener gets the current state at once. */
+    public void addListener(BleStateListener listener) {
+        if (listener == null || listeners.contains(listener))
+            return;
+        listeners.add(listener);
+        listener.onConnectionStateChange(isConnected, connectionState == ConnectionState.SESSION_READY);
+    }
+
+    /** Unsubscribe. Every addListener needs a matching call, or the owner leaks. */
+    public void removeListener(BleStateListener listener) {
+        listeners.remove(listener);
+    }
+
+    /** Fan a callback out to every subscriber, on the main thread. */
+    private void forEachListener(java.util.function.Consumer<BleStateListener> call) {
+        if (listeners.isEmpty())
+            return;
+        handler.post(() -> {
+            for (BleStateListener l : listeners)
+                call.accept(l);
+        });
+    }
+
+    /**
+     * Lightweight connection observer, independent of the single UI
+     * {@link BleStateListener} slot that fragments keep overwriting. Used by
+     * BleForegroundService so its notification tracks the real link state
+     * without polling.
+     */
+    public interface ConnectionObserver {
+        void onConnectionStateChange(boolean connected, boolean sessionReady);
+    }
+
+    private final java.util.concurrent.CopyOnWriteArrayList<ConnectionObserver> observers =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public void addConnectionObserver(ConnectionObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+            observer.onConnectionStateChange(isConnected, isSessionReady());
         }
+    }
+
+    public void removeConnectionObserver(ConnectionObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyConnectionState(boolean connected, boolean sessionReady) {
+        handler.post(() -> {
+            for (BleStateListener l : listeners) {
+                l.onConnectionStateChange(connected, sessionReady);
+            }
+            for (ConnectionObserver o : observers) {
+                o.onConnectionStateChange(connected, sessionReady);
+            }
+        });
     }
 
     // ========== Logging ==========
@@ -220,9 +295,7 @@ public class BleManager {
                 bleLog.remove(0);
             }
         }
-        if (listener != null) {
-            handler.post(() -> listener.onLogUpdated());
-        }
+        forEachListener(BleStateListener::onLogUpdated);
     }
 
     public static List<String> getLogLines() {
@@ -249,43 +322,362 @@ public class BleManager {
 
     // ========== Connection ==========
 
-    @SuppressLint("MissingPermission")
-    public void connect(BluetoothDevice device) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            if (context.checkSelfPermission(
-                    android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                log("ERROR: Missing BLUETOOTH_CONNECT permission!");
+    /**
+     * Auto-reconnection, replicating the original CO-FIT/SMA app
+     * (com.bestmafen.baseble.connector.AbsBleConnector):
+     *
+     * - a single retry loop with a linear back-off: 5s, 10s, 15s ... 40s, then
+     *   it wraps back to 5s (mRetry * mReconnectBasePeriod, capped by
+     *   mReconnectMaxPeriod);
+     * - every other attempt alternates between a *direct* connectGatt() on the
+     *   remembered MAC and a short *scan* (BALANCED mode, at most 12s and never
+     *   more than 75% of the current back-off window) — the watch stops
+     *   advertising while it thinks it is bonded, so neither strategy alone is
+     *   reliable;
+     * - the loop only exists while the link is down. As soon as GATT reports
+     *   CONNECTED it is cancelled, so a healthy connection costs nothing;
+     * - it stops completely when Bluetooth is off or the user unbound the
+     *   watch, and restarts on ACTION_STATE_CHANGED -> STATE_ON.
+     */
+    private static final int RECONNECT_BASE_PERIOD_S = 5;
+    private static final int RECONNECT_MAX_PERIOD_S = 40;
+    private static final int SCAN_MAX_DURATION_S = 12;
+
+    private static final String PREF_AUTO_CONNECT = "auto_connect_enabled";
+    private static final String PREF_DEVICE_VERIFIED = "device_verified";
+
+    private volatile String targetAddress;
+    private boolean autoReconnect = true;
+    private boolean isReconnecting = false;
+    private boolean connectDirectly = true;
+    private int retry = 0;
+    private boolean receiverRegistered = false;
+
+    private android.bluetooth.le.ScanCallback scanCallback;
+    private final Runnable stopScanRunnable = this::stopReconnectScan;
+
+    /** One tick of the back-off loop — mirrors AbsBleConnector.mReconnection. */
+    private final Runnable reconnectRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isConnected) {
+                // Won the race against onConnectionStateChange(CONNECTED).
+                isReconnecting = false;
+                stopReconnectScan();
                 return;
             }
-        }
+            closeConnection(false);
 
-        if (bluetoothGatt != null) {
-            log("Disconnecting previous GATT connection...");
-            bluetoothGatt.disconnect();
-            bluetoothGatt.close();
-            bluetoothGatt = null;
+            if (!shouldReconnect()) {
+                isReconnecting = false;
+                log("Auto-reconnect paused (bluetooth off or no bound device)");
+                return;
+            }
+
+            retry++;
+            if (retry < 1) {
+                retry = 1;
+            }
+            int periodS = retry * RECONNECT_BASE_PERIOD_S;
+            if (periodS > RECONNECT_MAX_PERIOD_S) {
+                retry = 1;
+                periodS = RECONNECT_BASE_PERIOD_S;
+            }
+
+            if (connectDirectly) {
+                log("Auto-reconnect: direct connect (next retry in " + periodS + "s)");
+                connectGattToTarget();
+            } else {
+                int scanSeconds = (int) (periodS * 0.75f);
+                if (scanSeconds > SCAN_MAX_DURATION_S) {
+                    scanSeconds = SCAN_MAX_DURATION_S;
+                }
+                if (scanSeconds < 1) {
+                    scanSeconds = 1;
+                }
+                log("Auto-reconnect: scan " + scanSeconds + "s (next retry in " + periodS + "s)");
+                startReconnectScan(scanSeconds);
+            }
+
+            connectDirectly = !connectDirectly;
+            handler.postDelayed(this, periodS * 1000L);
         }
-        isConnected = false;
-        connectionState = ConnectionState.DISCONNECTED;
+    };
+
+    /** Bluetooth adapter on/off, as in AbsBleConnector.mReceiver. */
+    private final android.content.BroadcastReceiver adapterStateReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context ctx, Intent intent) {
+            if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction()))
+                return;
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
+            if (state == BluetoothAdapter.STATE_OFF) {
+                log("Bluetooth turned OFF");
+                closeConnection(false);
+                setReconnecting(false);
+                if (isConnected) {
+                    isConnected = false;
+                    connectionState = ConnectionState.DISCONNECTED;
+                    notifyConnectionState(false, false);
+                }
+            } else if (state == BluetoothAdapter.STATE_ON) {
+                log("Bluetooth turned ON");
+                if (autoReconnect && shouldReconnect()) {
+                    setReconnecting(true);
+                }
+            }
+        }
+    };
+
+    private void registerAdapterStateReceiver() {
+        if (receiverRegistered)
+            return;
+        try {
+            androidx.core.content.ContextCompat.registerReceiver(context, adapterStateReceiver,
+                    new android.content.IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+                    androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+            receiverRegistered = true;
+        } catch (Exception e) {
+            log("registerReceiver failed: " + e.getMessage());
+        }
+    }
+
+    private boolean shouldReconnect() {
+        return autoReconnect
+                && bluetoothAdapter != null
+                && bluetoothAdapter.isEnabled()
+                && targetAddress != null
+                && !targetAddress.isEmpty()
+                && hasConnectPermission();
+    }
+
+    private boolean hasConnectPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
+            return true;
+        return context.checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasScanPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
+            return true;
+        return context.checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Starts/stops the retry loop. Idempotent, exactly like
+     * AbsBleConnector.connect(boolean): calling it with the state it is already
+     * in is a no-op, which is what keeps a single loop running.
+     */
+    private synchronized void setReconnecting(boolean reconnecting) {
+        if (isReconnecting == reconnecting)
+            return;
+        isReconnecting = reconnecting;
+        retry = 0;
+        if (reconnecting) {
+            log("Auto-reconnect started");
+            handler.post(reconnectRunnable);
+        } else {
+            log("Auto-reconnect stopped");
+            stopReconnectScan();
+            handler.removeCallbacks(reconnectRunnable);
+        }
+    }
+
+    public boolean isReconnecting() {
+        return isReconnecting;
+    }
+
+    public void setAutoReconnect(boolean enabled) {
+        autoReconnect = enabled;
+        if (!enabled) {
+            setReconnecting(false);
+        }
+    }
+
+    /**
+     * Tears the GATT client down properly. The previous implementation only
+     * dropped the flags, leaving bluetoothGatt non-null forever: that both
+     * leaked an app-level GATT client per disconnect (Android allows ~32) and
+     * made the old reconnect() guard bail out permanently, which is why the
+     * connection never came back without a manual tap.
+     */
+    @SuppressLint("MissingPermission")
+    private synchronized void closeConnection(boolean stopReconnecting) {
         commandQueue.clear();
         isSending = false;
+        isFileTransferActive = false;
+        handler.removeCallbacks(writeWatchdogRunnable);
 
-        String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-        log("Connecting to " + deviceName + " (" + device.getAddress() + ")");
+        if (bluetoothGatt != null) {
+            try {
+                bluetoothGatt.disconnect();
+            } catch (Exception ignored) {
+            }
+            try {
+                bluetoothGatt.close();
+            } catch (Exception ignored) {
+            }
+            bluetoothGatt = null;
+        }
+        writeChar = null;
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            log("Using TRANSPORT_LE");
-            bluetoothGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
+        if (stopReconnecting) {
+            targetAddress = null;
+            setReconnecting(false);
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void connectGattToTarget() {
+        String address = targetAddress;
+        if (address == null || bluetoothAdapter == null || !hasConnectPermission())
+            return;
+        try {
+            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
+            openGatt(device);
+        } catch (Exception e) {
+            log("connectGatt failed: " + e.getMessage());
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private synchronized void openGatt(BluetoothDevice device) {
+        if (bluetoothGatt != null)
+            return;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            bluetoothGatt = device.connectGatt(context, false, gattCallback, transport);
         } else {
             bluetoothGatt = device.connectGatt(context, false, gattCallback);
         }
     }
 
+    /** Address-filtered BALANCED scan, bounded in time — same as the original. */
     @SuppressLint("MissingPermission")
+    private void startReconnectScan(int seconds) {
+        final String address = targetAddress;
+        if (address == null || bluetoothAdapter == null || !hasScanPermission()) {
+            connectGattToTarget();
+            return;
+        }
+        android.bluetooth.le.BluetoothLeScanner scanner = bluetoothAdapter.getBluetoothLeScanner();
+        if (scanner == null) {
+            connectGattToTarget();
+            return;
+        }
+        stopReconnectScan();
+
+        scanCallback = new android.bluetooth.le.ScanCallback() {
+            @Override
+            public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
+                if (result == null || result.getDevice() == null)
+                    return;
+                if (!address.equalsIgnoreCase(result.getDevice().getAddress()))
+                    return;
+                log("Auto-reconnect: device found by scan, connecting");
+                stopReconnectScan();
+                openGatt(result.getDevice());
+            }
+
+            @Override
+            public void onScanFailed(int errorCode) {
+                log("Auto-reconnect: scan failed (" + errorCode + "), falling back to direct connect");
+                stopReconnectScan();
+                connectGattToTarget();
+            }
+        };
+
+        try {
+            List<android.bluetooth.le.ScanFilter> filters = new ArrayList<>();
+            filters.add(new android.bluetooth.le.ScanFilter.Builder().setDeviceAddress(address).build());
+            android.bluetooth.le.ScanSettings settings = new android.bluetooth.le.ScanSettings.Builder()
+                    .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_BALANCED)
+                    .build();
+            scanner.startScan(filters, settings, scanCallback);
+            handler.postDelayed(stopScanRunnable, seconds * 1000L);
+        } catch (Exception e) {
+            log("startScan failed: " + e.getMessage());
+            scanCallback = null;
+            connectGattToTarget();
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void stopReconnectScan() {
+        handler.removeCallbacks(stopScanRunnable);
+        android.bluetooth.le.ScanCallback cb = scanCallback;
+        scanCallback = null;
+        if (cb == null || bluetoothAdapter == null)
+            return;
+        try {
+            android.bluetooth.le.BluetoothLeScanner scanner = bluetoothAdapter.getBluetoothLeScanner();
+            if (scanner != null)
+                scanner.stopScan(cb);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** User-initiated connect (device picker / "Reconnect" button). */
+    @SuppressLint("MissingPermission")
+    public void connect(BluetoothDevice device) {
+        if (!hasConnectPermission()) {
+            log("ERROR: Missing BLUETOOTH_CONNECT permission!");
+            return;
+        }
+
+        registerAdapterStateReceiver();
+        closeConnection(false);
+        isConnected = false;
+        connectionState = ConnectionState.DISCONNECTED;
+
+        targetAddress = device.getAddress();
+        autoReconnect = true;
+        // NOT persisted yet: a device only becomes "the watch" once service
+        // discovery proves it speaks our protocol (see onServicesDiscovered).
+        // Persisting on the attempt is how a mis-tap used to bind the app to a
+        // pair of smart glasses permanently.
+        prefs.edit().putBoolean(PREF_AUTO_CONNECT, true).apply();
+
+        String deviceName = device.getName() != null ? device.getName() : device.getAddress();
+        log("Connecting to " + deviceName + " (" + device.getAddress() + ")");
+
+        // Keep the link alive in the background from the very first pairing,
+        // instead of waiting for the next app start.
+        try {
+            BleForegroundService.start(context);
+        } catch (Exception e) {
+            log("Could not start foreground service: " + e.getMessage());
+        }
+
+        // Go through the retry loop so a failed first attempt is retried
+        // automatically instead of leaving the user on a dead "Connecting…".
+        connectDirectly = true;
+        setReconnecting(false);
+        setReconnecting(true);
+    }
+
+    /**
+     * User-initiated disconnect: stops the retry loop and forgets the target,
+     * so the watch stays disconnected until the user reconnects.
+     */
     public void disconnect() {
-        if (bluetoothGatt != null) {
-            log("Disconnecting...");
-            bluetoothGatt.disconnect();
+        log("Disconnecting (user request)...");
+        autoReconnect = false;
+        prefs.edit().putBoolean(PREF_AUTO_CONNECT, false).apply();
+        boolean wasConnected = isConnected;
+        isConnected = false;
+        connectionState = ConnectionState.DISCONNECTED;
+        closeConnection(true);
+        autoReconnect = true; // re-armed for the next explicit connect
+        if (wasConnected) {
+            notifyConnectionState(false, false);
+        }
+        // Drop the foreground notification too — nothing is being kept alive.
+        try {
+            context.stopService(new Intent(context, BleForegroundService.class));
+        } catch (Exception ignored) {
         }
     }
 
@@ -305,12 +697,88 @@ public class BleManager {
         return prefs.getString("last_device_name", null);
     }
 
+    public boolean isAutoConnectEnabled() {
+        return prefs.getBoolean(PREF_AUTO_CONNECT, true);
+    }
+
+    /**
+     * The remembered watch, but only once a GATT session has proven it speaks
+     * our protocol. Callers that would skip the device picker must use this,
+     * never {@link #getLastDeviceAddress()}.
+     */
+    public String getVerifiedDeviceAddress() {
+        if (!prefs.getBoolean(PREF_DEVICE_VERIFIED, false))
+            return null;
+        return prefs.getString("last_device_address", null);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void rememberVerifiedDevice(BluetoothDevice device) {
+        if (device == null)
+            return;
+        String name = null;
+        try {
+            name = device.getName();
+        } catch (Exception ignored) {
+        }
+        prefs.edit()
+                .putString("last_device_address", device.getAddress())
+                .putString("last_device_name", name != null ? name : "")
+                .putBoolean(PREF_DEVICE_VERIFIED, true)
+                .apply();
+        log("Device verified and remembered: " + (name != null ? name : device.getAddress()));
+    }
+
+    /**
+     * The device we connected to does not expose the watch service. Retrying it
+     * on the back-off loop would burn battery forever against hardware that can
+     * never answer, so forget it and stop.
+     */
+    @SuppressLint("MissingPermission")
+    private void handleIncompatibleDevice(BluetoothDevice device) {
+        String name = device != null ? device.getAddress() : "device";
+        try {
+            if (device != null && device.getName() != null)
+                name = device.getName();
+        } catch (Exception ignored) {
+        }
+        log("Not a compatible watch: " + name + " - forgetting it");
+
+        String address = device != null ? device.getAddress() : null;
+        String remembered = prefs.getString("last_device_address", null);
+        if (address != null && address.equalsIgnoreCase(remembered)) {
+            prefs.edit()
+                    .remove("last_device_address")
+                    .remove("last_device_name")
+                    .putBoolean(PREF_DEVICE_VERIFIED, false)
+                    .apply();
+        }
+
+        isConnected = false;
+        connectionState = ConnectionState.DISCONNECTED;
+        autoReconnect = false;
+        closeConnection(true);
+        autoReconnect = true;
+        notifyConnectionState(false, false);
+    }
+
+    /**
+     * Entry point for the foreground service / boot: arm the retry loop for the
+     * remembered watch. Cheap and idempotent — if the link is already up
+     * nothing happens.
+     */
     @SuppressLint("MissingPermission")
     public void reconnect(String address) {
-        if (isConnected || bluetoothGatt != null || address == null || bluetoothAdapter == null)
+        if (address == null || bluetoothAdapter == null)
             return;
-        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
-        connect(device);
+        if (!isAutoConnectEnabled())
+            return;
+        registerAdapterStateReceiver();
+        targetAddress = address;
+        autoReconnect = true;
+        if (isConnected || isReconnecting)
+            return;
+        setReconnecting(true);
     }
 
     // ========== GATT Callback — ported from omo version ==========
@@ -319,28 +787,42 @@ public class BleManager {
         @SuppressLint("MissingPermission")
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
+            if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
                 isConnected = true;
-                String connName = gatt.getDevice().getName();
-                prefs.edit()
-                        .putString("last_device_address", gatt.getDevice().getAddress())
-                        .putString("last_device_name",
-                                connName != null ? connName : "")
-                        .apply();
-                log("Connected (status=" + status + "). Discovering services...");
-                if (listener != null) {
-                    handler.post(() -> listener.onConnectionStateChange(true, false));
+                // The link is up: cancel the retry loop, it costs nothing while idle.
+                setReconnecting(false);
+                synchronized (BleManager.this) {
+                    if (bluetoothGatt == null) {
+                        bluetoothGatt = gatt;
+                    }
                 }
+                targetAddress = gatt.getDevice().getAddress();
+                log("Connected (status=" + status + "). Discovering services...");
+                notifyConnectionState(true, false);
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                boolean wasConnected = isConnected;
                 isConnected = false;
                 connectionState = ConnectionState.DISCONNECTED;
                 log("Disconnected (status=" + status + ") - Resetting state");
                 commandQueue.clear();
                 isSending = false;
                 isFileTransferActive = false;
-                if (listener != null) {
-                    handler.post(() -> listener.onConnectionStateChange(false, false));
+                handler.removeCallbacks(rxAssemblyTimeout);
+                rxAssembly = null;
+                rxFilled = 0;
+                handler.removeCallbacks(healthTimeoutRunnable);
+                healthKeyIndex = -1;
+                healthPageCount = 0;
+                lastHealthPageFingerprint = 0;
+                if (wasConnected || !isReconnecting) {
+                    notifyConnectionState(false, false);
+                }
+                if (autoReconnect && shouldReconnect()) {
+                    // Restarts the back-off from 5s; no-op if already looping.
+                    handler.post(() -> setReconnecting(true));
+                } else {
+                    closeConnection(false);
                 }
             }
         }
@@ -356,6 +838,7 @@ public class BleManager {
 
                     if (writeChar != null && notifyChar != null) {
                         log("STF Services Found!");
+                        rememberVerifiedDevice(gatt.getDevice());
                         gatt.setCharacteristicNotification(notifyChar, true);
                         BluetoothGattDescriptor descriptor = notifyChar.getDescriptor(CCCD_UUID);
                         if (descriptor != null) {
@@ -367,11 +850,11 @@ public class BleManager {
                         }
                     } else {
                         log("ERROR: Required characteristics not found");
-                        gatt.disconnect();
+                        handleIncompatibleDevice(gatt.getDevice());
                     }
                 } else {
                     log("ERROR: STF Service UUID not found - device may not be compatible");
-                    gatt.disconnect();
+                    handleIncompatibleDevice(gatt.getDevice());
                 }
             } else {
                 log("ERROR: Service discovery failed, status=" + status);
@@ -393,6 +876,9 @@ public class BleManager {
         public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 currentMtu = mtu - 3;
+                // Only a guess. DEVICE_INFO overrides it later in the handshake
+                // when the watch reports its real buffer; MTU is renegotiated
+                // before that on every reconnect, so this resets cleanly.
                 ioBufferSize = 2 * currentMtu;
                 log("MTU changed to " + mtu + " (payload=" + currentMtu + ", chunkSize=" + ioBufferSize + ")");
                 sendHandshake();
@@ -406,7 +892,7 @@ public class BleManager {
             byte[] data = characteristic.getValue();
             if (data != null) {
                 log("Rx [" + data.length + "]: " + bytesToHex(data));
-                processResponse(data);
+                onRxChunk(data);
             }
         }
 
@@ -446,9 +932,7 @@ public class BleManager {
     private void onSessionReady() {
         connectionState = ConnectionState.SESSION_READY;
         log("=== SESSION READY ===");
-        if (listener != null) {
-            handler.post(() -> listener.onConnectionStateChange(true, true));
-        }
+        notifyConnectionState(true, true);
         handler.postDelayed(this::readDeviceInfo, 200);
         handler.postDelayed(this::readFirmwareVersion, 350);
         handler.postDelayed(this::readBattery, 500);
@@ -456,6 +940,61 @@ public class BleManager {
         handler.postDelayed(this::syncTimeAndSettings, 800);
         // Then push weather (network fetch, off the main thread) once things settle.
         handler.postDelayed(() -> WeatherSync.syncIfPossible(context, this), 2500);
+    }
+
+    /**
+     * Feed one BLE notification into the frame reassembler.
+     *
+     * A logical frame is AB | hdr | len(2) | crc(2) | cmd | key | flag | payload,
+     * where len = payload + 3, so the whole frame is len + 6 bytes. Anything
+     * longer than the MTU arrives split over several notifications, and only the
+     * first one carries the 0xAB header. Health pages are 1024 payload bytes and
+     * were losing their last two notifications entirely, which is why the app
+     * stopped seeing anything newer than the middle of the first page.
+     */
+    private void onRxChunk(byte[] data) {
+        if (rxAssembly != null) {
+            int need = rxAssembly.length - rxFilled;
+            int take = Math.min(need, data.length);
+            System.arraycopy(data, 0, rxAssembly, rxFilled, take);
+            rxFilled += take;
+            if (rxFilled < rxAssembly.length)
+                return;
+            byte[] complete = rxAssembly;
+            rxAssembly = null;
+            rxFilled = 0;
+            handler.removeCallbacks(rxAssemblyTimeout);
+            log("Rx frame reassembled: " + complete.length + " bytes");
+            processResponse(complete);
+            if (take < data.length)
+                onRxChunk(Arrays.copyOfRange(data, take, data.length));
+            return;
+        }
+
+        if (data.length == 0)
+            return;
+        if (data[0] != (byte) 0xAB) {
+            log("Rx orphan chunk (" + data.length + " bytes, no frame in progress) — discarding");
+            return;
+        }
+        if (data.length < 6) {
+            processResponse(data); // too short to hold a length; let the parser reject it
+            return;
+        }
+
+        int frameLen = (((data[2] & 0xFF) << 8) | (data[3] & 0xFF)) + 6;
+        if (data.length >= frameLen) {
+            processResponse(Arrays.copyOfRange(data, 0, frameLen));
+            if (data.length > frameLen)
+                onRxChunk(Arrays.copyOfRange(data, frameLen, data.length));
+            return;
+        }
+
+        rxAssembly = new byte[frameLen];
+        System.arraycopy(data, 0, rxAssembly, 0, data.length);
+        rxFilled = data.length;
+        handler.removeCallbacks(rxAssemblyTimeout);
+        handler.postDelayed(rxAssemblyTimeout, RX_ASSEMBLY_TIMEOUT_MS);
     }
 
     /**
@@ -506,8 +1045,12 @@ public class BleManager {
             return;
         }
 
-        // Watch requests time sync
-        if (cmd == 0x02 && key == 0x01 && connectionState == ConnectionState.SESSION_READY
+        // Watch requests time sync.
+        // Must be a genuine request: the watch also ACKs our own TIME write with
+        // the same cmd/key but isReply set, and matching that ACK here made the
+        // two sides ping-pong time frames ~11x/second forever, which pinned the
+        // radio on and drained both batteries.
+        if (!isReply && cmd == 0x02 && key == 0x01 && connectionState == ConnectionState.SESSION_READY
                 && !isFileTransferActive) {
             log("Watch requested time sync — sending time");
             syncTime();
@@ -516,7 +1059,7 @@ public class BleManager {
 
         // Device Info response (Cmd=0x02, Key=0x3E)
         if (isReply && cmd == 0x02 && (key & 0xFF) == 0x3E) {
-            log("Device Info received (ioBufferSize via MTU=" + ioBufferSize + ")");
+            onDeviceInfo(data.length > 9 ? Arrays.copyOfRange(data, 9, data.length) : new byte[0]);
             return;
         }
 
@@ -533,9 +1076,7 @@ public class BleManager {
             String version = (data.length > 9) ? new String(Arrays.copyOfRange(data, 9, data.length)).trim() : "";
             log("Firmware Version: " + version);
             prefs.edit().putString("firmware_version", "v" + version).apply();
-            if (listener != null) {
-                handler.post(() -> listener.onConnectionStateChange(true, true));
-            }
+            notifyConnectionState(true, true);
             return;
         }
 
@@ -593,9 +1134,7 @@ public class BleManager {
             int percent = (total > 0) ? (int) ((completed * 100) / total) : 0;
             log("Progress: " + completed + "/" + total + " (" + percent + "%) Err=" + error);
 
-            if (listener != null) {
-                handler.post(() -> listener.onTransferProgress(percent, completed, total));
-            }
+            forEachListener(l -> l.onTransferProgress(percent, completed, total));
 
             if (transferStatus == 0) {
                 if (isFileTransferActive && completed < total) {
@@ -617,9 +1156,7 @@ public class BleManager {
                     isSending = false;
                     packetsSent = 0;
                     lastTransferOffset = -1;
-                    if (listener != null) {
-                        handler.post(() -> listener.onTransferComplete());
-                    }
+                    forEachListener(BleStateListener::onTransferComplete);
                 }
             }
             return;
@@ -632,18 +1169,16 @@ public class BleManager {
             log("Health [" + keyName + "] payload=" + healthPayload.length + "B: " + bytesToHex(healthPayload));
 
             // Parse health records and store to SharedPreferences
-            parseAndStoreHealthData(key & 0xFF, healthPayload);
+            boolean stored = parseAndStoreHealthData(key & 0xFF, healthPayload);
 
-            if (listener != null) {
-                handler.post(() -> listener.onHealthDataReceived(keyName, healthPayload));
-            }
+            forEachListener(l -> l.onHealthDataReceived(keyName, healthPayload));
 
             // ACK unsolicited pushes (watch -> phone) before driving the sync state
             // machine, otherwise advance the sequential paging.
             if (!isReply) {
                 sendAck(cmd, key, flag);
             } else {
-                onHealthPage(key & 0xFF, healthPayload.length);
+                onHealthPage(key & 0xFF, flag & 0xFF, healthPayload, stored);
             }
             return;
         }
@@ -879,6 +1414,12 @@ public class BleManager {
     // ========== Health Sync ==========
 
     public static final int HEALTH_KEY_LOCATION = 0x07; // GPS location coordinate records
+    /**
+     * Rich workout record, 2048 bytes, carrying the GPS polyline plus HR/pace/
+     * speed/cadence/altitude series (BleWorkout3 in the original app). We never
+     * asked for it, which is why watch workouts arrived without a route.
+     */
+    public static final int HEALTH_KEY_WORKOUT3 = 0x23;
 
     /**
      * Request all health data from the watch.
@@ -894,15 +1435,28 @@ public class BleManager {
             HEALTH_KEY_SLEEP, // 0x05 - Sleep stages
             HEALTH_KEY_WORKOUT, // 0x06 - Workout session data
             HEALTH_KEY_WORKOUT2, // 0x0E - Rich workout session data
+            HEALTH_KEY_WORKOUT3, // 0x23 - Workout with GPS polyline
             HEALTH_KEY_LOCATION, // 0x07 - GPS coordinate records
             HEALTH_KEY_TEMPERATURE, // 0x08 - Body temperature
             HEALTH_KEY_BLOOD_OXYGEN, // 0x09 - SpO2
             HEALTH_KEY_HRV, // 0x0A - Heart rate variability
             HEALTH_KEY_PRESSURE, // 0x0D - Stress level
     };
+    // The keys this sync run will actually walk. Normally HEALTH_SYNC_KEYS,
+    // narrowed to what DEVICE_INFO said the watch supports when it told us.
+    private int[] activeHealthKeys = HEALTH_SYNC_KEYS;
     private int healthKeyIndex = -1;
     private int healthPageCount = 0;
-    private static final int MAX_HEALTH_PAGES = 64; // safety cap against infinite paging
+    private int lastHealthPageFingerprint = 0;
+    // A health request the watch never answers used to wedge the sync forever:
+    // healthKeyIndex stayed >= 0 and syncHealth() refused every later attempt
+    // until the app was restarted. This moves the walk on instead.
+    private static final long HEALTH_RESPONSE_TIMEOUT_MS = 8000;
+    private final Runnable healthTimeoutRunnable = this::onHealthTimeout;
+    // Safety cap against infinite paging. Each page is real progress now that
+    // DELETE confirms it, so this only bounds how much of a long backlog one
+    // sync drains; the rest comes down on the next one.
+    private static final int MAX_HEALTH_PAGES = 200;
 
     /**
      * Request all health data from the watch, one key at a time.
@@ -915,10 +1469,56 @@ public class BleManager {
             log("Cannot sync health: session not ready (state=" + connectionState + ")");
             return;
         }
-        log("=== Syncing Health Data ===");
+        if (healthKeyIndex >= 0) {
+            // Already walking the key list. Restarting would reset the cursor to
+            // key 0 mid-flight and re-request pages the watch has already
+            // handed over — it returns them empty, so those records are lost.
+            log("Health sync already in progress (key index " + healthKeyIndex + ") — ignoring");
+            return;
+        }
+        activeHealthKeys = resolveHealthKeys();
+        log("=== Syncing Health Data (" + activeHealthKeys.length + " keys) ===");
         healthKeyIndex = 0;
         healthPageCount = 0;
-        requestHealthKey(HEALTH_SYNC_KEYS[0], BleKeyFlag.READ.getValue());
+        requestHealthKey(activeHealthKeys[0], BleKeyFlag.READ.getValue());
+    }
+
+    /**
+     * Narrow the health sync to the keys this watch reported in DEVICE_INFO.
+     *
+     * Each unsupported key costs a full 8s timeout, so a model that only has
+     * four sensors used to spend a minute and a half waiting on silence. The
+     * watch reporting nothing means "I did not tell you", not "I support
+     * nothing" — that falls back to the built-in list rather than syncing zero
+     * keys. A watch that reports keys we have no parser for is likewise not our
+     * problem: the intersection only ever shrinks the built-in list.
+     */
+    private int[] resolveHealthKeys() {
+        BleDeviceInfo info = deviceInfo;
+        if (info == null || !info.hasDataKeys())
+            return HEALTH_SYNC_KEYS;
+
+        int[] filtered = new int[HEALTH_SYNC_KEYS.length];
+        int n = 0;
+        StringBuilder skipped = new StringBuilder();
+        for (int key : HEALTH_SYNC_KEYS) {
+            if (info.supportsKey(0x0500 | key)) {
+                filtered[n++] = key;
+            } else {
+                if (skipped.length() > 0)
+                    skipped.append(", ");
+                skipped.append(getHealthKeyName(key));
+            }
+        }
+        if (n == 0) {
+            // The watch listed keys, but none we handle. Trust our list over an
+            // empty walk that would report "sync complete" having done nothing.
+            log("Health sync: DEVICE_INFO matched none of our keys — using built-in list");
+            return HEALTH_SYNC_KEYS;
+        }
+        if (skipped.length() > 0)
+            log("Health sync: skipping unsupported keys [" + skipped + "]");
+        return Arrays.copyOf(filtered, n);
     }
 
     private void requestHealthKey(int key, int flag) {
@@ -927,34 +1527,196 @@ public class BleManager {
         // empty reply from the watch means "no more records" for that key.
         byte[] msg = createMessage((byte) 0x05, (byte) key, (byte) flag, null);
         log("Health READ key=0x" + String.format("%02X", key) + " flag=0x" + String.format("%02X", flag));
+        handler.removeCallbacks(healthTimeoutRunnable);
+        handler.postDelayed(healthTimeoutRunnable, HEALTH_RESPONSE_TIMEOUT_MS);
         enqueueLogicalFrame(msg);
         isSending = true;
         sendNextChunk();
     }
 
-    /** Advance the sequential health sync after a key's page was processed. */
-    private void onHealthPage(int key, int payloadLen) {
+    /**
+     * Advance the sequential health sync after a key's page was processed.
+     *
+     * The watch keeps a read cursor per key and only moves it when the phone
+     * confirms the page with DELETE — the health keys accept exactly READ and
+     * DELETE, nothing else (established empirically against the watch; the
+     * SDK's own getBleKeyFlags() table cannot be recovered from the decompile,
+     * see 02-COMMAND-PROTOCOL.md §6). Without that confirmation the watch replays its
+     * oldest unconfirmed block forever, which is why the app had been stuck on
+     * mid-August data while the watch held six more days of it.
+     *
+     * DELETE is only sent once the page is safely committed to prefs, so a
+     * failed write costs a retry next sync instead of losing the records.
+     */
+    private void onHealthPage(int key, int flag, byte[] payload, boolean stored) {
         if (healthKeyIndex < 0)
             return; // not in a sync session (e.g. unsolicited push)
-        boolean more = payloadLen > 0 && healthPageCount < MAX_HEALTH_PAGES;
-        if (more) {
+        handler.removeCallbacks(healthTimeoutRunnable);
+
+        if (flag == BleKeyFlag.DELETE.getValue()) {
+            // The watch dropped the page it just gave us; ask for the next one.
             healthPageCount++;
-            requestHealthKey(key, BleKeyFlag.READ_CONTINUE.getValue());
+            if (healthPageCount < MAX_HEALTH_PAGES) {
+                requestHealthKey(key, BleKeyFlag.READ.getValue());
+                return;
+            }
+            log("Health [" + getHealthKeyName(key) + "]: page cap reached, continuing next sync");
+            nextHealthKey();
             return;
         }
-        // This key is done — move to the next one.
+
+        int payloadLen = (payload != null) ? payload.length : 0;
+        if (payloadLen == 0) {
+            nextHealthKey(); // key exhausted
+            return;
+        }
+        if (!stored) {
+            log("Health [" + getHealthKeyName(key) + "]: page not stored — leaving it on the watch");
+            nextHealthKey();
+            return;
+        }
+        // Safety net: if a firmware variant ignores the DELETE, we would ask for
+        // the same block forever. Stop as soon as a page repeats.
+        int fingerprint = Arrays.hashCode(payload);
+        if (healthPageCount > 0 && fingerprint == lastHealthPageFingerprint) {
+            log("Health [" + getHealthKeyName(key) + "]: page repeated — cursor is not advancing, stopping");
+            nextHealthKey();
+            return;
+        }
+        lastHealthPageFingerprint = fingerprint;
+        requestHealthKey(key, BleKeyFlag.DELETE.getValue());
+    }
+
+    /** The watch did not answer a health request — move on rather than wedge. */
+    private void onHealthTimeout() {
+        if (healthKeyIndex < 0)
+            return;
+        int key = activeHealthKeys[Math.min(healthKeyIndex, activeHealthKeys.length - 1)];
+        log("Health [" + getHealthKeyName(key) + "]: no reply in " + HEALTH_RESPONSE_TIMEOUT_MS + "ms — skipping key");
+        nextHealthKey();
+    }
+
+    /** Move the sync on to the next key, or finish it. */
+    private void nextHealthKey() {
         healthKeyIndex++;
         healthPageCount = 0;
-        if (healthKeyIndex < HEALTH_SYNC_KEYS.length) {
-            requestHealthKey(HEALTH_SYNC_KEYS[healthKeyIndex], BleKeyFlag.READ.getValue());
+        lastHealthPageFingerprint = 0;
+        if (healthKeyIndex < activeHealthKeys.length) {
+            requestHealthKey(activeHealthKeys[healthKeyIndex], BleKeyFlag.READ.getValue());
         } else {
             healthKeyIndex = -1;
+            handler.removeCallbacks(healthTimeoutRunnable);
             log("=== Health Sync Complete ===");
             prefs.edit().putLong("last_sync_time", System.currentTimeMillis() / 1000L).apply();
-            if (listener != null) {
-                handler.post(() -> listener.onHealthSyncComplete());
+            forEachListener(BleStateListener::onHealthSyncComplete);
+        }
+    }
+
+    /** Per-key retention for the health series stored in SharedPreferences. */
+    private static final int HEALTH_MAX_RECORDS = 20000;
+
+    /**
+     * One record per timestamp, latest value wins, ordered by time.
+     *
+     * The watch replays a page until it is told to drop it, and a page that
+     * arrives twice used to be appended twice: steps grew from 1751 to 2199
+     * stored records in one night without a single new measurement.
+     */
+    private static String dedupeSeries(String list) {
+        if (list == null || list.isEmpty())
+            return "";
+        java.util.TreeMap<Long, String> byTime = new java.util.TreeMap<>();
+        for (String rec : list.split(",")) {
+            int colon = rec.indexOf(':');
+            if (colon <= 0)
+                continue;
+            try {
+                byTime.put(Long.parseLong(rec.substring(0, colon).trim()), rec);
+            } catch (NumberFormatException ignored) {
+                // not a record we wrote — drop it
             }
         }
+        // Bound the series. Dedupe alone stops a re-sync from inflating it, but
+        // a year of heart-rate samples still ends up as one multi-hundred-KB
+        // SharedPreferences string that every render() reparses. Keep the most
+        // recent HEALTH_MAX_RECORDS; raise it if you import older history.
+        while (byTime.size() > HEALTH_MAX_RECORDS)
+            byTime.pollFirstEntry();
+        StringBuilder sb = new StringBuilder();
+        for (String rec : byTime.values()) {
+            if (sb.length() > 0)
+                sb.append(",");
+            sb.append(rec);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Drop exact duplicate records, keeping insertion order. Used for GPS
+     * fixes, where two points can legitimately share a timestamp and keying on
+     * time alone would thin out the route.
+     */
+    private static String dedupeRecords(String list) {
+        if (list == null || list.isEmpty())
+            return "";
+        java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
+        for (String rec : list.split(",")) {
+            if (!rec.isEmpty())
+                seen.add(rec);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String rec : seen) {
+            if (sb.length() > 0)
+                sb.append(",");
+            sb.append(rec);
+        }
+        return sb.toString();
+    }
+
+    /** Whether the accumulated workout list already holds a record for this start. */
+    private static boolean containsWorkoutStart(CharSequence stored, int start) {
+        String prefix = start + ":";
+        String all = stored.toString();
+        if (all.startsWith(prefix))
+            return true;
+        return all.contains("," + prefix);
+    }
+
+    /** One record per start timestamp, first one wins. */
+    private static String dedupeWorkoutList(String list) {
+        if (list == null || list.isEmpty())
+            return "";
+        java.util.LinkedHashMap<String, String> byStart = new java.util.LinkedHashMap<>();
+        for (String rec : list.split(",")) {
+            int colon = rec.indexOf(':');
+            if (colon <= 0)
+                continue;
+            String start = rec.substring(0, colon).trim();
+            if (!byStart.containsKey(start))
+                byStart.put(start, rec);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String rec : byStart.values()) {
+            if (sb.length() > 0)
+                sb.append(",");
+            sb.append(rec);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Converts a watch timestamp to a real Unix epoch.
+     *
+     * The watch counts seconds from 2000-01-01, but its clock is the *local*
+     * wall clock — syncTime() sends local hours, not UTC. Adding the epoch
+     * alone therefore yields a value that reads two hours late here, which is
+     * why a workout finished at 23:29 appeared in the history as 01:29 the
+     * next day. Subtracting the zone offset puts it back on real time.
+     */
+    private static int watchTimeToEpoch(int raw) {
+        long asLocal = (raw & 0xFFFFFFFFL) + 946684800L;
+        int offsetSec = TimeZone.getDefault().getOffset(asLocal * 1000L) / 1000;
+        return (int) (asLocal - offsetSec);
     }
 
     private String getHealthKeyName(int key) {
@@ -969,6 +1731,8 @@ public class BleManager {
                 return "sleep";
             case HEALTH_KEY_WORKOUT:
                 return "workout";
+            case HEALTH_KEY_WORKOUT3:
+                return "workout3";
             case HEALTH_KEY_WORKOUT2:
                 return "workout2";
             case HEALTH_KEY_LOCATION:
@@ -995,10 +1759,10 @@ public class BleManager {
      * SharedPreferences.
      * Each entity type has a fixed ITEM_LENGTH. Records are big-endian packed.
      */
-    private void parseAndStoreHealthData(int key, byte[] payload) {
+    private boolean parseAndStoreHealthData(int key, byte[] payload) {
         if (payload == null || payload.length == 0) {
             log("Health [" + getHealthKeyName(key) + "]: empty payload");
-            return;
+            return false;
         }
 
         SharedPreferences.Editor editor = prefs.edit();
@@ -1016,7 +1780,7 @@ public class BleManager {
                     StringBuilder calories = new StringBuilder(prefs.getString(prefix + "calories", ""));
                     StringBuilder distance = new StringBuilder(prefs.getString(prefix + "distance", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int packed = bb.get() & 0xFF;
                         int b0 = bb.get() & 0xFF;
                         int b1 = bb.get() & 0xFF;
@@ -1035,9 +1799,9 @@ public class BleManager {
                         distance.append(time).append(":").append(dist);
                         log("  Activity: t=" + time + " steps=" + step + " cal=" + calorie + " dist=" + dist);
                     }
-                    editor.putString(prefix + "steps", steps.toString());
-                    editor.putString(prefix + "calories", calories.toString());
-                    editor.putString(prefix + "distance", distance.toString());
+                    editor.putString(prefix + "steps", dedupeSeries(steps.toString()));
+                    editor.putString(prefix + "calories", dedupeSeries(calories.toString()));
+                    editor.putString(prefix + "distance", dedupeSeries(distance.toString()));
                     break;
                 }
                 case HEALTH_KEY_HEART_RATE: {
@@ -1045,7 +1809,7 @@ public class BleManager {
                     int itemLen = 6;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "heart_rate", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int bpm = bb.get() & 0xFF;
                         int type = bb.get() & 0xFF;
                         if (sb.length() > 0)
@@ -1053,15 +1817,15 @@ public class BleManager {
                         sb.append(time).append(":").append(bpm);
                         log("  HeartRate: t=" + time + " bpm=" + bpm + " type=" + type);
                     }
-                    editor.putString(prefix + "heart_rate", sb.toString());
+                    editor.putString(prefix + "heart_rate", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_BLOOD_PRESSURE: {
                     // ITEM_LENGTH=6: time(4) systolic(1) diastolic(1)
                     int itemLen = 6;
-                    StringBuilder sb = new StringBuilder();
+                    StringBuilder sb = new StringBuilder(prefs.getString(prefix + "blood_pressure", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int sys = bb.get() & 0xFF;
                         int dia = bb.get() & 0xFF;
                         if (sb.length() > 0)
@@ -1069,7 +1833,7 @@ public class BleManager {
                         sb.append(time).append(":").append(sys).append("/").append(dia);
                         log("  BP: t=" + time + " sys=" + sys + " dia=" + dia);
                     }
-                    editor.putString(prefix + "blood_pressure", sb.toString());
+                    editor.putString(prefix + "blood_pressure", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_SLEEP: {
@@ -1077,7 +1841,7 @@ public class BleManager {
                     int itemLen = 7;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "sleep", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int mode = bb.get() & 0xFF;
                         int soft = bb.get() & 0xFF;
                         int strong = bb.get() & 0xFF;
@@ -1086,22 +1850,22 @@ public class BleManager {
                         sb.append(time).append(":").append(mode).append(":").append(soft).append(":").append(strong);
                         log("  Sleep: t=" + time + " mode=" + mode + " light=" + soft + " deep=" + strong);
                     }
-                    editor.putString(prefix + "sleep", sb.toString());
+                    editor.putString(prefix + "sleep", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_TEMPERATURE: {
                     // ITEM_LENGTH=6: time(4) temperature(2) — value *10
                     int itemLen = 6;
-                    StringBuilder sb = new StringBuilder();
+                    StringBuilder sb = new StringBuilder(prefs.getString(prefix + "temperature", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int temp = bb.getShort();
                         if (sb.length() > 0)
                             sb.append(",");
                         sb.append(time).append(":").append(temp);
                         log("  Temp: t=" + time + " temp=" + (temp / 10.0) + "°C");
                     }
-                    editor.putString(prefix + "temperature", sb.toString());
+                    editor.putString(prefix + "temperature", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_BLOOD_OXYGEN: {
@@ -1109,7 +1873,7 @@ public class BleManager {
                     int itemLen = 6;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "blood_oxygen", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int spo2 = bb.get() & 0xFF;
                         bb.get(); // padding
                         if (sb.length() > 0)
@@ -1117,7 +1881,7 @@ public class BleManager {
                         sb.append(time).append(":").append(spo2);
                         log("  SpO2: t=" + time + " value=" + spo2 + "%");
                     }
-                    editor.putString(prefix + "blood_oxygen", sb.toString());
+                    editor.putString(prefix + "blood_oxygen", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_HRV: {
@@ -1125,14 +1889,14 @@ public class BleManager {
                     int itemLen = 6;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "hrv", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800;
+                        int time = watchTimeToEpoch(bb.getInt());
                         int val = bb.get(); // signed
                         bb.get(); // avg
                         if (sb.length() > 0)
                             sb.append(",");
                         sb.append(time).append(":").append(val);
                     }
-                    editor.putString(prefix + "hrv", sb.toString());
+                    editor.putString(prefix + "hrv", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_PRESSURE: {
@@ -1140,14 +1904,14 @@ public class BleManager {
                     int itemLen = 6;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "stress", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800;
+                        int time = watchTimeToEpoch(bb.getInt());
                         int val = bb.get() & 0xFF;
                         bb.get(); // padding
                         if (sb.length() > 0)
                             sb.append(",");
                         sb.append(time).append(":").append(val);
                     }
-                    editor.putString(prefix + "stress", sb.toString());
+                    editor.putString(prefix + "stress", dedupeSeries(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_WORKOUT: {
@@ -1155,8 +1919,8 @@ public class BleManager {
                     int itemLen = 48;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "workout", ""));
                     while (bb.remaining() >= itemLen) {
-                        int start = bb.getInt() + 946684800;
-                        int end = bb.getInt() + 946684800;
+                        int start = watchTimeToEpoch(bb.getInt());
+                        int end = watchTimeToEpoch(bb.getInt());
                         int duration = bb.getShort() & 0xFFFF;
                         int altitude = bb.getShort();
                         int airPressure = bb.getShort() & 0xFFFF;
@@ -1172,6 +1936,14 @@ public class BleManager {
                         // Skip remaining 10 bytes padding
                         for (int i = 0; i < 10; i++) {
                             bb.get();
+                        }
+                        if (!isPlausibleWorkout(start, end, duration)) {
+                            log("  Skipping corrupt workout record: start=" + start
+                                    + " end=" + end + " duration=" + duration);
+                            continue;
+                        }
+                        if (containsWorkoutStart(sb, start)) {
+                            continue; // already stored, from a previous sync or from WORKOUT2
                         }
                         if (sb.length() > 0)
                             sb.append(",");
@@ -1191,23 +1963,17 @@ public class BleManager {
                           .append(maxBpm);
                         log("  Workout: start=" + start + " end=" + end + " mode=" + mode + " steps=" + step + " dist=" + distance + " kcal=" + calorie);
 
-                        // Merge into standard "sport_sessions" for history compatibility
-                        String allSessions = prefs.getString("sport_sessions", "");
-                        boolean exists = false;
-                        if (!allSessions.isEmpty()) {
-                            for (String s : allSessions.split(",")) {
-                                if (s.startsWith(start + "|")) {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!exists) {
-                            String rec = start + "|" + getSportName(mode) + "|" + duration + "|" + calorie;
-                            editor.putString("sport_sessions", allSessions.isEmpty() ? rec : rec + "," + allSessions);
-                        }
                     }
-                    editor.putString(prefix + "workout", sb.toString());
+                    editor.putString(prefix + "workout", dedupeWorkoutList(sb.toString()));
+                    break;
+                }
+                case HEALTH_KEY_WORKOUT3: {
+                    // Layout not decoded yet — log enough to see whether this
+                    // watch sends it, and what the path header looks like.
+                    log("  Workout3 payload " + bb.remaining() + " bytes");
+                    byte[] head = new byte[Math.min(bb.remaining(), 160)];
+                    bb.get(head);
+                    log("  Workout3 head: " + bytesToHex(head));
                     break;
                 }
                 case HEALTH_KEY_WORKOUT2: {
@@ -1215,8 +1981,8 @@ public class BleManager {
                     int itemLen = 128;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "workout", ""));
                     while (bb.remaining() >= itemLen) {
-                        int start = bb.getInt() + 946684800;
-                        int end = bb.getInt() + 946684800;
+                        int start = watchTimeToEpoch(bb.getInt());
+                        int end = watchTimeToEpoch(bb.getInt());
                         int duration = bb.getShort() & 0xFFFF;
                         int altitude = bb.getShort();
                         int airPressure = bb.getShort() & 0xFFFF;
@@ -1232,6 +1998,14 @@ public class BleManager {
                         // Skip remaining 90 bytes of the 128-byte item
                         for (int i = 0; i < 90; i++) {
                             bb.get();
+                        }
+                        if (!isPlausibleWorkout(start, end, duration)) {
+                            log("  Skipping corrupt workout record: start=" + start
+                                    + " end=" + end + " duration=" + duration);
+                            continue;
+                        }
+                        if (containsWorkoutStart(sb, start)) {
+                            continue; // already stored, from a previous sync or from WORKOUT2
                         }
                         if (sb.length() > 0)
                             sb.append(",");
@@ -1251,23 +2025,8 @@ public class BleManager {
                           .append(maxBpm);
                         log("  Workout2: start=" + start + " end=" + end + " mode=" + mode + " steps=" + step + " dist=" + distance + " kcal=" + calorie);
 
-                        // Merge into standard "sport_sessions" for history compatibility
-                        String allSessions = prefs.getString("sport_sessions", "");
-                        boolean exists = false;
-                        if (!allSessions.isEmpty()) {
-                            for (String s : allSessions.split(",")) {
-                                if (s.startsWith(start + "|")) {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!exists) {
-                            String rec = start + "|" + getSportName(mode) + "|" + duration + "|" + calorie;
-                            editor.putString("sport_sessions", allSessions.isEmpty() ? rec : rec + "," + allSessions);
-                        }
                     }
-                    editor.putString(prefix + "workout", sb.toString());
+                    editor.putString(prefix + "workout", dedupeWorkoutList(sb.toString()));
                     break;
                 }
                 case HEALTH_KEY_LOCATION: {
@@ -1275,7 +2034,7 @@ public class BleManager {
                     int itemLen = 16;
                     StringBuilder sb = new StringBuilder(prefs.getString(prefix + "location", ""));
                     while (bb.remaining() >= itemLen) {
-                        int time = bb.getInt() + 946684800; // Watch uses 2000-01-01 epoch
+                        int time = watchTimeToEpoch(bb.getInt());
                         int mode = bb.get() & 0xFF;
                         bb.get(); // padding (1 byte)
                         int altitude = bb.getShort();
@@ -1286,28 +2045,33 @@ public class BleManager {
                         sb.append(time).append(":").append(mode).append(":").append(altitude).append(":").append(longitude).append(":").append(latitude);
                         log("  Location: t=" + time + " mode=" + mode + " alt=" + altitude + " lon=" + longitude + " lat=" + latitude);
                     }
-                    editor.putString(prefix + "location", sb.toString());
+                    editor.putString(prefix + "location", dedupeRecords(sb.toString()));
                     break;
                 }
                 default:
                     log("  Unhandled health key 0x" + String.format("%02X", key) + " (" + payload.length + " bytes)");
                     break;
             }
-            editor.apply();
+            // commit(), not apply(): the caller only tells the watch it may drop
+            // this page once the write has actually landed on disk.
+            return editor.commit();
         } catch (Exception e) {
             log("Health parse error: " + e.getMessage());
+            return false;
         }
     }
 
-    private String getSportName(int mode) {
-        String[] sports = {
-            "Caminar", "Correr", "Ciclismo", "Senderismo", "Cinta", "Yoga",
-            "Saltar la cuerda", "Baloncesto", "Fútbol", "Natación", "Remo", "Escalada"
-        };
-        if (mode >= 1 && mode <= sports.length) {
-            return sports[mode - 1];
-        }
-        return "Deporte " + mode;
+    /**
+     * Workout records only make sense with a real timestamp and a real
+     * duration. Anything else is a mis-parsed frame, and storing it means a row
+     * the user cannot get rid of.
+     */
+    private static boolean isPlausibleWorkout(int start, int end, int duration) {
+        long now = System.currentTimeMillis() / 1000L;
+        return start > 1577836800L /* 2020-01-01 */
+                && start < now + 86400L
+                && end >= start
+                && duration > 0;
     }
 
     // ========== Helpers — ported from omo version ==========
@@ -1419,8 +2183,8 @@ public class BleManager {
                 } else {
                     log("Transfer failed after " + MAX_TRANSFER_RETRIES + " retries");
                     isFileTransferActive = false;
-                    if (listener != null)
-                        handler.post(() -> listener.onTransferFailed("Transfer stalled after " + MAX_TRANSFER_RETRIES + " retries"));
+                    forEachListener(l -> l.onTransferFailed(
+                            "Transfer stalled after " + MAX_TRANSFER_RETRIES + " retries"));
                 }
             }
         };
@@ -1496,6 +2260,58 @@ public class BleManager {
         enqueueLogicalFrame(msg);
         isSending = true;
         sendNextChunk();
+    }
+
+    /** Capability block from the last DEVICE_INFO reply, or null before one arrives. */
+    public BleDeviceInfo getDeviceInfo() {
+        return deviceInfo;
+    }
+
+    /**
+     * Handle the DEVICE_INFO (0x023E) reply.
+     *
+     * This block is what makes feature gating possible: it carries the list of
+     * BleKeys this particular watch supports plus ~100 capability flags. It was
+     * previously logged and thrown away, so every request the app made was a
+     * guess. See docs/protocols/11-DEVICE-INFO-CAPABILITIES.md.
+     */
+    private void onDeviceInfo(byte[] payload) {
+        BleDeviceInfo info = BleDeviceInfo.parse(payload);
+        deviceInfo = info;
+        log("Device Info: " + info);
+        if (info.hasDataKeys())
+            log("Device Info supported keys: " + info.dataKeysHex());
+        else
+            log("Device Info carries no key list (" + info.variant
+                    + ") — keeping the built-in sync list");
+
+        // The watch's own buffer size beats the MTU-derived guess for 0x07xx
+        // streaming. Ignore an absurd value rather than wedging transfers.
+        if (info.ioBufferSize >= 32 && info.ioBufferSize <= 4096) {
+            if (info.ioBufferSize != ioBufferSize)
+                log("Device Info: chunkSize " + ioBufferSize + " -> " + info.ioBufferSize);
+            ioBufferSize = info.ioBufferSize;
+        } else if (info.ioBufferSize != 0) {
+            log("Device Info: ignoring implausible ioBufferSize=" + info.ioBufferSize
+                    + ", keeping " + ioBufferSize);
+        }
+
+        prefs.edit()
+                .putString("device_info_variant", info.variant.name())
+                .putString("device_info_platform", info.platform)
+                .putString("device_info_prototype", info.prototype)
+                .putString("device_info_name", info.bleName)
+                .putString("device_info_firmware_flag", info.firmwareFlag)
+                .putString("device_info_full_version", info.fullVersion)
+                .putString("device_info_ui_version", info.uiVersion)
+                .putString("device_info_language_version", info.languageVersion)
+                .putInt("device_info_agps_type", info.agpsType)
+                .putInt("device_info_watchface_type", info.watchFaceType)
+                .putInt("device_info_sleep_algorithm", info.sleepAlgorithmType)
+                .putInt("device_info_io_buffer", info.ioBufferSize)
+                .putString("device_info_data_keys", info.dataKeysHex())
+                .putString("device_info_flags", info.flagsCompact())
+                .apply();
     }
 
     public void readFirmwareVersion() {
@@ -1758,7 +2574,7 @@ public class BleManager {
                 }
                 postFindPhoneNotification();
                 log("Find phone: ringing");
-                if (listener != null) listener.onFindPhoneRequest();
+                forEachListener(BleStateListener::onFindPhoneRequest);
             } catch (Exception e) {
                 log("Find phone ring error: " + e.getMessage());
             }
