@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -59,6 +60,9 @@ public class SportDetailActivity extends AppCompatActivity {
     private TextView txtElevation;
 
     private List<LatLng> currentPath;
+    private boolean hasRoute, hasElevation, hasSpeed, hasHeartRate;
+    private View sectionMap, sectionHeartRate, sectionElevation, sectionSpeed;
+    private View chartsTitle, noDataNotice;
     private String currentSportName;
 
     protected void attachBaseContext(android.content.Context base) {
@@ -72,6 +76,16 @@ public class SportDetailActivity extends AppCompatActivity {
         // Bind Views
         ImageButton btnBack = findViewById(R.id.btnBack);
         btnBack.setOnClickListener(v -> finish());
+
+        sectionMap = findViewById(R.id.sectionMap);
+        sectionHeartRate = findViewById(R.id.sectionHeartRate);
+        sectionElevation = findViewById(R.id.sectionElevation);
+        sectionSpeed = findViewById(R.id.sectionSpeed);
+        chartsTitle = findViewById(R.id.txtChartsTitle);
+        noDataNotice = findViewById(R.id.txtNoSensorData);
+
+        ImageButton btnDelete = findViewById(R.id.btnDeleteSession);
+        btnDelete.setOnClickListener(v -> confirmDelete());
 
         ImageButton btnShare = findViewById(R.id.btnShare);
         btnShare.setOnClickListener(v -> {
@@ -174,7 +188,7 @@ public class SportDetailActivity extends AppCompatActivity {
 
         txtSportTitle.setText(sportName);
 
-        SimpleDateFormat sdf = new SimpleDateFormat("dd 'de' MMMM 'de' yyyy, HH:mm", Locale.getDefault());
+        SimpleDateFormat sdf = new SimpleDateFormat("d MMMM yyyy, HH:mm", Locale.getDefault());
         txtSessionDate.setText(sdf.format(new Date(startTime * 1000L)));
 
         // Try to find matching health_workout synced from the watch
@@ -281,120 +295,39 @@ public class SportDetailActivity extends AppCompatActivity {
             avgHr = totalHrSum / hrCount;
         }
 
-        // Determine if we should generate Mock Data (if no coordinates or no HR exist)
-        boolean generatedMockLocation = false;
+        // Sessions recorded by the phone carry their own GPS trace.
         if (path.isEmpty()) {
-            generatedMockLocation = true;
-            // Generate mock coordinates, elevation, speed points
-            int interval = Math.max(5, durSec / 80);
-            double currentLat = 40.416775;
-            double currentLon = -3.703790;
-            double accumulatedDistanceM = 0.0;
-            
-            double stepSize = 0.0001; // basic walking step per interval
-            if (sportName.equalsIgnoreCase("Correr") || sportName.equalsIgnoreCase("Cinta")) {
-                stepSize = 0.00025;
-            } else if (sportName.equalsIgnoreCase("Ciclismo")) {
-                stepSize = 0.0006;
-            } else if (sportName.equalsIgnoreCase("Senderismo") || sportName.equalsIgnoreCase("Escalada")) {
-                stepSize = 0.00008;
+            List<WorkoutTrack.Point> recorded = WorkoutTrack.load(this, startTime);
+            for (WorkoutTrack.Point pt : recorded) {
+                path.add(new LatLng(pt.lat, pt.lon));
+                if (!Double.isNaN(pt.altitude))
+                    elevEntries.add(new Entry(pt.elapsedSec / 60.0f, (float) pt.altitude));
             }
-
-            for (int t = 0; t <= durSec; t += interval) {
-                double angle = (2 * Math.PI * t) / Math.max(1, durSec);
-                double radius = (durSec / 10.0) * stepSize;
-                double noiseLat = 0.05 * Math.sin(angle * 5) * stepSize;
-                double noiseLon = 0.05 * Math.cos(angle * 5) * stepSize;
-                
-                double lat = 40.416775 + radius * Math.sin(angle) + noiseLat;
-                double lon = -3.703790 + radius * Math.cos(angle) + noiseLon;
-                
-                if (t > 0) {
-                    float[] results = new float[1];
-                    android.location.Location.distanceBetween(currentLat, currentLon, lat, lon, results);
-                    accumulatedDistanceM += results[0];
-                }
-                currentLat = lat;
-                currentLon = lon;
-                
-                path.add(new LatLng(lat, lon));
-                
-                float relMin = t / 60.0f;
-                // Elevation (meters)
-                double elev = 650.0 + 40.0 * Math.sin(angle) + 8.0 * Math.sin(angle * 4);
-                elevEntries.add(new Entry(relMin, (float) elev));
-                
-                // Speed (km/h)
-                double speedKmh = (stepSize * 36000) * (1.0 + 0.15 * Math.sin(angle * 4) + 0.05 * Math.random());
-                if (sportName.equalsIgnoreCase("Correr") || sportName.equalsIgnoreCase("Cinta")) {
-                    speedKmh = Math.max(8.0, Math.min(14.0, speedKmh));
-                } else if (sportName.equalsIgnoreCase("Ciclismo")) {
-                    speedKmh = Math.max(15.0, Math.min(32.0, speedKmh));
-                } else if (sportName.equalsIgnoreCase("Caminar")) {
-                    speedKmh = Math.max(4.0, Math.min(6.5, speedKmh));
-                } else {
-                    speedKmh = Math.max(3.0, Math.min(8.0, speedKmh));
-                }
-                speedEntries.add(new Entry(relMin, (float) speedKmh));
-            }
-            
-            if (distanceKm == 0.0) {
-                distanceKm = accumulatedDistanceM / 1000.0;
-            }
-            if (altGain == 0) {
-                altGain = 48; // simulated gain
+            if (!recorded.isEmpty()) {
+                if (distanceKm == 0.0)
+                    distanceKm = WorkoutTrack.distanceMetres(recorded) / 1000.0;
+                double gain = WorkoutTrack.elevationGainMetres(recorded);
+                if (altGain == 0 && gain >= 0)
+                    altGain = (int) Math.round(gain);
+                hasElevation = gain >= 0;
+                speedEntries.addAll(speedFromTrack(recorded));
             }
         } else {
-            // Real location exists, calculate speed entries from it
-            int interval = Math.max(5, durSec / 80);
-            for (int t = 0; t <= durSec; t += interval) {
-                float relMin = t / 60.0f;
-                // Calculate speed based on distanceKm over durSec
-                double speedKmh = (distanceKm / (durSec / 3600.0));
-                // Add minor random fluctuation for visualization
-                speedKmh += (Math.random() - 0.5) * (speedKmh * 0.1);
-                speedEntries.add(new Entry(relMin, (float) Math.max(0.1, speedKmh)));
-            }
+            hasElevation = !elevEntries.isEmpty();
+            speedEntries.addAll(speedFromWatchTrack(locationPref, startTime, endTime));
         }
 
-        if (hrEntries.isEmpty()) {
-            // Generate mock HR
-            int interval = Math.max(5, durSec / 80);
-            int hrSum = 0;
-            int hrPts = 0;
-            for (int t = 0; t <= durSec; t += interval) {
-                double baseline = 75.0;
-                double activeHR = 135.0;
-                if (sportName.equalsIgnoreCase("Correr") || sportName.equalsIgnoreCase("Cinta")) {
-                    activeHR = 155.0;
-                } else if (sportName.equalsIgnoreCase("Ciclismo")) {
-                    activeHR = 145.0;
-                } else if (sportName.equalsIgnoreCase("Caminar")) {
-                    activeHR = 105.0;
-                } else if (sportName.equalsIgnoreCase("Yoga")) {
-                    activeHR = 90.0;
-                }
-                
-                double riseFactor = 1.0 - Math.exp(-t / 180.0);
-                double hr = baseline + (activeHR - baseline) * riseFactor;
-                hr += 8.0 * Math.sin((2 * Math.PI * t) / Math.max(1, durSec / 4.0)) + 3.0 * (Math.random() - 0.5);
-                hr = Math.max(60.0, Math.min(195.0, hr));
-                
-                float relMin = t / 60.0f;
-                hrEntries.add(new Entry(relMin, (float) hr));
-                hrSum += hr;
-                hrPts++;
-                if (hr > maxHr) maxHr = (int) hr;
-            }
-            if (hrPts > 0) {
-                avgHr = hrSum / hrPts;
-            }
-        }
+        hasRoute = path.size() >= 2;
+        hasSpeed = !speedEntries.isEmpty();
+        hasHeartRate = !hrEntries.isEmpty();
 
-        // Set UI values
-        txtDistance.setText(String.format(Locale.US, "%.2f km", distanceKm));
+        // Set UI values. Anything we do not actually have reads "--" rather than
+        // a plausible-looking invention.
+        txtDistance.setText(distanceKm > 0
+                ? String.format(Locale.US, "%.2f km", distanceKm)
+                : "-- km");
         txtCalories.setText(watchCalories + " kcal");
-        txtElevation.setText(altGain + " m");
+        txtElevation.setText(hasElevation ? altGain + " m" : "-- m");
 
         // Format Pace
         if (distanceKm > 0) {
@@ -415,13 +348,77 @@ public class SportDetailActivity extends AppCompatActivity {
         this.currentPath = path;
         this.currentSportName = sportName;
 
-        // Render WebView Leaflet Map
-        loadMap(path);
+        // Sections with no data are hidden outright.
+        showSection(sectionMap, hasRoute);
+        showSection(sectionHeartRate, hasHeartRate);
+        showSection(sectionElevation, hasElevation && elevEntries.size() >= 2);
+        showSection(sectionSpeed, hasSpeed);
+        boolean anyChart = hasHeartRate || (hasElevation && elevEntries.size() >= 2) || hasSpeed;
+        showSection(chartsTitle, anyChart);
+        showSection(noDataNotice, !hasRoute && !anyChart);
 
-        // Render MPAndroidChart LineCharts
-        setupChart(chartHeartRate, hrEntries, "#EF4444");
-        setupChart(chartElevation, elevEntries, "#F59E0B");
-        setupChart(chartSpeed, speedEntries, "#22D3EE");
+        if (hasRoute)
+            loadMap(path);
+        if (hasHeartRate)
+            setupChart(chartHeartRate, hrEntries, "#EF4444");
+        if (hasElevation && elevEntries.size() >= 2)
+            setupChart(chartElevation, elevEntries, "#F59E0B");
+        if (hasSpeed)
+            setupChart(chartSpeed, speedEntries, "#22D3EE");
+    }
+
+    private static void showSection(View view, boolean visible) {
+        if (view != null)
+            view.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    /** Speed between consecutive fixes — measured, not modelled. */
+    private static List<Entry> speedFromTrack(List<WorkoutTrack.Point> points) {
+        List<Entry> out = new ArrayList<>();
+        for (int i = 1; i < points.size(); i++) {
+            WorkoutTrack.Point a = points.get(i - 1);
+            WorkoutTrack.Point b = points.get(i);
+            int dt = b.elapsedSec - a.elapsedSec;
+            if (dt <= 0)
+                continue;
+            float[] r = new float[1];
+            android.location.Location.distanceBetween(a.lat, a.lon, b.lat, b.lon, r);
+            out.add(new Entry(b.elapsedSec / 60.0f, (float) (r[0] / dt * 3.6)));
+        }
+        return out;
+    }
+
+    /** Same, for a route the watch recorded (health_location). */
+    private static List<Entry> speedFromWatchTrack(String locationPref, long startTime,
+            long endTime) {
+        List<Entry> out = new ArrayList<>();
+        double prevLat = 0, prevLon = 0;
+        long prevT = 0;
+        boolean first = true;
+        for (String loc : locationPref.split(",")) {
+            String[] lp = loc.split(":");
+            if (lp.length < 5)
+                continue;
+            try {
+                long t = Long.parseLong(lp[0]);
+                if (t < startTime || t > endTime)
+                    continue;
+                double lon = Double.parseDouble(lp[3]);
+                double lat = Double.parseDouble(lp[4]);
+                if (!first && t > prevT) {
+                    float[] r = new float[1];
+                    android.location.Location.distanceBetween(prevLat, prevLon, lat, lon, r);
+                    out.add(new Entry((t - startTime) / 60.0f,
+                            (float) (r[0] / (double) (t - prevT) * 3.6)));
+                }
+                prevLat = lat;
+                prevLon = lon;
+                prevT = t;
+                first = false;
+            } catch (Exception ignored) {
+            }
+        }
+        return out;
     }
 
     private void loadMap(List<LatLng> path) {
@@ -651,7 +648,9 @@ public class SportDetailActivity extends AppCompatActivity {
                 "\n" +
                 "            setTimeout(play, 800);\n" +
                 "        } else {\n" +
-                "            map.setView([40.416775, -3.703790], 13);\n" +
+                // Unreachable now that the map only loads with a real route,
+                // but a hardcoded city here is how the fake data started.
+                "            map.setView([0, 0], 2);\n" +
                 "            document.getElementById('controls').style.display = 'none';\n" +
                 "        }\n" +
                 "    </script>\n" +
@@ -714,6 +713,82 @@ public class SportDetailActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, getString(R.string.share_error, e.getMessage()), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Deletes the workout being shown. Same mechanism as the history's
+     * selection mode: remove any phone-side copy and suppress the start
+     * timestamp so the watch does not re-add it on the next sync.
+     */
+    private void confirmDelete() {
+        final String record = getIntent().getStringExtra("session_record");
+        if (record == null || record.isEmpty()) {
+            Toast.makeText(this, getString(R.string.sport_session_not_found), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.sport_delete_title))
+                .setMessage(getResources().getQuantityString(R.plurals.sport_delete_msg, 1, 1))
+                .setPositiveButton(getString(R.string.delete), (d, w) -> {
+                    deleteSession(record.split("\\|")[0].trim());
+                    Toast.makeText(this, getString(R.string.sport_workout_deleted),
+                            Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
+    }
+
+    private void deleteSession(String start) {
+        android.content.SharedPreferences prefs =
+                getSharedPreferences("dial_sender_prefs", MODE_PRIVATE);
+
+        StringBuilder kept = new StringBuilder();
+        for (String s : prefs.getString("sport_sessions", "").split(",")) {
+            if (s.trim().isEmpty())
+                continue;
+            if (s.split("\\|")[0].trim().equals(start))
+                continue;
+            if (kept.length() > 0)
+                kept.append(",");
+            kept.append(s);
+        }
+
+        boolean fromWatch = false;
+        for (String w : prefs.getString("health_workout", "").split(",")) {
+            String[] f = w.split(":");
+            if (f.length >= 10 && f[0].trim().equals(start)) {
+                fromWatch = true;
+                break;
+            }
+        }
+
+        StringBuilder hidden = new StringBuilder();
+        boolean present = !fromWatch; // only watch workouts need suppressing
+        for (String s : prefs.getString("sport_hidden_starts", "").split(",")) {
+            String t = s.trim();
+            if (t.isEmpty())
+                continue;
+            if (t.equals(start))
+                present = true;
+            if (hidden.length() > 0)
+                hidden.append(",");
+            hidden.append(t);
+        }
+        if (!present) {
+            if (hidden.length() > 0)
+                hidden.append(",");
+            hidden.append(start);
+        }
+
+        prefs.edit()
+                .putString("sport_sessions", kept.toString())
+                .putString("sport_hidden_starts", hidden.toString())
+                .apply();
+        try {
+            WorkoutTrack.delete(this, Long.parseLong(start));
+        } catch (Exception ignored) {
         }
     }
 }
