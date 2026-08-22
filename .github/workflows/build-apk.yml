@@ -26,11 +26,20 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # Chaquopy 15.0.1 needs a build-time Python and cannot use 3.13+, which
+      # dropped the stdlib `cgi` module it imports. Pinned and passed to Gradle
+      # explicitly so it does not depend on which python3 wins on PATH.
+      - name: Set up Python for Chaquopy
+        id: py
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleDebug -PbuildPython="${{ steps.py.outputs.python-path }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

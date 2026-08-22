@@ -3,6 +3,38 @@ plugins {
     id 'com.chaquo.python'
 }
 
+// Chaquopy's buildPython, resolved rather than hardcoded.
+//
+// This used to point straight at ~/.local/python-standalone/bin/python3.12,
+// which exists on the dev machine and nowhere else — on a GitHub runner
+// user.home is /home/runner, so the release workflow failed with "does not
+// appear to be a valid Python command".
+//
+// Chaquopy 15.0.1 cannot use Python 3.13+: it imports the stdlib `cgi` module,
+// which was removed there, and dies with ModuleNotFoundError. A bare `python3`
+// is therefore not safe to assume — on this dev machine it is 3.14. So the
+// named interpreters are tried newest-supported first, and plain `python3` is
+// only the last resort.
+def chaquopyBuildPython = {
+    def explicit = project.findProperty("buildPython")
+    if (explicit) {
+        return explicit.toString()
+    }
+    def standalone = new File(System.getProperty("user.home"),
+                              ".local/python-standalone/bin/python3.12")
+    if (standalone.canExecute()) {
+        return standalone.absolutePath
+    }
+    for (name in ["python3.12", "python3.11", "python3.10", "python3.9", "python3.8"]) {
+        for (dir in (System.getenv("PATH") ?: "").split(File.pathSeparator)) {
+            if (new File(dir, name).canExecute()) {
+                return name
+            }
+        }
+    }
+    return "python3"
+}()
+
 android {
     namespace "com.example.dialsender"
     compileSdk 34
@@ -22,7 +54,7 @@ android {
 
         python {
             version "3.8"
-            buildPython System.getProperty("user.home") + "/.local/python-standalone/bin/python3.12"
+            buildPython chaquopyBuildPython
             pip {
                 install "Pillow"
                 install "numpy"
