@@ -49,12 +49,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Home Screen (Deprecated Launcher) -->
-        <activity
-            android:name=".HomeActivity"
-            android:exported="false">
-        </activity>
-
         <!-- Dial Sender / Health Dashboard (BLE Connection + Transfer) -->
         <activity
             android:name=".MainActivity"
@@ -70,12 +64,6 @@
             android:name=".DialEditorActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="false"/>
-
-        <!-- Debug Log Viewer -->
-        <activity
-            android:name=".LogActivity"
-            android:exported="false"/>
-
 
         <!-- Settings -->
         <activity
