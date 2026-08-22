@@ -30,7 +30,6 @@ docs/superpowers/
 cofit_capture_*/
 zzuler/
 capture_cofit.sh
-devices_supported.csv
 example.png
 # Keep scripts but ignore temporary files
 __pycache__/
