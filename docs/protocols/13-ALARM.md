@@ -97,18 +97,46 @@ From `AlarmEditActivity`: a new alarm is `CREATE`, an edit of an existing one is
 `UPDATE`. `AlarmsActivity` deletes with `sendInt8(ALARM, DELETE, id)` and the
 sync path replaces the whole list with `sendList(ALARM, RESET, alarms)`.
 
-### 2.1 Reply shape
+### 2.1 Reply shape — verified on hardware
 
 The READ reply is a run of 28-byte items with **no count field and no header** —
-`n = body.length / 28`. This is inferred: the dispatcher that builds the
-`List<BleAlarm>` for `onReadAlarm` sits in the part of `BleConnector` that JADX
-could not restore. It is consistent with `BleReadable.readList(count, itemLength)`,
-which slices a flat buffer, and with the fixed `ITEM_LENGTH`.
+`n = body.length / 28`. Confirmed on a Kronos Thunder: a read-all holding two
+alarms came back as
 
-`CREATE` and `UPDATE` echo the single stored item back, which is how a newly
-created alarm learns the id the watch gave it.
+```
+AB 11 00 3B 55 F3 02 10 10 | 00 84 00 00 00 14 24 00*21 | 01 00 1A 08 0F 06 00 00*21
+```
 
-### 2.2 One-shot alarms in the past
+`LEN = 0x3B = 59`, so payload = 56 = 2 × 28 exactly.
+
+The first item decodes as id 0, `0x84` → enabled (bit 7) + repeat 4 (Wednesday),
+20:36 with no date; the second as id 1, disabled, one-shot 15/08/2026 06:00.
+That byte is the direct confirmation of the shared-byte packing in §1.1 and of
+the Monday-first mask in §1.2.
+
+### 2.2 Mutations return nothing useful
+
+**`CREATE` and `UPDATE` do not echo the stored item.** They reply with a
+bodyless ACK, and `DELETE` does the same:
+
+```
+AB 11 00 03 D8 AD 02 10 20      CREATE ack
+AB 11 00 03 .. .. 02 10 30      DELETE ack
+```
+
+`LEN = 3` means payload = 0. So a mutation tells you nothing about the resulting
+list, and there is no way to learn the id of a just-created alarm from the
+reply. **Re-read after every change.**
+
+### 2.3 The watch does not allocate ids
+
+A `CREATE` carrying `id = 0` was written into **slot 0**, destroying the alarm
+already stored there — the watch takes the id from the payload rather than
+picking a free one. The phone has to choose the slot itself, from the list the
+watch last reported. (The original app sends a default-constructed `BleAlarm`,
+whose id is 0, so it has this hazard too.)
+
+### 2.4 One-shot alarms in the past
 
 Before sending, the original app checks whether a `repeat == 0` alarm is still
 in the future and, if not, moves it to today's date **+1 day**
@@ -119,7 +147,7 @@ day-of-month directly, so saving a lapsed alarm on the 31st yields day 32.
 There is also a fallback in `checkAlarmList`: when the watch is unreachable, a
 lapsed one-shot is force-disabled rather than left armed.
 
-### 2.3 How many alarms
+### 2.5 How many alarms
 
 The ceiling comes from the app's per-product table (`ProductManager`), which is
 not in the decompiled sources. `dial-sender` uses 8 as a client-side guard only;

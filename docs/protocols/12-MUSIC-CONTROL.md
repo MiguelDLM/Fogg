@@ -186,6 +186,32 @@ guard — `dial-sender` reuses `WatchNotificationService` for this.
 | Media session bridge | `WatchMusicController` |
 | Lifecycle | `BleForegroundService.onConnectionStateChange` |
 
+### 4.1 What the hardware taught us
+
+Verified against a Kronos Thunder with YouTube playing.
+
+- **Deduplicate.** A single track produced 37 frames where 6 were needed.
+  `MediaSessionManager.getActiveSessions()` hands back a **new**
+  `MediaController` wrapper on every call, so comparing controllers by reference
+  treats each callback as a new session and re-pushes everything. Compare
+  session tokens, and keep a last-sent value per entity/attribute.
+
+- **Rate-limit the playback info.** YouTube refreshes `PlaybackState` about once
+  a second purely to advance the position. Since the watch runs its own clock
+  from the state and speed it was given, that is one BLE frame per second for no
+  visible change. Send on play/pause/speed changes; resync a position-only
+  drift occasionally.
+
+- **Media keys are not reliable for transport.** The original app dispatches
+  `KEYCODE_MEDIA_*` on the theory that the system routes them to the active
+  session. On the test phone the key was handed to **KDE Connect**, which held
+  the media button receiver, while the watch was showing the video the user
+  meant to control. Driving the bound controller's `TransportControls` keeps the
+  watch's buttons attached to what the watch displays; media keys are a
+  reasonable fallback when nothing is bound.
+
+### 4.2 Deviations
+
 Two deliberate deviations from the original, both ours and neither protocol:
 
 - **Content is capped at 128 bytes**, cut on a UTF-8 boundary. The protocol sets
