@@ -307,7 +307,7 @@ public final class WeatherSync {
                     new java.net.URL(urlStr).openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
-            conn.setRequestProperty("User-Agent", "DialSender/1.0");
+            conn.setRequestProperty("User-Agent", "Fogg/1.0");
             if (conn.getResponseCode() == java.net.HttpURLConnection.HTTP_OK) {
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder sb = new StringBuilder();

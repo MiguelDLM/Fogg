@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dial Studio</string>
+    <string name="app_name">Fogg</string>
 
     <!-- ── Bottom navigation ── -->
     <string name="nav_home">Today</string>
@@ -130,7 +130,7 @@ Pick an activity above to record your first one.</string>
     <string name="settings_section_language">LANGUAGE</string>
     <string name="settings_lang_es">Español</string>
     <string name="settings_lang_en">English</string>
-    <string name="settings_version">Dial Studio v0.5</string>
+    <string name="settings_version">Fogg v0.5</string>
 
     <!-- ── Device ── -->
     <string name="dev_watchfaces">Watch Faces</string>
@@ -192,7 +192,7 @@ Pick an activity above to record your first one.</string>
     <string name="cancelled">Cancelled</string>
     <string name="export_dial">Export to Downloads</string>
     <string name="edit">Edit</string>
-    <string name="dial_exported">Dial saved to Downloads/DialStudio</string>
+    <string name="dial_exported">Dial saved to Downloads/Fogg</string>
     <string name="scale">Scale</string>
     <string name="rotation">Rotation</string>
     <string name="add_one_layer">Add at least one layer</string>
@@ -291,7 +291,7 @@ Pick an activity above to record your first one.</string>
     <string name="health_data_desc">Sync and view health metrics charts</string>
     <string name="library">Library</string>
     <string name="library_desc">Pre-made dials and your creations</string>
-    <string name="version_label">Dial Studio v0.5</string>
+    <string name="version_label">Fogg v0.5</string>
     <string name="chipset_info">Compatible with Jieli / HK89 chipset</string>
 
     <!-- ── Settings activity ── -->
@@ -447,7 +447,7 @@ Pick an activity above to record your first one.</string>
     <string name="share_range_today">today</string>
     <string name="share_range_week">this week</string>
     <string name="share_range_month">this month</string>
-    <string name="share_metric_fmt">My %1$s (%2$s) — Dial Studio</string>
+    <string name="share_metric_fmt">My %1$s (%2$s) — Fogg</string>
 
     <!-- Home sleep breakdown -->
     <string name="sleep_deep_abbr">Deep:</string>

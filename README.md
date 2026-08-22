@@ -1,4 +1,4 @@
-# Dial Studio — Smartwatch Toolkit
+# Fogg — Smartwatch Toolkit
 
 ![Version](https://img.shields.io/badge/version-v0.4-22D3EE?style=flat-square)
 ![Android](https://img.shields.io/badge/Android-API%2024%2B-3DDC84?style=flat-square&logo=android&logoColor=white)

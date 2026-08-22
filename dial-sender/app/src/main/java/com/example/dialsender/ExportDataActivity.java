@@ -328,7 +328,7 @@ public class ExportDataActivity extends AppCompatActivity {
     private void exportReadme(ZipOutputStream zos, String stamp) throws IOException {
         String nl = "\n";
         String content =
-            "Dial Studio — Health Data Export" + nl +
+            "Fogg — Health Data Export" + nl +
             "Generated: " + stamp + nl + nl +
             "Files:" + nl +
             "  activity.csv         — steps, calories (kcal), distance (m)" + nl +

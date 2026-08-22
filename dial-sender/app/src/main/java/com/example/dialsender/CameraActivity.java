@@ -126,7 +126,7 @@ public class CameraActivity extends AppCompatActivity {
         ContentValues cv = new ContentValues();
         cv.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
         cv.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
-        cv.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/DialStudio");
+        cv.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/Fogg");
         ImageCapture.OutputFileOptions opts = new ImageCapture.OutputFileOptions.Builder(
                 getContentResolver(), MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv).build();
         imageCapture.takePicture(opts, ContextCompat.getMainExecutor(this),

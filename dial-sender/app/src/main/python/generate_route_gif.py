@@ -133,7 +133,7 @@ def generate_gif(coords_str, output_path, sport_name, duration_str, distance_str
         draw.ellipse([(curr_pt[0] - 5, curr_pt[1] - 5), (curr_pt[0] + 5, curr_pt[1] + 5)], fill='#FFFFFF')
 
         # Watermark/Brand
-        draw.text((W - 140, H - 35), "Dial Studio", fill='#4A5568', font=font_label)
+        draw.text((W - 140, H - 35), "Fogg", fill='#4A5568', font=font_label)
 
         frames.append(img)
 

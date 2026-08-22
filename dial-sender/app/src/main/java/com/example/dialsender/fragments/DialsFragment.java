@@ -582,7 +582,7 @@ public class DialsFragment extends Fragment {
         try {
             File src = prepareFile(entry);
             File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            File destDir = new File(downloads, "DialStudio");
+            File destDir = new File(downloads, "Fogg");
             if (!destDir.exists())
                 destDir.mkdirs();
 

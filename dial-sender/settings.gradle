@@ -1,2 +1,2 @@
-rootProject.name = "DialSender"
+rootProject.name = "Fogg"
 include ':app'
