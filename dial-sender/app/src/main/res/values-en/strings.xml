@@ -742,4 +742,8 @@ Pick an activity above to record your first one.</string>
         <item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item>
         <item>Fri</item><item>Sat</item><item>Sun</item>
     </string-array>
+
+    <!-- Call control (INCOMING_CALL 0x0603) -->
+    <string name="dev_call_control">Answer from the watch</string>
+    <string name="call_control_needs_permission">Without phone permission the watch cannot answer or hang up</string>
 </resources>

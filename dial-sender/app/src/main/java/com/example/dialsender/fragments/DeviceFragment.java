@@ -24,6 +24,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+
+import com.example.dialsender.ble.WatchCallController;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
@@ -120,6 +122,8 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             rowAlarms.setOnClickListener(v ->
                     startActivity(new Intent(requireContext(), com.example.dialsender.AlarmsActivity.class)));
         }
+        setupCallControl(view);
+
         View btnCamera = view.findViewById(R.id.btnCamera);
         if (btnCamera != null) {
             btnCamera.setOnClickListener(v ->
@@ -386,6 +390,21 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
             @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQ_CALL_PERMISSIONS) {
+            WatchCallController calls = bleManager.getCallController();
+            if (calls.hasPermissions()) {
+                requireContext().getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE)
+                        .edit().putBoolean(WatchCallController.PREF_CALL_CONTROL, true).apply();
+                calls.refresh();
+            } else {
+                Toast.makeText(requireContext(), R.string.call_control_needs_permission,
+                        Toast.LENGTH_LONG).show();
+            }
+            renderCallControl();
+            return;
+        }
+
         if (requestCode != 1)
             return;
         boolean granted = grantResults.length > 0;
@@ -819,4 +838,59 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             }
         }).start();
     }
+
+    // ===== Call control (INCOMING_CALL 0x0603) =====
+
+    private static final int REQ_CALL_PERMISSIONS = 4301;
+
+    private TextView txtCallControl;
+
+    /**
+     * Answer/hang up from the watch, off by default.
+     *
+     * It needs READ_PHONE_STATE and ANSWER_PHONE_CALLS, so the switch only
+     * turns on once those are actually granted — flipping the label first and
+     * discovering the denial later would leave the row lying about what the
+     * watch can do.
+     */
+    private void setupCallControl(View view) {
+        View row = view.findViewById(R.id.rowCallControl);
+        txtCallControl = view.findViewById(R.id.txtCallControl);
+        if (row == null || txtCallControl == null)
+            return;
+
+        renderCallControl();
+        row.setOnClickListener(v -> {
+            WatchCallController calls = bleManager.getCallController();
+            android.content.SharedPreferences sp = requireContext()
+                    .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+            if (calls.isEnabled()) {
+                sp.edit().putBoolean(WatchCallController.PREF_CALL_CONTROL, false).apply();
+                calls.refresh();
+                renderCallControl();
+                return;
+            }
+
+            if (!calls.hasPermissions()) {
+                requestPermissions(new String[] {
+                        android.Manifest.permission.READ_PHONE_STATE,
+                        android.Manifest.permission.ANSWER_PHONE_CALLS
+                }, REQ_CALL_PERMISSIONS);
+                return;
+            }
+            sp.edit().putBoolean(WatchCallController.PREF_CALL_CONTROL, true).apply();
+            calls.refresh();
+            renderCallControl();
+        });
+    }
+
+    private void renderCallControl() {
+        if (txtCallControl == null)
+            return;
+        WatchCallController calls = bleManager.getCallController();
+        boolean on = calls.isEnabled() && calls.hasPermissions();
+        txtCallControl.setText(on ? R.string.state_on : R.string.state_off);
+    }
+
 }

@@ -33,6 +33,10 @@
     </queries>
     <!-- Persistencia de la conexión BLE, igual que la app original -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Call control (INCOMING_CALL 0x0603). Both are requested at runtime and
+         only when the user turns the feature on; it is off by default. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
     <application

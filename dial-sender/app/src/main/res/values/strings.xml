@@ -742,4 +742,8 @@ Elige una actividad arriba para registrar la primera.</string>
         <item>Lun</item><item>Mar</item><item>Mié</item><item>Jue</item>
         <item>Vie</item><item>Sáb</item><item>Dom</item>
     </string-array>
+
+    <!-- Call control (INCOMING_CALL 0x0603) -->
+    <string name="dev_call_control">Contestar desde el reloj</string>
+    <string name="call_control_needs_permission">Sin permiso de teléfono el reloj no puede contestar ni colgar</string>
 </resources>

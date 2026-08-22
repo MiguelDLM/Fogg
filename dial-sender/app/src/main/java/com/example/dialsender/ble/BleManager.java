@@ -1286,6 +1286,20 @@ public class BleManager {
             return;
         }
 
+        // The watch answered or rejected the ringing call (INCOMING_CALL
+        // 0x0603, watch -> phone). Payload is one byte: 0 answers, anything
+        // else hangs up — the original app's onIncomingCallStatus branches the
+        // same way, with every non-zero value falling through to endCall().
+        if (cmd == 0x06 && key == 0x03 && !isReply) {
+            sendAck(cmd, key, flag);
+            int action = data.length > 9 ? (data[9] & 0xFF) : CALL_HANG_UP;
+            log("Call action from watch: " + (action == CALL_ANSWER ? "answer" : "hang up"));
+            CallListener l = callListener;
+            if (l != null)
+                handler.post(() -> l.onCallAction(action == CALL_ANSWER ? CALL_ANSWER : CALL_HANG_UP));
+            return;
+        }
+
         // Camera shutter pushed from the watch (CONTROL 0x0601, watch -> phone)
         if (cmd == 0x06 && key == 0x01 && !isReply) {
             log("Camera shutter from watch");
@@ -2744,6 +2758,85 @@ public class BleManager {
         enqueueLogicalFrame(msg);
         isSending = true;
         sendNextChunk();
+    }
+
+    // ===== Incoming calls (INCOMING_CALL 0x0603) =====
+
+    /** The watch is told a call is in progress. */
+    public static final int CALL_ACTIVE = 0;
+    /** The watch is told no call is in progress. */
+    public static final int CALL_IDLE = 1;
+
+    /** What the watch asked the phone to do with the ringing call. */
+    public static final int CALL_ANSWER = 0;
+    public static final int CALL_HANG_UP = 1;
+
+    /** Categories the watch uses for notifications; a call gets its own. */
+    public static final int NOTIF_CATEGORY_CALL = 1;
+
+    /**
+     * SET INCOMING_CALL (0x0603, UPDATE) — one byte.
+     *
+     * This is a call-in-progress flag, not the "a call is arriving" push: the
+     * original app sends {@link #CALL_ACTIVE} when the phone goes off-hook and
+     * {@link #CALL_IDLE} when it returns to idle, and never sends anything here
+     * while the phone is merely ringing. The ringing screen on the watch comes
+     * from a NOTIFICATION with category 1 instead.
+     */
+    public void sendCallState(int state) {
+        if (!isSessionReady())
+            return;
+        log("Tx INCOMING_CALL state=" + state);
+        enqueueLogicalFrame(createMessage((byte) 0x06, (byte) 0x03, (byte) 0x00,
+                new byte[] { (byte) state }));
+        flushQueue();
+    }
+
+    /**
+     * Clear the call screen on the watch (NOTIFICATION 0x0401, DELETE).
+     *
+     * The body is a full-size notification with category 1 and every other
+     * field empty — matching the original's handleEnd(), which builds
+     * {@code BleNotification(1, 0L, null, null, null)} and sends it with DELETE.
+     * Without this the watch keeps showing the caller after the call ends.
+     */
+    public void dismissCallNotification() {
+        if (!isSessionReady())
+            return;
+        ByteBuffer buf = ByteBuffer.allocate(71).order(ByteOrder.BIG_ENDIAN);
+        buf.put((byte) NOTIF_CATEGORY_CALL);
+        buf.put(new byte[6]);           // mTime, zeroed as in the original
+        buf.put(new byte[32]);          // mPackage
+        buf.put(new byte[32]);          // mTitle
+        log("Tx NOTIFICATION delete (call)");
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x01,
+                (byte) BleKeyFlag.DELETE.getValue(), buf.array()));
+        flushQueue();
+    }
+
+    private WatchCallController callController;
+
+    /**
+     * The call bridge, created on first use.
+     *
+     * Like the music bridge, BleManager owns it because the watch -> phone half
+     * lands here on the GATT callback.
+     */
+    public synchronized WatchCallController getCallController() {
+        if (callController == null)
+            callController = new WatchCallController(context, this);
+        return callController;
+    }
+
+    /** Notified when the watch answers or rejects a ringing call. */
+    public interface CallListener {
+        void onCallAction(int action);
+    }
+
+    private CallListener callListener;
+
+    public void setCallListener(CallListener l) {
+        this.callListener = l;
     }
 
     // ===== Alarms (ALARM 0x0210) =====

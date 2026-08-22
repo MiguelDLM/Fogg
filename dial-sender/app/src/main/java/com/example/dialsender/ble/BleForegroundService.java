@@ -118,6 +118,7 @@ public class BleForegroundService extends Service implements BleManager.Connecti
         if (bleManager != null) {
             bleManager.removeConnectionObserver(this);
             bleManager.getMusicController().stop();
+            bleManager.getCallController().stop();
         }
         handler.removeCallbacks(watchdogRunnable);
     }
@@ -139,6 +140,12 @@ public class BleForegroundService extends Service implements BleManager.Connecti
         } else if (!connected) {
             music.stop();
         }
+
+        WatchCallController calls = bleManager.getCallController();
+        if (sessionReady)
+            calls.refresh();      // no-op unless the user enabled call control
+        else if (!connected)
+            calls.stop();
     }
 
     /**

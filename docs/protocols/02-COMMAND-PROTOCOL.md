@@ -546,7 +546,7 @@ Real-time control. Many of these are **watch-initiated** — the watch sends the
 |----------|------|-----|----------|-------------|-------------|
 | `CAMERA` | `0x0601` | 1537 | `0x01` | ✅ send | Remote camera shutter |
 | `REQUEST_LOCATION` | `0x0602` | 1538 | `0x02` | — | Watch requests current location from phone _(value inferred — see note)_ |
-| `INCOMING_CALL` | `0x0603` | 1539 | `0x03` | — | Incoming call state - accept / reject from watch _(value inferred — see note)_ |
+| `INCOMING_CALL` | `0x0603` | 1539 | `0x03` | send, recv | Incoming call state - accept / reject from watch _(value inferred — see note)_ |
 | `APP_SPORT_STATE` | `0x0604` | 1540 | `0x04` | — | App-driven sport session state (start/pause/stop) |
 | `CLASSIC_BLUETOOTH_STATE` | `0x0605` | 1541 | `0x05` | — | Classic Bluetooth (A2DP/HFP) state |
 | `DEVICE_SMS_QUICK_REPLY` | `0x0607` | 1543 | `0x07` | — | Watch sends a quick-reply SMS request |

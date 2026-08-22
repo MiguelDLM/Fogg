@@ -180,6 +180,13 @@
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
+            <LinearLayout android:id="@+id/rowCallControl" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_call_control"/>
+                <TextView android:id="@+id/txtCallControl" style="@style/DeviceRowValue"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
             <LinearLayout android:id="@+id/btnCamera" style="@style/DeviceRow">
                 <TextView style="@style/DeviceRowLabel" android:text="@string/dev_camera"/>
                 <TextView style="@style/DeviceRowChevron" android:text="›"/>
