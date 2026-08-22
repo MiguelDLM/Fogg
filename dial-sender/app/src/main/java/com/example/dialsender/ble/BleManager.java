@@ -1269,17 +1269,13 @@ public class BleManager {
             return;
         }
 
-        // Monitoring windows (HR 0x0216, SpO2 0x0225, sleep 0x0240),
-        // FIND_WATCH (0x0234) and REALTIME_MEASUREMENT (0x0236) —
+        // Monitoring windows (HR 0x0216, SpO2 0x0225, sleep 0x0240) and
+        // FIND_WATCH (0x0234) —
         // a write is answered with a bodyless ACK, while a READ comes back with
         // the stored setting, which is what the rows render from (the watch is
         // the source of truth, as it is for alarms).
-        //
-        // 0x36 only matches here when the frame is empty: a measurement result
-        // carries a body and must reach its own handler below.
         if (isReply && cmd == 0x02
-                && (key == 0x34 || key == 0x16 || key == 0x25 || key == 0x40
-                    || (key == 0x36 && data.length <= 9))) {
+                && (key == 0x34 || key == 0x16 || key == 0x25 || key == 0x40)) {
             byte[] body = Arrays.copyOfRange(data, 9, data.length);
             if (body.length >= 5 && key != 0x34) {
                 boolean on = body[0] != 0;
@@ -1299,30 +1295,6 @@ public class BleManager {
                 log("Rx ack key=0x" + String.format("%02X", key)
                         + " flag=0x" + String.format("%02X", flag));
             }
-            return;
-        }
-
-        // Measurement progress (REALTIME_MEASUREMENT 0x0236). Same bit-packed
-        // byte as the request: state 0 means the reading is ready to be read
-        // off the matching health key, state 1 means the watch gave up.
-        if (cmd == 0x02 && key == 0x36 && data.length > 9) {
-            int packed = data[9] & 0xFF;
-            int state = (packed >> 6) & 0x03;
-            int type = (packed & 0x04) != 0 ? MEASURE_BLOOD_PRESSURE
-                     : (packed & 0x02) != 0 ? MEASURE_BLOOD_OXYGEN
-                     : MEASURE_HEART_RATE;
-            log("Rx REALTIME_MEASUREMENT state=" + state + " type=" + type);
-
-            MeasurementListener l = measurementListener;
-            if (state == 0) {
-                if (l != null)
-                    handler.post(() -> l.onMeasurementComplete(type));
-            } else if (state == 1) {
-                if (l != null)
-                    handler.post(() -> l.onMeasurementFailed(type));
-            }
-            if (!isReply)
-                sendAck(cmd, key, flag);
             return;
         }
 
@@ -2902,73 +2874,6 @@ public class BleManager {
         readMonitoring(0x16);
         readMonitoring(0x25);
         readMonitoring(0x40);
-    }
-
-    // ===== Measure on demand (REALTIME_MEASUREMENT 0x0236) =====
-
-    public static final int MEASURE_HEART_RATE = 0;
-    public static final int MEASURE_BLOOD_PRESSURE = 1;
-    public static final int MEASURE_BLOOD_OXYGEN = 2;
-
-    // States, from the original app's start/stop paths.
-    private static final int MEASURE_STATE_STOP = 1;
-    private static final int MEASURE_STATE_START = 2;
-
-    /**
-     * Tell the watch to take a reading now, or to stop taking one.
-     *
-     * The payload is a single bit-packed byte, MSB first, matching
-     * BleRealTimeMeasurement.encode():
-     *
-     * <pre>
-     *   bits 7..6  state   2 = start, 1 = stop
-     *   bits 5..4  unused, written as 0
-     *   bit  3     stress
-     *   bit  2     blood pressure
-     *   bit  1     blood oxygen
-     *   bit  0     heart rate
-     * </pre>
-     *
-     * So "start a heart-rate reading" is 0x81 and "stop" is 0x41.
-     *
-     * The reading itself does not come back on this key. The watch replies here
-     * with state 0 for done or state 1 for failed, and the value is then read
-     * from the matching health key — which {@link #syncHealth()} already
-     * knows how to do.
-     */
-    public void sendRealtimeMeasurement(int type, boolean start) {
-        if (!isSessionReady())
-            return;
-        int bit;
-        switch (type) {
-            case MEASURE_BLOOD_PRESSURE: bit = 1 << 2; break;
-            case MEASURE_BLOOD_OXYGEN:   bit = 1 << 1; break;
-            case MEASURE_HEART_RATE:
-            default:                     bit = 1; break;
-        }
-        int state = start ? MEASURE_STATE_START : MEASURE_STATE_STOP;
-        byte payload = (byte) ((state << 6) | bit);
-
-        log("Tx REALTIME_MEASUREMENT type=" + type + " start=" + start
-                + " payload=0x" + String.format("%02X", payload));
-        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x36, (byte) 0x00,
-                new byte[] { payload }));
-        flushQueue();
-    }
-
-    /** Progress of an on-demand measurement. */
-    public interface MeasurementListener {
-        /** The watch finished; the value follows on the matching health key. */
-        void onMeasurementComplete(int type);
-
-        /** The watch gave up (bad contact, moved wrist, no reading). */
-        void onMeasurementFailed(int type);
-    }
-
-    private MeasurementListener measurementListener;
-
-    public void setMeasurementListener(MeasurementListener l) {
-        this.measurementListener = l;
     }
 
     // ===== Find the watch (FIND_WATCH 0x0234) =====

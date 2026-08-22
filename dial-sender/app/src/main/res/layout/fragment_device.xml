@@ -187,13 +187,6 @@
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
-            <LinearLayout android:id="@+id/rowMeasureNow" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_measure_now"/>
-                <TextView android:id="@+id/txtMeasureNow" style="@style/DeviceRowValue"
-                    android:text="@string/measure_now"/>
-            </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
-
             <LinearLayout android:id="@+id/rowFindWatch" style="@style/DeviceRow">
                 <TextView style="@style/DeviceRowLabel" android:text="@string/dev_ring_watch"/>
                 <TextView android:id="@+id/txtFindWatch" style="@style/DeviceRowValue"

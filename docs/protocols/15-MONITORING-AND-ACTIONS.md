@@ -21,7 +21,7 @@ actions the watch is otherwise the only place to trigger.
 | `BLOOD_OXYGEN_SET` | 549 | `0x02` / `0x25` | automatic SpO2 sampling |
 | `SLEEP_MONITORING` | 576 | `0x02` / `0x40` | sleep tracking window |
 | `FIND_WATCH` | 564 | `0x02` / `0x34` | make the watch ring |
-| `REALTIME_MEASUREMENT` | 566 | `0x02` / `0x36` | take a reading now |
+| `REALTIME_MEASUREMENT` | 566 | `0x02` / `0x36` | take a reading now — **inert on this watch, see §3** |
 
 ---
 
@@ -89,9 +89,13 @@ made the next tap start a second ring instead of ending the first.
 
 ---
 
-## 3. REALTIME_MEASUREMENT (0x0236)
+## 3. REALTIME_MEASUREMENT (0x0236) — documented, NOT implemented
 
-One bit-packed byte, MSB first, from `BleRealTimeMeasurement.encode()`:
+**This key does nothing on the Kronos Thunder.** It is written up here so the
+next person does not spend the afternoon rediscovering that.
+
+The encoding is one bit-packed byte, MSB first, from
+`BleRealTimeMeasurement.encode()`:
 
 ```
 bits 7..6   state    2 = start, 1 = stop
@@ -102,49 +106,33 @@ bit  1      blood oxygen
 bit  0      heart rate
 ```
 
-So "start a heart-rate reading" is `0x81` and "stop" is `0x41`.
+So "start a heart-rate reading" is `0x81` and "stop" is `0x41`. The state values
+come from the original app's two call sites: `RealTimeMeasurementActivity`
+begins with state **2** and sends state **1** from `onDestroy()`.
 
-The state values come from the original app's two call sites:
-`RealTimeMeasurementActivity` begins a measurement with state **2** and sends
-state **1** from `onDestroy()`.
+The result is not supposed to arrive on this key either. The watch is meant to
+reply with progress only — state 0 for done, state 1 for failed — after which
+the original app issues a `READ` on `HEART_RATE`, `BLOOD_PRESSURE` or
+`BLOOD_OXYGEN` to collect the value.
 
-### 3.1 The result does not come back on this key
+### 3.1 What the watch actually does
 
-The watch replies here only with progress:
-
-| Reply state | Meaning |
-|---|---|
-| 0 | done — read the value off the matching health key |
-| 1 | failed |
-
-On completion the original app issues a `READ` on `HEART_RATE`,
-`BLOOD_PRESSURE` or `BLOOD_OXYGEN` depending on which switch was set. The
-reading is never in the 0x0236 frame.
-
-### 3.2 Verified, and not
-
-**Request path verified.** Start and stop were both accepted:
+It ACKs both frames and then ignores them:
 
 ```
-Tx REALTIME_MEASUREMENT type=0 start=true  payload=0x81
-Rx AB 11 00 03 60 B6 02 36 00              bodyless ACK
-Tx REALTIME_MEASUREMENT type=0 start=false payload=0x41
-Rx ...                                     bodyless ACK
+Tx  type=heart rate, start   payload=0x81
+Rx  AB 11 00 03 60 B6 02 36 00        bodyless ACK
+Tx  type=heart rate, stop    payload=0x41
+Rx  ...                               bodyless ACK
 ```
 
-**Completion path NOT verified.** No push on 0x0236 arrived in the 90 seconds
-between start and stop. Two explanations are consistent with that and the
-capture cannot separate them:
+No progress push ever arrives, and — confirmed by the device's owner — **the
+watch does not begin measuring**. The ACK is the firmware acknowledging a key it
+does not act on.
 
-1. the watch was not being worn, so there was nothing to measure and it reported
-   nothing;
-2. this firmware does not push progress on 0x0236 at all.
-
-Retest with the watch on a wrist before trusting `onMeasurementComplete`. Until
-then the phone-side timeout is what ends the measurement, which it does
-correctly.
-
----
+An implementation was built and removed rather than left as an unreachable UI
+row; recover it with `git show c5ad9f340 -- dial-sender` if another model in
+this family turns out to honour the key.
 
 ## 4. dial-sender
 
@@ -153,7 +141,6 @@ correctly.
 | Monitoring writes | `BleManager.sendHeartRateMonitoring`, `sendBloodOxygenMonitoring`, `sendSleepMonitoring` |
 | Monitoring reads | `BleManager.readAllMonitoring`, parsed in `processResponse` |
 | Ring the watch | `BleManager.sendFindWatch(boolean)` |
-| Measure now | `BleManager.sendRealtimeMeasurement(type, start)` + `MeasurementListener` |
 | UI | Device tab rows, `DeviceFragment` |
 
 The monitoring rows render from what the watch reports, not from what was

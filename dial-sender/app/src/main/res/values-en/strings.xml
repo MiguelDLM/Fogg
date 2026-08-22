@@ -758,9 +758,4 @@ Pick an activity above to record your first one.</string>
     <string name="monitoring_window">%1$02d:%2$02d–%3$02d:%4$02d</string>
     <string name="monitoring_interval">Interval</string>
     <string name="monitoring_enabled">Enabled</string>
-    <string name="measure_now">Measure now</string>
-    <string name="measuring">Measuring…</string>
-    <string name="measure_done">Measurement complete</string>
-    <string name="measure_failed">Could not measure. Sit still with the watch snug on your wrist and try again.</string>
-    <string name="dev_measure_now">Measure heart rate</string>
 </resources>

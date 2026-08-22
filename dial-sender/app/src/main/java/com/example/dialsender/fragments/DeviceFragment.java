@@ -126,7 +126,6 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                     startActivity(new Intent(requireContext(), com.example.dialsender.AlarmsActivity.class)));
         }
         setupCallControl(view);
-        setupMeasureNow(view);
         setupFindWatch(view);
         setupMonitoring(view);
 
@@ -1143,70 +1142,5 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     private static int pickerMinute(TimePicker p) {
         return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
                 ? p.getMinute() : p.getCurrentMinute();
-    }
-
-    // ===== Measure on demand (REALTIME_MEASUREMENT 0x0236) =====
-
-    /** The watch gives up on its own well before this; the timer is a backstop. */
-    private static final long MEASURE_TIMEOUT_MS = 90_000;
-
-    private void setupMeasureNow(View view) {
-        final View row = view.findViewById(R.id.rowMeasureNow);
-        final TextView value = view.findViewById(R.id.txtMeasureNow);
-        if (row == null || value == null)
-            return;
-
-        final boolean[] busy = { false };
-        final Runnable reset = () -> {
-            busy[0] = false;
-            value.setText(R.string.measure_now);
-        };
-
-        bleManager.setMeasurementListener(new BleManager.MeasurementListener() {
-            @Override
-            public void onMeasurementComplete(int type) {
-                if (!isAdded())
-                    return;
-                value.removeCallbacks(reset);
-                reset.run();
-                Toast.makeText(requireContext(), R.string.measure_done, Toast.LENGTH_SHORT).show();
-                // The reading itself is not in this reply; it lands on the
-                // matching health key, so pull it in.
-                bleManager.syncHealth();
-            }
-
-            @Override
-            public void onMeasurementFailed(int type) {
-                if (!isAdded())
-                    return;
-                value.removeCallbacks(reset);
-                reset.run();
-                Toast.makeText(requireContext(), R.string.measure_failed, Toast.LENGTH_LONG).show();
-            }
-        });
-
-        row.setOnClickListener(v -> {
-            if (!bleManager.isSessionReady()) {
-                Toast.makeText(requireContext(), R.string.device_not_connected,
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (busy[0]) {
-                // Second tap cancels; the watch keeps measuring otherwise.
-                value.removeCallbacks(reset);
-                bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, false);
-                reset.run();
-                return;
-            }
-            busy[0] = true;
-            value.setText(R.string.measuring);
-            bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, true);
-            value.postDelayed(() -> {
-                if (!busy[0])
-                    return;
-                bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, false);
-                reset.run();
-            }, MEASURE_TIMEOUT_MS);
-        });
     }
 }

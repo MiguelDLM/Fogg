@@ -376,7 +376,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `GAME_SET` | `0x0233` | 563 | `0x33` | — | Watch game settings |
 | `FIND_WATCH` | `0x0234` | 564 | `0x34` | send | Find-watch trigger (phone -> watch) |
 | `SET_WATCH_PASSWORD` | `0x0235` | 565 | `0x35` | — | Watch screen-lock password |
-| `REALTIME_MEASUREMENT` | `0x0236` | 566 | `0x36` | send | On-demand measurement trigger (HR / SpO2 / BP / stress) |
+| `REALTIME_MEASUREMENT` | `0x0236` | 566 | `0x36` | — | On-demand measurement trigger (HR / SpO2 / BP / stress) |
 | `POWER_SAVE_MODE` | `0x0237` | 567 | `0x37` | — | Battery power-save mode |
 | `BAC_SET` | `0x0238` | 568 | `0x38` | — | Blood alcohol content settings |
 | `CALORIES_GOAL` | `0x0239` | 569 | `0x39` | — | Daily calorie goal |

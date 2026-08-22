@@ -758,9 +758,4 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="monitoring_window">%1$02d:%2$02d–%3$02d:%4$02d</string>
     <string name="monitoring_interval">Intervalo</string>
     <string name="monitoring_enabled">Activado</string>
-    <string name="measure_now">Medir ahora</string>
-    <string name="measuring">Midiendo…</string>
-    <string name="measure_done">Medición completada</string>
-    <string name="measure_failed">No se pudo medir. Ajusta el reloj a la muñeca y prueba otra vez.</string>
-    <string name="dev_measure_now">Medir ritmo cardiaco</string>
 </resources>
