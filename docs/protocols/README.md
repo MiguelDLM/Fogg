@@ -23,6 +23,7 @@ All documentation was derived by static analysis of the decompiled Android APK l
 | 09 | [09-SUPPORTED-PLATFORMS.md](./09-SUPPORTED-PLATFORMS.md) | Hardware platforms and device support: JieLi, Nordic, Goodix, MTK chipset variants, feature matrix |
 | 11 | [11-DEVICE-INFO-CAPABILITIES.md](./11-DEVICE-INFO-CAPABILITIES.md) | `DEVICE_INFO` (0x023E) capability block: supported-key list, ~100 feature flags, IO buffer size, exact field order |
 | 12 | [12-MUSIC-CONTROL.md](./12-MUSIC-CONTROL.md) | `MUSIC_CONTROL` (0x0402) both directions: entity/attribute metadata pushes, the playback-info wire format, the seven transport commands |
+| 13 | [13-ALARM.md](./13-ALARM.md) | `ALARM` (0x0210): the 28-byte item, the enabled/repeat bit packing, the Monday-first weekday mask, and the five flag operations |
 
 ---
 

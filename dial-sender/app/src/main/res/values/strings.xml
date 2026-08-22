@@ -718,4 +718,28 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="profile_weight_kg">Peso (kg)</string>
     <string name="action_save">Guardar</string>
     <string name="action_cancel">Cancelar</string>
+
+    <!-- Alarms (ALARM 0x0210) -->
+    <string name="alarms_title">Alarmas</string>
+    <string name="dev_alarms">Alarmas</string>
+    <string name="alarms_hint">Las alarmas se guardan en el reloj (máximo %1$d).</string>
+    <string name="alarms_empty">No hay alarmas en el reloj</string>
+    <string name="alarms_full">El reloj sólo admite %1$d alarmas</string>
+    <string name="alarms_not_connected">Conecta el reloj para cambiar las alarmas</string>
+    <string name="alarm_add">Nueva alarma</string>
+    <string name="alarm_edit">Editar alarma</string>
+    <string name="alarm_repeat">Repetir</string>
+    <string name="alarm_label">Etiqueta</string>
+    <string name="repeat_once">Una vez</string>
+    <string name="repeat_everyday">Todos los días</string>
+    <string name="repeat_workdays">Lunes a viernes</string>
+    <string name="repeat_weekend">Fin de semana</string>
+    <string-array name="weekday_initials">
+        <item>L</item><item>M</item><item>X</item><item>J</item>
+        <item>V</item><item>S</item><item>D</item>
+    </string-array>
+    <string-array name="weekday_short">
+        <item>Lun</item><item>Mar</item><item>Mié</item><item>Jue</item>
+        <item>Vie</item><item>Sáb</item><item>Dom</item>
+    </string-array>
 </resources>

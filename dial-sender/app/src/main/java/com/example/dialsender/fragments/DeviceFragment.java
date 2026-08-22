@@ -115,6 +115,11 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             rowNotifications.setOnClickListener(v ->
                     startActivity(new Intent(requireContext(), com.example.dialsender.NotificationSettingsActivity.class)));
         }
+        View rowAlarms = view.findViewById(R.id.rowAlarms);
+        if (rowAlarms != null) {
+            rowAlarms.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), com.example.dialsender.AlarmsActivity.class)));
+        }
         View btnCamera = view.findViewById(R.id.btnCamera);
         if (btnCamera != null) {
             btnCamera.setOnClickListener(v ->

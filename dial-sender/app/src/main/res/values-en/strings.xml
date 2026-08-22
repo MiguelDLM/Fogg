@@ -718,4 +718,28 @@ Pick an activity above to record your first one.</string>
     <string name="profile_weight_kg">Weight (kg)</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+
+    <!-- Alarms (ALARM 0x0210) -->
+    <string name="alarms_title">Alarms</string>
+    <string name="dev_alarms">Alarms</string>
+    <string name="alarms_hint">Alarms are stored on the watch (%1$d maximum).</string>
+    <string name="alarms_empty">No alarms on the watch</string>
+    <string name="alarms_full">The watch only holds %1$d alarms</string>
+    <string name="alarms_not_connected">Connect the watch to change alarms</string>
+    <string name="alarm_add">New alarm</string>
+    <string name="alarm_edit">Edit alarm</string>
+    <string name="alarm_repeat">Repeat</string>
+    <string name="alarm_label">Label</string>
+    <string name="repeat_once">Once</string>
+    <string name="repeat_everyday">Every day</string>
+    <string name="repeat_workdays">Weekdays</string>
+    <string name="repeat_weekend">Weekend</string>
+    <string-array name="weekday_initials">
+        <item>M</item><item>T</item><item>W</item><item>T</item>
+        <item>F</item><item>S</item><item>S</item>
+    </string-array>
+    <string-array name="weekday_short">
+        <item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item>
+        <item>Fri</item><item>Sat</item><item>Sun</item>
+    </string-array>
 </resources>

@@ -83,6 +83,11 @@
             android:exported="false"/>
 
         <activity
+            android:name=".AlarmsActivity"
+            android:label="@string/alarms_title"
+            android:exported="false"/>
+
+        <activity
             android:name=".CameraActivity"
             android:exported="false"
             android:screenOrientation="portrait"
