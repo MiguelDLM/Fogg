@@ -186,6 +186,20 @@ guard — `dial-sender` reuses `WatchNotificationService` for this.
 | Media session bridge | `WatchMusicController` |
 | Lifecycle | `BleForegroundService.onConnectionStateChange` |
 
+### 4.0 Verification status
+
+| Path | Status |
+|---|---|
+| phone → watch, metadata + playback + volume | **verified** on a Kronos Thunder |
+| watch → phone, transport commands (§2) | **NOT verified** |
+
+The receive half has never been exercised against hardware: it needs someone to
+press the transport buttons on the watch, which cannot be driven from adb. The
+single-byte payload is inferred from `MusicCommand.of(byte)` and the frame
+offset from the sibling handlers (CAMERA, FIND_PHONE) that are verified. If the
+watch's buttons do nothing, the byte offset in the `cmd==0x04 && key==0x02`
+handler is the first thing to check.
+
 ### 4.1 What the hardware taught us
 
 Verified against a Kronos Thunder with YouTube playing.

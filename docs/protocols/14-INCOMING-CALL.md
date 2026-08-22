@@ -83,6 +83,25 @@ Both actions need `ANSWER_PHONE_CALLS`. `acceptRingingCall()` is API 26+ and
 
 ---
 
+## 2.1 Verification status
+
+**Nothing in this document has been exercised against hardware.** Testing it
+needs a real inbound call, which cannot be driven from adb (a VoIP call does not
+go through `TelephonyManager.CALL_STATE`, so it will not do).
+
+What *was* verified on a Kronos Thunder: the Device-tab toggle requests both
+permissions, both are granted, and `WatchCallController` registers its
+`TelephonyCallback` without error.
+
+What is still unproven, in the order it would fail:
+
+1. that the watch accepts `INCOMING_CALL` at all, and that 0/1 mean in-call and
+   idle rather than the reverse;
+2. that a `NOTIFICATION` DELETE with a category-1 body actually clears the
+   caller screen (the body shape is copied from the original's `handleEnd()`);
+3. that the watch sends anything back on `0x0603` when its buttons are pressed,
+   and that 0 means answer.
+
 ## 3. dial-sender
 
 | Piece | Location |
