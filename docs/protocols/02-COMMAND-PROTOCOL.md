@@ -334,8 +334,8 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `POWER` | `0x0203` | 515 | `0x03` | ✅ read | Battery level / power state |
 | `FIRMWARE_VERSION` | `0x0204` | 516 | `0x04` | ✅ read | Firmware version string |
 | `BLE_ADDRESS` | `0x0205` | 517 | `0x05` | — | Device BLE MAC address |
-| `USER_PROFILE` | `0x0206` | 518 | `0x06` | — | User biometrics (sex, age/birth, height, weight) |
-| `STEP_GOAL` | `0x0207` | 519 | `0x07` | — | Daily step goal |
+| `USER_PROFILE` | `0x0206` | 518 | `0x06` | send, read | User biometrics (sex, age/birth, height, weight) |
+| `STEP_GOAL` | `0x0207` | 519 | `0x07` | send | Daily step goal |
 | `BACK_LIGHT` | `0x0208` | 520 | `0x08` | ✅ send | Backlight duration / brightness |
 | `SEDENTARINESS` | `0x0209` | 521 | `0x09` | ✅ send | Sedentary reminder |
 | `NO_DISTURB_RANGE` | `0x020A` | 522 | `0x0A` | ✅ send | Do-not-disturb time range _(value inferred — see note)_ |
@@ -344,7 +344,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `HR_ASSIST_SLEEP` | `0x020D` | 525 | `0x0D` | — | Use HR sensor to assist sleep staging |
 | `HOUR_SYSTEM` | `0x020E` | 526 | `0x0E` | ✅ send | 12h vs 24h clock |
 | `LANGUAGE` | `0x020F` | 527 | `0x0F` | — | Display language |
-| `ALARM` | `0x0210` | 528 | `0x10` | — | Alarm clock entries (CREATE / UPDATE / DELETE) _(value inferred — see note)_ |
+| `ALARM` | `0x0210` | 528 | `0x10` | send, read, recv | Alarm clock entries (CREATE / UPDATE / DELETE) _(value inferred — see note)_ |
 | `UNIT_SET` | `0x0211` | 529 | `0x11` | — | Measurement unit system (metric / imperial) _(value inferred — see note)_ |
 | `COACHING` | `0x0212` | 530 | `0x12` | — | Coaching / training plan settings |
 | `FIND_PHONE` | `0x0213` | 531 | `0x13` | ✅ recv | Find-phone trigger (watch -> phone) _(value inferred — see note)_ |
@@ -384,7 +384,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `SLEEP_GOAL` | `0x023B` | 571 | `0x3B` | — | Sleep duration goal |
 | `LOVE_TAP_USER` | `0x023C` | 572 | `0x3C` | — | Love-tap paired user config |
 | `MEDICATION_REMINDER` | `0x023D` | 573 | `0x3D` | — | Medication reminder |
-| `DEVICE_INFO` | `0x023E` | 574 | `0x3E` | ⚠️ partial | Device capability block - see 11-DEVICE-INFO-CAPABILITIES.md |
+| `DEVICE_INFO` | `0x023E` | 574 | `0x3E` | read | Device capability block - see 11-DEVICE-INFO-CAPABILITIES.md |
 | `HR_WARNING_SET` | `0x023F` | 575 | `0x3F` | — | Heart-rate high/low alert thresholds |
 | `SLEEP_MONITORING` | `0x0240` | 576 | `0x40` | — | Sleep monitoring settings |
 | `STANDBY_SET` | `0x0241` | 577 | `0x41` | — | Always-on / standby display settings |
@@ -478,7 +478,7 @@ One-way push from phone to watch. Displayed immediately; not persisted as health
 | Key Name | mKey | dec | KEY byte | dial-sender | Description |
 |----------|------|-----|----------|-------------|-------------|
 | `NOTIFICATION` | `0x0401` | 1025 | `0x01` | ✅ send | Incoming notification (SMS, call, app alert) - v1 |
-| `MUSIC_CONTROL` | `0x0402` | 1026 | `0x02` | — | Now-playing metadata + playback state |
+| `MUSIC_CONTROL` | `0x0402` | 1026 | `0x02` | send, recv | Now-playing metadata + playback state |
 | `SCHEDULE` | `0x0403` | 1027 | `0x03` | — | Calendar schedule entry |
 | `WEATHER_REALTIME` | `0x0404` | 1028 | `0x04` | ✅ send | Current weather conditions - v1 |
 | `WEATHER_FORECAST` | `0x0405` | 1029 | `0x05` | ✅ send | Multi-day weather forecast - v1 |
