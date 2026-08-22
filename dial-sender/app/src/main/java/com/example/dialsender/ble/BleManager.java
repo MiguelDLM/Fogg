@@ -1221,68 +1221,37 @@ public class BleManager {
             return;
         }
 
-        // Alarms (ALARM 0x0210). A READ reply carries the whole list as a
-        // run of 28-byte items with no count field; CREATE/UPDATE echo the one
-        // item the watch stored, which is how a new alarm learns its id.
+        // Alarms (ALARM 0x0210).
+        //
+        // Only READ and RESET replies carry the list, as a run of 28-byte items
+        // with no count field — verified on a Kronos Thunder, whose reply to a
+        // read-all was LEN=0x3B (56 bytes) for two alarms.
+        //
+        // CREATE and UPDATE come back as a bodyless ACK ("AB 11 00 03 .. 02 10
+        // 20") and DELETE draws no reply at all, so none of them say anything
+        // about the resulting list. sendAlarm/deleteAlarm schedule a re-read
+        // instead of trying to infer it.
         if (cmd == 0x02 && key == 0x10) {
             byte[] body = Arrays.copyOfRange(data, 9, data.length);
             int f = flag & 0xFF;
 
-            if (f == BleKeyFlag.DELETE.getValue()) {
-                int id = body.length > 0 ? body[0] & 0xFF : 0xFF;
-                log("Rx ALARM deleted id=" + id);
-                List<BleAlarm> kept = new ArrayList<>();
-                if (id != 0xFF) {
-                    for (BleAlarm a : getCachedAlarms())
-                        if (a.id != id)
-                            kept.add(a);
-                }
-                storeAlarms(kept);
-                notifyAlarms(kept);
-                if (!isReply)
-                    sendAck(cmd, key, flag);
-                return;
-            }
-
-            List<BleAlarm> items = BleAlarm.decodeList(body);
-            if (f == BleKeyFlag.READ.getValue() || f == BleKeyFlag.RESET.getValue()) {
-                // The reply is the complete list, so it replaces the cache.
+            if ((f == BleKeyFlag.READ.getValue() || f == BleKeyFlag.RESET.getValue())
+                    && body.length >= BleAlarm.ITEM_LENGTH) {
+                List<BleAlarm> items = BleAlarm.decodeList(body);
                 log("Rx ALARM list: " + items.size() + " alarm(s)");
                 storeAlarms(items);
                 notifyAlarms(items);
-            } else if (!items.isEmpty()) {
-                // CREATE/UPDATE echo a single item: merge it in by id.
-                BleAlarm one = items.get(0);
-                log("Rx ALARM item: " + one);
-                List<BleAlarm> merged = new ArrayList<>();
-                boolean replaced = false;
-                for (BleAlarm a : getCachedAlarms()) {
-                    if (a.id == one.id) {
-                        merged.add(one);
-                        replaced = true;
-                    } else {
-                        merged.add(a);
-                    }
-                }
-                if (!replaced)
-                    merged.add(one);
-                storeAlarms(merged);
-                notifyAlarms(merged);
+            } else if (f == BleKeyFlag.READ.getValue() || f == BleKeyFlag.RESET.getValue()) {
+                // An empty body is a real answer: the watch holds no alarms.
+                log("Rx ALARM list: empty");
+                List<BleAlarm> none = new ArrayList<>();
+                storeAlarms(none);
+                notifyAlarms(none);
+            } else {
+                log("Rx ALARM ack flag=0x" + String.format("%02X", f));
             }
             if (!isReply)
                 sendAck(cmd, key, flag);
-            return;
-        }
-
-        // Transport command pushed from the watch (MUSIC_CONTROL 0x0402).
-        // Single payload byte, matching MusicCommand.of(byte) in the original SDK.
-        if (cmd == 0x04 && key == 0x02 && !isReply) {
-            sendAck(cmd, key, flag);
-            if (data.length > 9) {
-                int command = data[9] & 0xFF;
-                log("Music command from watch: " + command);
-                handler.post(() -> getMusicController().onWatchCommand(command));
-            }
             return;
         }
 
@@ -2864,11 +2833,34 @@ public class BleManager {
     }
 
     /**
-     * Add a new alarm (CREATE). The watch assigns the id and echoes the stored
-     * item back, so {@code alarm.id} is ignored here.
+     * Add a new alarm (CREATE).
+     *
+     * The watch does NOT allocate the id — verified on a Kronos Thunder, which
+     * wrote a CREATE carrying id 0 straight into slot 0 and destroyed the alarm
+     * already there. So the free slot is chosen here, from the list the watch
+     * last reported.
      */
     public void createAlarm(BleAlarm alarm) {
+        if (alarm != null)
+            alarm.id = nextFreeAlarmId();
         sendAlarm(alarm, BleKeyFlag.CREATE.getValue(), "create");
+    }
+
+    /** Lowest slot the watch is not already using. */
+    private int nextFreeAlarmId() {
+        List<BleAlarm> known = getCachedAlarms();
+        for (int id = 0; id < MAX_ALARMS; id++) {
+            boolean taken = false;
+            for (BleAlarm a : known) {
+                if (a.id == id) {
+                    taken = true;
+                    break;
+                }
+            }
+            if (!taken)
+                return id;
+        }
+        return MAX_ALARMS - 1;   // full; the watch rejects it either way
     }
 
     /** Overwrite the alarm with this id (UPDATE). */
@@ -2886,7 +2878,23 @@ public class BleManager {
         log("Tx ALARM " + what + ": " + alarm);
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x10, (byte) flag, alarm.encode()));
         flushQueue();
+        scheduleAlarmReread();
     }
+
+    /**
+     * Re-read the list shortly after changing it.
+     *
+     * CREATE and UPDATE come back as a bodyless ACK and DELETE draws no reply
+     * at all on this firmware, so a mutation carries no information about the
+     * resulting list. Without this the screen keeps showing the pre-edit state
+     * until the user leaves and comes back.
+     */
+    private void scheduleAlarmReread() {
+        handler.removeCallbacks(alarmRereadRunnable);
+        handler.postDelayed(alarmRereadRunnable, 700);
+    }
+
+    private final Runnable alarmRereadRunnable = this::readAlarms;
 
     /** Delete one alarm by id, or every alarm with {@code id == 0xFF}. */
     public void deleteAlarm(int id) {
@@ -2896,6 +2904,7 @@ public class BleManager {
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x10,
                 (byte) BleKeyFlag.DELETE.getValue(), new byte[] { (byte) id }));
         flushQueue();
+        scheduleAlarmReread();
     }
 
     /** Replace the watch's whole list in one frame (RESET). */
@@ -2913,6 +2922,7 @@ public class BleManager {
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x10,
                 (byte) BleKeyFlag.RESET.getValue(), body));
         flushQueue();
+        scheduleAlarmReread();
     }
 
     /** Alarms as last seen on the watch, cached so the list opens instantly. */
@@ -3004,6 +3014,7 @@ public class BleManager {
     public void sendMusicControl(int entity, int attr, String content) {
         if (!isSessionReady())
             return;
+        log("Tx MUSIC entity=" + entity + " attr=" + attr + " content='" + content + "'");
         enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x02, (byte) 0x00,
                 musicControlPayload(entity, attr, content)));
         // Metadata arrives as a burst of four or five attributes; flushQueue

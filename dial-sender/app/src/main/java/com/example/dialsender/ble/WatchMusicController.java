@@ -12,8 +12,10 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.KeyEvent;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Bridges Android's media session to the watch over MUSIC_CONTROL (0x0402).
@@ -80,6 +82,23 @@ public class WatchMusicController {
     private int lastVolume = -1;
     private long lastVolumeAt;
 
+    /**
+     * Last value sent for each entity/attribute pair.
+     *
+     * The media framework is chatty: a single track can produce several
+     * metadata and playback callbacks carrying identical values, and each one
+     * would otherwise become its own BLE frame. Only changes go out.
+     * {@link #pushAll()} clears this so a reconnected watch is refilled.
+     */
+    private final Map<Integer, String> lastSent = new HashMap<>();
+
+    /** How often a position-only change is resynced to the watch. */
+    private static final long PLAYBACK_RESYNC_MS = 10_000;
+
+    private int lastPlaybackState = STATE_UNKNOWN;
+    private float lastPlaybackSpeed = -1f;
+    private long lastPlaybackAt;
+
     public WatchMusicController(Context context, BleManager ble) {
         this.context = context.getApplicationContext();
         this.ble = ble;
@@ -108,10 +127,19 @@ public class WatchMusicController {
     private final MediaSessionManager.OnActiveSessionsChangedListener sessionsListener =
             controllers -> bindTo(pickController(controllers));
 
-    /** Start following the active media session. Safe to call more than once. */
+    /**
+     * Start following the active media session.
+     *
+     * Safe to call more than once: a second call re-sends the current state
+     * rather than rebinding, which is what a reconnected watch needs.
+     */
     public void start() {
-        if (started || sessions == null)
+        if (sessions == null)
             return;
+        if (started) {
+            pushAll();
+            return;
+        }
         ComponentName listener = new ComponentName(context, WatchNotificationService.class);
         try {
             sessions.addOnActiveSessionsChangedListener(sessionsListener, listener);
@@ -154,7 +182,7 @@ public class WatchMusicController {
     }
 
     private void bindTo(MediaController controller) {
-        if (active == controller)
+        if (sameSession(active, controller))
             return;
         if (active != null)
             active.unregisterCallback(controllerCallback);
@@ -167,6 +195,22 @@ public class WatchMusicController {
         pushTrack(active.getMetadata());
         pushPlaybackState(active.getPlaybackState());
         pushVolume();
+    }
+
+    /**
+     * Whether two controllers address the same session.
+     *
+     * getActiveSessions() hands back a fresh MediaController wrapper on every
+     * call, so comparing references treats each callback as a new session and
+     * re-pushes the whole track — six frames of BLE traffic for nothing. The
+     * session token is the stable identity.
+     */
+    private static boolean sameSession(MediaController a, MediaController b) {
+        if (a == b)
+            return true;
+        if (a == null || b == null)
+            return false;
+        return a.getSessionToken().equals(b.getSessionToken());
     }
 
     private void refreshActiveSession() {
@@ -182,6 +226,15 @@ public class WatchMusicController {
 
     // ---- phone -> watch ----
 
+    /** Send one attribute, unless the watch already has this exact value. */
+    private void send(int entity, int attr, String content) {
+        Integer key = (entity << 8) | attr;
+        if (content.equals(lastSent.get(key)))
+            return;
+        lastSent.put(key, content);
+        ble.sendMusicControl(entity, attr, content);
+    }
+
     /** The watch clears a row on "", so an absent field is sent as a space. */
     private static String orEmpty(String s) {
         return (s == null || s.isEmpty()) ? EMPTY : s;
@@ -189,19 +242,19 @@ public class WatchMusicController {
 
     private void pushTrack(MediaMetadata m) {
         if (m == null) {
-            ble.sendMusicControl(ENTITY_TRACK, TRACK_ARTIST, EMPTY);
-            ble.sendMusicControl(ENTITY_TRACK, TRACK_ALBUM, EMPTY);
-            ble.sendMusicControl(ENTITY_TRACK, TRACK_TITLE, EMPTY);
-            ble.sendMusicControl(ENTITY_TRACK, TRACK_DURATION, "0");
+            send(ENTITY_TRACK, TRACK_ARTIST, EMPTY);
+            send(ENTITY_TRACK, TRACK_ALBUM, EMPTY);
+            send(ENTITY_TRACK, TRACK_TITLE, EMPTY);
+            send(ENTITY_TRACK, TRACK_DURATION, "0");
             return;
         }
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_ARTIST,
+        send(ENTITY_TRACK, TRACK_ARTIST,
                 orEmpty(m.getString(MediaMetadata.METADATA_KEY_ARTIST)));
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_ALBUM,
+        send(ENTITY_TRACK, TRACK_ALBUM,
                 orEmpty(m.getString(MediaMetadata.METADATA_KEY_ALBUM)));
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_TITLE,
+        send(ENTITY_TRACK, TRACK_TITLE,
                 orEmpty(m.getString(MediaMetadata.METADATA_KEY_TITLE)));
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_DURATION,
+        send(ENTITY_TRACK, TRACK_DURATION,
                 String.valueOf(m.getLong(MediaMetadata.METADATA_KEY_DURATION) / 1000));
     }
 
@@ -211,8 +264,24 @@ public class WatchMusicController {
         int watchState = toWatchState(state.getState());
         if (watchState == STATE_UNKNOWN)
             return;
-        ble.sendMusicControl(ENTITY_PLAYER, PLAYER_PLAYBACK_INFO,
-                playbackInfo(watchState, state.getPlaybackSpeed(), state.getPosition() / 1000));
+
+        float speed = state.getPlaybackSpeed();
+        long now = System.currentTimeMillis();
+        boolean transportChanged = watchState != lastPlaybackState || speed != lastPlaybackSpeed;
+
+        // Some players (YouTube among them) refresh PlaybackState roughly once
+        // a second purely to advance the position. The watch runs its own clock
+        // from the state and speed it was given, so those ticks would be a BLE
+        // frame every second for no visible change. Play/pause/seek always goes
+        // out; a position-only drift is resynced occasionally.
+        if (!transportChanged && now - lastPlaybackAt < PLAYBACK_RESYNC_MS)
+            return;
+
+        lastPlaybackState = watchState;
+        lastPlaybackSpeed = speed;
+        lastPlaybackAt = now;
+        send(ENTITY_PLAYER, PLAYER_PLAYBACK_INFO,
+                playbackInfo(watchState, speed, state.getPosition() / 1000));
         if (lastVolume == -1)
             pushVolume();
     }
@@ -269,22 +338,26 @@ public class WatchMusicController {
             return;
         lastVolumeAt = now;
         lastVolume = vol;
-        ble.sendMusicControl(ENTITY_PLAYER, PLAYER_VOLUME,
+        send(ENTITY_PLAYER, PLAYER_VOLUME,
                 String.format(Locale.US, "%.2f", vol / (float) max));
     }
 
     /** Blank the watch's player when nothing is playing. */
     private void pushIdle() {
-        ble.sendMusicControl(ENTITY_PLAYER, PLAYER_PLAYBACK_INFO, playbackInfo(STATE_PAUSED, 0f, 0));
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_ARTIST, EMPTY);
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_ALBUM, EMPTY);
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_TITLE, EMPTY);
-        ble.sendMusicControl(ENTITY_TRACK, TRACK_DURATION, "0");
+        send(ENTITY_PLAYER, PLAYER_PLAYBACK_INFO, playbackInfo(STATE_PAUSED, 0f, 0));
+        send(ENTITY_TRACK, TRACK_ARTIST, EMPTY);
+        send(ENTITY_TRACK, TRACK_ALBUM, EMPTY);
+        send(ENTITY_TRACK, TRACK_TITLE, EMPTY);
+        send(ENTITY_TRACK, TRACK_DURATION, "0");
         lastVolume = -1;
     }
 
     /** Re-send everything, e.g. after the watch reconnects. */
     public void pushAll() {
+        // The watch lost whatever it had, so both caches are stale.
+        lastSent.clear();
+        lastPlaybackState = STATE_UNKNOWN;
+        lastPlaybackAt = 0;
         if (active == null) {
             refreshActiveSession();
             return;
@@ -299,28 +372,51 @@ public class WatchMusicController {
     /**
      * Apply a transport command from the watch.
      *
-     * Volume goes through AudioManager; everything else is replayed as a media
-     * key event rather than driven through the bound MediaController, so it
-     * still lands when the session we are following is not the one the user
-     * means — the system routes the key to whichever session it considers
-     * active, which is the behaviour the original app relies on.
+     * Volume goes through AudioManager. Transport goes to the session we are
+     * actually following, falling back to a media key event when there is
+     * none.
+     *
+     * The original app only ever dispatches media keys, on the theory that the
+     * system routes them to whichever session is active. That is not reliable:
+     * on the test phone a media key was handed to KDE Connect, which holds the
+     * media button receiver, while the watch was showing — and the user meant
+     * to control — the video playing in another app. Driving the bound
+     * controller keeps the buttons attached to what the watch displays.
      */
     public void onWatchCommand(int command) {
+        MediaController.TransportControls transport =
+                active != null ? active.getTransportControls() : null;
+
         switch (command) {
             case CMD_PLAY:
-                sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY);
+                if (transport != null)
+                    transport.play();
+                else
+                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY);
                 break;
             case CMD_PAUSE:
-                sendMediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE);
+                if (transport != null)
+                    transport.pause();
+                else
+                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE);
                 break;
             case CMD_TOGGLE:
-                sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
+                if (transport != null)
+                    togglePlayback(transport);
+                else
+                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
                 break;
             case CMD_NEXT:
-                sendMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT);
+                if (transport != null)
+                    transport.skipToNext();
+                else
+                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT);
                 break;
             case CMD_PREVIOUS:
-                sendMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+                if (transport != null)
+                    transport.skipToPrevious();
+                else
+                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
                 break;
             case CMD_VOLUME_UP:
                 adjustVolume(AudioManager.ADJUST_RAISE);
@@ -338,6 +434,16 @@ public class WatchMusicController {
             if (active != null)
                 pushPlaybackState(active.getPlaybackState());
         }, 300);
+    }
+
+    /** There is no toggle on TransportControls, so read the state and invert. */
+    private void togglePlayback(MediaController.TransportControls transport) {
+        PlaybackState state = active != null ? active.getPlaybackState() : null;
+        boolean playing = state != null && state.getState() == PlaybackState.STATE_PLAYING;
+        if (playing)
+            transport.pause();
+        else
+            transport.play();
     }
 
     private void sendMediaKey(int keyCode) {

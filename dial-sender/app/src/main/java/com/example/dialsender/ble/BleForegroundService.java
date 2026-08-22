@@ -123,20 +123,33 @@ public class BleForegroundService extends Service implements BleManager.Connecti
         handler.removeCallbacks(watchdogRunnable);
     }
 
+    /**
+     * Last state acted on, so the bridges below react to transitions only.
+     *
+     * This callback fires on every step of the connection, several times with
+     * sessionReady already true. Treating each one as "the watch just came
+     * back" made the music bridge re-send the whole now-playing block each
+     * time.
+     */
+    private Boolean lastSessionReady;
+
     @Override
     public void onConnectionStateChange(boolean connected, boolean sessionReady) {
         updateNotification(connected);
+
+        if (lastSessionReady != null && lastSessionReady == sessionReady && (sessionReady || connected))
+            return;
+        lastSessionReady = sessionReady;
 
         // Follow the phone's media session only while the watch can actually
         // receive the pushes; otherwise every track change would build frames
         // that sendMusicControl drops anyway.
         WatchMusicController music = bleManager.getMusicController();
         if (sessionReady) {
+            // start() binds and pushes on the first call, and re-sends
+            // everything on later ones — the watch shows an empty player until
+            // it has been told, so a reconnect has to refill it.
             music.start();
-            // The watch shows an empty player until the first push, so re-send
-            // everything once the session is up rather than waiting for the
-            // next metadata change.
-            music.pushAll();
         } else if (!connected) {
             music.stop();
         }
