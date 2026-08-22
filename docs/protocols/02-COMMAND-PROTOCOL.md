@@ -350,7 +350,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `FIND_PHONE` | `0x0213` | 531 | `0x13` | ✅ recv | Find-phone trigger (watch -> phone) _(value inferred — see note)_ |
 | `NOTIFICATION_REMINDER` | `0x0214` | 532 | `0x14` | — | Per-app notification reminder switches (v1) |
 | `ANTI_LOST` | `0x0215` | 533 | `0x15` | ✅ send | Anti-lost alert |
-| `HR_MONITORING` | `0x0216` | 534 | `0x16` | — | Continuous heart-rate monitoring settings _(value inferred — see note)_ |
+| `HR_MONITORING` | `0x0216` | 534 | `0x16` | send, read | Continuous heart-rate monitoring settings _(value inferred — see note)_ |
 | `UI_PACK_VERSION` | `0x0217` | 535 | `0x17` | — | Installed UI resource pack version _(value inferred — see note)_ |
 | `LANGUAGE_PACK_VERSION` | `0x0218` | 536 | `0x18` | — | Installed language pack version _(value inferred — see note)_ |
 | `SLEEP_QUALITY` | `0x0219` | 537 | `0x19` | — | Sleep quality feedback _(value inferred — see note)_ |
@@ -365,7 +365,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `SHUTDOWN` | `0x0222` | 546 | `0x22` | — | Power off the device |
 | `APP_SPORT_DATA` | `0x0223` | 547 | `0x23` | — | App-driven sport session data pushed to watch |
 | `REAL_TIME_HEART_RATE` | `0x0224` | 548 | `0x24` | — | Start / stop real-time HR streaming _(value inferred — see note)_ |
-| `BLOOD_OXYGEN_SET` | `0x0225` | 549 | `0x25` | — | SpO2 monitoring settings |
+| `BLOOD_OXYGEN_SET` | `0x0225` | 549 | `0x25` | send, read | SpO2 monitoring settings |
 | `WASH_SET` | `0x0226` | 550 | `0x26` | — | Hand-wash reminder |
 | `WATCHFACE_ID` | `0x0227` | 551 | `0x27` | ✅ send | Watch face ID (sent before WATCH_FACE transfer) _(value inferred — see note)_ |
 | `IBEACON_SET` | `0x0228` | 552 | `0x28` | — | iBeacon settings |
@@ -374,9 +374,9 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `REAL_TIME_BLOOD_PRESSURE` | `0x0231` | 561 | `0x31` | — | Real-time blood-pressure streaming |
 | `TEMPERATURE_VALUE` | `0x0232` | 562 | `0x32` | — | Temperature value _(value inferred — see note)_ |
 | `GAME_SET` | `0x0233` | 563 | `0x33` | — | Watch game settings |
-| `FIND_WATCH` | `0x0234` | 564 | `0x34` | — | Find-watch trigger (phone -> watch) |
+| `FIND_WATCH` | `0x0234` | 564 | `0x34` | send | Find-watch trigger (phone -> watch) |
 | `SET_WATCH_PASSWORD` | `0x0235` | 565 | `0x35` | — | Watch screen-lock password |
-| `REALTIME_MEASUREMENT` | `0x0236` | 566 | `0x36` | — | On-demand measurement trigger (HR / SpO2 / BP / stress) |
+| `REALTIME_MEASUREMENT` | `0x0236` | 566 | `0x36` | send | On-demand measurement trigger (HR / SpO2 / BP / stress) |
 | `POWER_SAVE_MODE` | `0x0237` | 567 | `0x37` | — | Battery power-save mode |
 | `BAC_SET` | `0x0238` | 568 | `0x38` | — | Blood alcohol content settings |
 | `CALORIES_GOAL` | `0x0239` | 569 | `0x39` | — | Daily calorie goal |
@@ -386,7 +386,7 @@ The largest group. Read with `FLAG=READ`, write with `FLAG=UPDATE`. Most keys ar
 | `MEDICATION_REMINDER` | `0x023D` | 573 | `0x3D` | — | Medication reminder |
 | `DEVICE_INFO` | `0x023E` | 574 | `0x3E` | read | Device capability block - see 11-DEVICE-INFO-CAPABILITIES.md |
 | `HR_WARNING_SET` | `0x023F` | 575 | `0x3F` | — | Heart-rate high/low alert thresholds |
-| `SLEEP_MONITORING` | `0x0240` | 576 | `0x40` | — | Sleep monitoring settings |
+| `SLEEP_MONITORING` | `0x0240` | 576 | `0x40` | send | Sleep monitoring settings |
 | `STANDBY_SET` | `0x0241` | 577 | `0x41` | — | Always-on / standby display settings |
 | `BT_NAME` | `0x0242` | 578 | `0x42` | — | Bluetooth device name |
 | `TUYA_KEY_SET` | `0x0243` | 579 | `0x43` | — | Tuya IoT key provisioning |

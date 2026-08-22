@@ -187,6 +187,41 @@
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
+            <LinearLayout android:id="@+id/rowMeasureNow" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_measure_now"/>
+                <TextView android:id="@+id/txtMeasureNow" style="@style/DeviceRowValue"
+                    android:text="@string/measure_now"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
+            <LinearLayout android:id="@+id/rowFindWatch" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_ring_watch"/>
+                <TextView android:id="@+id/txtFindWatch" style="@style/DeviceRowValue"
+                    android:text="@string/find_watch_ring"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
+            <LinearLayout android:id="@+id/rowHrMonitoring" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_hr_monitoring"/>
+                <TextView android:id="@+id/txtHrMonitoring" style="@style/DeviceRowValue"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
+            <LinearLayout android:id="@+id/rowSpo2Monitoring" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_spo2_monitoring"/>
+                <TextView android:id="@+id/txtSpo2Monitoring" style="@style/DeviceRowValue"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
+            <LinearLayout android:id="@+id/rowSleepMonitoring" style="@style/DeviceRow">
+                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_sleep_monitoring"/>
+                <TextView android:id="@+id/txtSleepMonitoring" style="@style/DeviceRowValue"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="@style/DeviceRowDivider"/>
+
             <LinearLayout android:id="@+id/btnCamera" style="@style/DeviceRow">
                 <TextView style="@style/DeviceRowLabel" android:text="@string/dev_camera"/>
                 <TextView style="@style/DeviceRowChevron" android:text="›"/>

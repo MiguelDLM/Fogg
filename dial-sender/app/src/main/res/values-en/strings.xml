@@ -746,4 +746,21 @@ Pick an activity above to record your first one.</string>
     <!-- Call control (INCOMING_CALL 0x0603) -->
     <string name="dev_call_control">Answer from the watch</string>
     <string name="call_control_needs_permission">Without phone permission the watch cannot answer or hang up</string>
+
+    <!-- Find watch (FIND_WATCH 0x0234) + health monitoring windows -->
+    <string name="dev_ring_watch">Find the watch</string>
+    <string name="find_watch_ring">Ring</string>
+    <string name="find_watch_ringing">Ringing…</string>
+    <string name="dev_hr_monitoring">Automatic heart rate</string>
+    <string name="dev_spo2_monitoring">Automatic SpO2</string>
+    <string name="dev_sleep_monitoring">Sleep tracking</string>
+    <string name="monitoring_every">every %1$d min</string>
+    <string name="monitoring_window">%1$02d:%2$02d–%3$02d:%4$02d</string>
+    <string name="monitoring_interval">Interval</string>
+    <string name="monitoring_enabled">Enabled</string>
+    <string name="measure_now">Measure now</string>
+    <string name="measuring">Measuring…</string>
+    <string name="measure_done">Measurement complete</string>
+    <string name="measure_failed">Could not measure. Sit still with the watch snug on your wrist and try again.</string>
+    <string name="dev_measure_now">Measure heart rate</string>
 </resources>

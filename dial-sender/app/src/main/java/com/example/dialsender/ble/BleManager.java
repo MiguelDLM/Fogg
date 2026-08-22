@@ -1269,6 +1269,63 @@ public class BleManager {
             return;
         }
 
+        // Monitoring windows (HR 0x0216, SpO2 0x0225, sleep 0x0240),
+        // FIND_WATCH (0x0234) and REALTIME_MEASUREMENT (0x0236) —
+        // a write is answered with a bodyless ACK, while a READ comes back with
+        // the stored setting, which is what the rows render from (the watch is
+        // the source of truth, as it is for alarms).
+        //
+        // 0x36 only matches here when the frame is empty: a measurement result
+        // carries a body and must reach its own handler below.
+        if (isReply && cmd == 0x02
+                && (key == 0x34 || key == 0x16 || key == 0x25 || key == 0x40
+                    || (key == 0x36 && data.length <= 9))) {
+            byte[] body = Arrays.copyOfRange(data, 9, data.length);
+            if (body.length >= 5 && key != 0x34) {
+                boolean on = body[0] != 0;
+                int sh = body[1] & 0xFF, sm = body[2] & 0xFF;
+                int eh = body[3] & 0xFF, em = body[4] & 0xFF;
+                // Sleep has no interval byte; the other two do.
+                int interval = body.length >= 6 ? body[5] & 0xFF : 0;
+                log("Rx monitoring key=0x" + String.format("%02X", key)
+                        + " enabled=" + on + " " + sh + ":" + sm + "-" + eh + ":" + em
+                        + (body.length >= 6 ? " every " + interval + "min" : "")
+                        + "  raw=" + bytesToHex(body));
+                storeMonitoring(key & 0xFF, on, sh, sm, eh, em, interval);
+                MonitoringListener ml = monitoringListener;
+                if (ml != null)
+                    handler.post(ml::onMonitoringChanged);
+            } else {
+                log("Rx ack key=0x" + String.format("%02X", key)
+                        + " flag=0x" + String.format("%02X", flag));
+            }
+            return;
+        }
+
+        // Measurement progress (REALTIME_MEASUREMENT 0x0236). Same bit-packed
+        // byte as the request: state 0 means the reading is ready to be read
+        // off the matching health key, state 1 means the watch gave up.
+        if (cmd == 0x02 && key == 0x36 && data.length > 9) {
+            int packed = data[9] & 0xFF;
+            int state = (packed >> 6) & 0x03;
+            int type = (packed & 0x04) != 0 ? MEASURE_BLOOD_PRESSURE
+                     : (packed & 0x02) != 0 ? MEASURE_BLOOD_OXYGEN
+                     : MEASURE_HEART_RATE;
+            log("Rx REALTIME_MEASUREMENT state=" + state + " type=" + type);
+
+            MeasurementListener l = measurementListener;
+            if (state == 0) {
+                if (l != null)
+                    handler.post(() -> l.onMeasurementComplete(type));
+            } else if (state == 1) {
+                if (l != null)
+                    handler.post(() -> l.onMeasurementFailed(type));
+            }
+            if (!isReply)
+                sendAck(cmd, key, flag);
+            return;
+        }
+
         // Camera shutter pushed from the watch (CONTROL 0x0601, watch -> phone)
         if (cmd == 0x06 && key == 0x01 && !isReply) {
             log("Camera shutter from watch");
@@ -2806,6 +2863,205 @@ public class BleManager {
 
     public void setCallListener(CallListener l) {
         this.callListener = l;
+    }
+
+    /** Pref prefix for a monitoring key, shared with the Device tab. */
+    public static String monitoringPref(int key) {
+        switch (key) {
+            case 0x16: return "hr_monitoring";
+            case 0x25: return "spo2_monitoring";
+            case 0x40: return "sleep_monitoring";
+            default:   return "monitoring_" + key;
+        }
+    }
+
+    private void storeMonitoring(int key, boolean on, int sh, int sm, int eh, int em, int interval) {
+        String p = monitoringPref(key);
+        SharedPreferences.Editor e = prefs.edit()
+                .putBoolean(p + "_on", on)
+                .putInt(p + "_sh", sh).putInt(p + "_sm", sm)
+                .putInt(p + "_eh", eh).putInt(p + "_em", em);
+        if (interval > 0)
+            e.putInt(p + "_interval", interval);
+        e.apply();
+    }
+
+    /** Fired when the watch reports a monitoring window. */
+    public interface MonitoringListener {
+        void onMonitoringChanged();
+    }
+
+    private MonitoringListener monitoringListener;
+
+    public void setMonitoringListener(MonitoringListener l) {
+        this.monitoringListener = l;
+    }
+
+    /** Ask the watch for all three monitoring windows. */
+    public void readAllMonitoring() {
+        readMonitoring(0x16);
+        readMonitoring(0x25);
+        readMonitoring(0x40);
+    }
+
+    // ===== Measure on demand (REALTIME_MEASUREMENT 0x0236) =====
+
+    public static final int MEASURE_HEART_RATE = 0;
+    public static final int MEASURE_BLOOD_PRESSURE = 1;
+    public static final int MEASURE_BLOOD_OXYGEN = 2;
+
+    // States, from the original app's start/stop paths.
+    private static final int MEASURE_STATE_STOP = 1;
+    private static final int MEASURE_STATE_START = 2;
+
+    /**
+     * Tell the watch to take a reading now, or to stop taking one.
+     *
+     * The payload is a single bit-packed byte, MSB first, matching
+     * BleRealTimeMeasurement.encode():
+     *
+     * <pre>
+     *   bits 7..6  state   2 = start, 1 = stop
+     *   bits 5..4  unused, written as 0
+     *   bit  3     stress
+     *   bit  2     blood pressure
+     *   bit  1     blood oxygen
+     *   bit  0     heart rate
+     * </pre>
+     *
+     * So "start a heart-rate reading" is 0x81 and "stop" is 0x41.
+     *
+     * The reading itself does not come back on this key. The watch replies here
+     * with state 0 for done or state 1 for failed, and the value is then read
+     * from the matching health key — which {@link #syncHealth()} already
+     * knows how to do.
+     */
+    public void sendRealtimeMeasurement(int type, boolean start) {
+        if (!isSessionReady())
+            return;
+        int bit;
+        switch (type) {
+            case MEASURE_BLOOD_PRESSURE: bit = 1 << 2; break;
+            case MEASURE_BLOOD_OXYGEN:   bit = 1 << 1; break;
+            case MEASURE_HEART_RATE:
+            default:                     bit = 1; break;
+        }
+        int state = start ? MEASURE_STATE_START : MEASURE_STATE_STOP;
+        byte payload = (byte) ((state << 6) | bit);
+
+        log("Tx REALTIME_MEASUREMENT type=" + type + " start=" + start
+                + " payload=0x" + String.format("%02X", payload));
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x36, (byte) 0x00,
+                new byte[] { payload }));
+        flushQueue();
+    }
+
+    /** Progress of an on-demand measurement. */
+    public interface MeasurementListener {
+        /** The watch finished; the value follows on the matching health key. */
+        void onMeasurementComplete(int type);
+
+        /** The watch gave up (bad contact, moved wrist, no reading). */
+        void onMeasurementFailed(int type);
+    }
+
+    private MeasurementListener measurementListener;
+
+    public void setMeasurementListener(MeasurementListener l) {
+        this.measurementListener = l;
+    }
+
+    // ===== Find the watch (FIND_WATCH 0x0234) =====
+
+    /**
+     * Make the watch ring and vibrate, or stop it (FIND_WATCH 0x0234, UPDATE).
+     *
+     * One byte: 1 starts, 0 stops. The mirror image of FIND_PHONE (0x0213),
+     * which the watch already uses to ring this phone.
+     *
+     * The watch also stops on its own once the user acknowledges it there, and
+     * it sends nothing back when it does — so the phone cannot know whether it
+     * is still ringing, only ask it to start or stop.
+     */
+    public void sendFindWatch(boolean start) {
+        if (!isSessionReady())
+            return;
+        log("Tx FIND_WATCH start=" + start);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x34, (byte) 0x00,
+                new byte[] { (byte) (start ? 1 : 0) }));
+        flushQueue();
+    }
+
+    // ===== Health monitoring windows =====
+
+    /**
+     * A daily window plus a sampling interval, the shape three of the
+     * monitoring keys share: {@code [enabled, startH, startM, endH, endM]}
+     * (a BleTimeRange) followed by the interval in minutes.
+     *
+     * HR_MONITORING clamps the interval to at least 1 in the original's
+     * encode(); BLOOD_OXYGEN_SET does not, so a 0 there is passed through as
+     * the watch's own idea of "off".
+     */
+    private void sendMonitoringWindow(int key, String name, boolean enabled,
+                                      int startHour, int startMinute,
+                                      int endHour, int endMinute, int intervalMinutes) {
+        if (!isSessionReady())
+            return;
+        byte[] payload = {
+                (byte) (enabled ? 1 : 0),
+                (byte) startHour, (byte) startMinute,
+                (byte) endHour, (byte) endMinute,
+                (byte) intervalMinutes
+        };
+        log("Tx " + name + " enabled=" + enabled
+                + " " + startHour + ":" + startMinute + "-" + endHour + ":" + endMinute
+                + " every " + intervalMinutes + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /** Automatic heart-rate sampling (HR_MONITORING 0x0216). */
+    public void sendHeartRateMonitoring(boolean enabled, int startHour, int startMinute,
+                                        int endHour, int endMinute, int intervalMinutes) {
+        sendMonitoringWindow(0x16, "HR_MONITORING", enabled, startHour, startMinute,
+                endHour, endMinute, Math.max(intervalMinutes, 1));
+    }
+
+    /** Automatic SpO2 sampling (BLOOD_OXYGEN_SET 0x0225). */
+    public void sendBloodOxygenMonitoring(boolean enabled, int startHour, int startMinute,
+                                          int endHour, int endMinute, int intervalMinutes) {
+        sendMonitoringWindow(0x25, "BLOOD_OXYGEN_SET", enabled, startHour, startMinute,
+                endHour, endMinute, intervalMinutes);
+    }
+
+    /**
+     * Sleep tracking window (SLEEP_MONITORING 0x0240).
+     *
+     * Five bytes, not six: this key has no interval.
+     */
+    public void sendSleepMonitoring(boolean enabled, int startHour, int startMinute,
+                                    int endHour, int endMinute) {
+        if (!isSessionReady())
+            return;
+        byte[] payload = {
+                (byte) (enabled ? 1 : 0),
+                (byte) startHour, (byte) startMinute,
+                (byte) endHour, (byte) endMinute
+        };
+        log("Tx SLEEP_MONITORING enabled=" + enabled
+                + " " + startHour + ":" + startMinute + "-" + endHour + ":" + endMinute);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x40, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /** Ask the watch for a monitoring key's current setting. */
+    public void readMonitoring(int key) {
+        if (!isSessionReady())
+            return;
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
+                (byte) BleKeyFlag.READ.getValue(), new byte[0]));
+        flushQueue();
     }
 
     // ===== Alarms (ALARM 0x0210) =====

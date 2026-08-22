@@ -19,7 +19,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.TimePicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -123,6 +126,9 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                     startActivity(new Intent(requireContext(), com.example.dialsender.AlarmsActivity.class)));
         }
         setupCallControl(view);
+        setupMeasureNow(view);
+        setupFindWatch(view);
+        setupMonitoring(view);
 
         View btnCamera = view.findViewById(R.id.btnCamera);
         if (btnCamera != null) {
@@ -893,4 +899,314 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         txtCallControl.setText(on ? R.string.state_on : R.string.state_off);
     }
 
+
+    // ===== Find the watch (FIND_WATCH 0x0234) =====
+
+    /**
+     * The watch stops ringing on its own once the user acknowledges it there
+     * and tells us nothing when it does, so the row cannot show live state. It
+     * shows "Ringing…" for a few seconds as feedback that the frame went out,
+     * then goes back to offering the action.
+     */
+    /** Long enough to walk to the next room, short enough not to annoy. */
+    private static final long FIND_WATCH_TIMEOUT_MS = 30_000;
+
+    private void setupFindWatch(View view) {
+        View row = view.findViewById(R.id.rowFindWatch);
+        TextView value = view.findViewById(R.id.txtFindWatch);
+        if (row == null || value == null)
+            return;
+
+        final boolean[] ringing = { false };
+        row.setOnClickListener(v -> {
+            if (!bleManager.isSessionReady()) {
+                Toast.makeText(requireContext(), R.string.device_not_connected,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ringing[0] = !ringing[0];
+            bleManager.sendFindWatch(ringing[0]);
+            value.setText(ringing[0] ? R.string.find_watch_ringing : R.string.find_watch_ring);
+            if (ringing[0]) {
+                // The watch never reports that it stopped, so the phone owns
+                // the stop: after a while, send it rather than just relabelling
+                // the row. Letting the label lapse on its own made the next tap
+                // start a second ring instead of ending the first.
+                value.postDelayed(() -> {
+                    if (!ringing[0])
+                        return;
+                    ringing[0] = false;
+                    bleManager.sendFindWatch(false);
+                    value.setText(R.string.find_watch_ring);
+                }, FIND_WATCH_TIMEOUT_MS);
+            }
+        });
+    }
+
+    // ===== Health monitoring windows =====
+
+    private static final String PREF_HR_MON = "hr_monitoring";
+    private static final String PREF_SPO2_MON = "spo2_monitoring";
+    private static final String PREF_SLEEP_MON = "sleep_monitoring";
+
+    private final java.util.List<Runnable> monitoringRepaint = new ArrayList<>();
+
+    private void setupMonitoring(View view) {
+        monitoringRepaint.clear();
+        setupMonitoringRow(view, R.id.rowHrMonitoring, R.id.txtHrMonitoring,
+                PREF_HR_MON, R.string.dev_hr_monitoring, true, 0, 0, 23, 59, 30);
+        setupMonitoringRow(view, R.id.rowSpo2Monitoring, R.id.txtSpo2Monitoring,
+                PREF_SPO2_MON, R.string.dev_spo2_monitoring, true, 0, 0, 23, 59, 60);
+        setupMonitoringRow(view, R.id.rowSleepMonitoring, R.id.txtSleepMonitoring,
+                PREF_SLEEP_MON, R.string.dev_sleep_monitoring, false, 21, 0, 10, 0, 0);
+
+        // The watch holds the real setting; ask for it and repaint when it
+        // answers, so the rows never show a phone-side guess.
+        bleManager.setMonitoringListener(() -> {
+            if (isAdded())
+                for (Runnable r : monitoringRepaint)
+                    r.run();
+        });
+        if (bleManager.isSessionReady())
+            bleManager.readAllMonitoring();
+    }
+
+    /**
+     * One monitoring window.
+     *
+     * The watch is not asked for its current setting: these keys are stored
+     * phone-side and pushed, because a READ that the firmware does not answer
+     * would leave the row stuck on a placeholder with no way to tell that from
+     * "disabled". Pushing on every change keeps the two in step in the
+     * direction that matters.
+     *
+     * @param hasInterval false for sleep, whose payload is five bytes with no
+     *                    sampling interval
+     */
+    private void setupMonitoringRow(View view, int rowId, int valueId, final String pref,
+                                    final int titleRes, final boolean hasInterval,
+                                    final int defStartH, final int defStartM,
+                                    final int defEndH, final int defEndM,
+                                    final int defInterval) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null)
+            return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final int[] cfg = {
+                sp.getBoolean(pref + "_on", false) ? 1 : 0,
+                sp.getInt(pref + "_sh", defStartH), sp.getInt(pref + "_sm", defStartM),
+                sp.getInt(pref + "_eh", defEndH), sp.getInt(pref + "_em", defEndM),
+                sp.getInt(pref + "_interval", defInterval)
+        };
+        renderMonitoring(value, cfg, hasInterval);
+
+        monitoringRepaint.add(() -> {
+            cfg[0] = sp.getBoolean(pref + "_on", false) ? 1 : 0;
+            cfg[1] = sp.getInt(pref + "_sh", defStartH);
+            cfg[2] = sp.getInt(pref + "_sm", defStartM);
+            cfg[3] = sp.getInt(pref + "_eh", defEndH);
+            cfg[4] = sp.getInt(pref + "_em", defEndM);
+            cfg[5] = sp.getInt(pref + "_interval", defInterval);
+            renderMonitoring(value, cfg, hasInterval);
+        });
+
+        row.setOnClickListener(v -> showMonitoringDialog(pref, titleRes, hasInterval, cfg,
+                () -> {
+                    sp.edit()
+                            .putBoolean(pref + "_on", cfg[0] == 1)
+                            .putInt(pref + "_sh", cfg[1]).putInt(pref + "_sm", cfg[2])
+                            .putInt(pref + "_eh", cfg[3]).putInt(pref + "_em", cfg[4])
+                            .putInt(pref + "_interval", cfg[5])
+                            .apply();
+                    renderMonitoring(value, cfg, hasInterval);
+                    pushMonitoring(pref, cfg, hasInterval);
+                }));
+    }
+
+    private void renderMonitoring(TextView value, int[] cfg, boolean hasInterval) {
+        if (cfg[0] == 0) {
+            value.setText(R.string.state_off);
+            return;
+        }
+        String window = getString(R.string.monitoring_window, cfg[1], cfg[2], cfg[3], cfg[4]);
+        value.setText(hasInterval
+                ? window + " · " + getString(R.string.monitoring_every, cfg[5])
+                : window);
+    }
+
+    private void pushMonitoring(String pref, int[] cfg, boolean hasInterval) {
+        if (!bleManager.isSessionReady()) {
+            Toast.makeText(requireContext(), R.string.device_not_connected,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        boolean on = cfg[0] == 1;
+        if (PREF_HR_MON.equals(pref))
+            bleManager.sendHeartRateMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]);
+        else if (PREF_SPO2_MON.equals(pref))
+            bleManager.sendBloodOxygenMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]);
+        else
+            bleManager.sendSleepMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4]);
+    }
+
+    private void showMonitoringDialog(String pref, int titleRes, boolean hasInterval,
+                                      int[] cfg, Runnable onSave) {
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        toggle.setText(R.string.monitoring_enabled);
+        toggle.setChecked(cfg[0] == 1);
+        box.addView(toggle);
+
+        final TimePicker from = new TimePicker(requireContext());
+        final TimePicker to = new TimePicker(requireContext());
+        for (TimePicker p : new TimePicker[] { from, to })
+            p.setIs24HourView(true);
+        setPickerTime(from, cfg[1], cfg[2]);
+        setPickerTime(to, cfg[3], cfg[4]);
+        box.addView(labelledPicker(getString(R.string.monitoring_window, cfg[1], cfg[2], cfg[3], cfg[4]), from));
+        box.addView(to);
+
+        final EditText interval = new EditText(requireContext());
+        if (hasInterval) {
+            TextView lbl = new TextView(requireContext());
+            lbl.setText(R.string.monitoring_interval);
+            box.addView(lbl);
+            interval.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            interval.setText(String.valueOf(cfg[5]));
+            box.addView(interval);
+        }
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.addView(box);
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(titleRes)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    cfg[0] = toggle.isChecked() ? 1 : 0;
+                    cfg[1] = pickerHour(from);
+                    cfg[2] = pickerMinute(from);
+                    cfg[3] = pickerHour(to);
+                    cfg[4] = pickerMinute(to);
+                    if (hasInterval) {
+                        try {
+                            cfg[5] = Math.max(1, Math.min(255,
+                                    Integer.parseInt(interval.getText().toString().trim())));
+                        } catch (NumberFormatException e) {
+                            // Keep the previous interval rather than sending 0,
+                            // which the watch reads as "never sample".
+                        }
+                    }
+                    onSave.run();
+                })
+                .show();
+    }
+
+    private View labelledPicker(String text, View picker) {
+        LinearLayout wrap = new LinearLayout(requireContext());
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        TextView t = new TextView(requireContext());
+        t.setText(text);
+        wrap.addView(t);
+        wrap.addView(picker);
+        return wrap;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void setPickerTime(TimePicker p, int h, int m) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            p.setHour(h);
+            p.setMinute(m);
+        } else {
+            p.setCurrentHour(h);
+            p.setCurrentMinute(m);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static int pickerHour(TimePicker p) {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+                ? p.getHour() : p.getCurrentHour();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static int pickerMinute(TimePicker p) {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+                ? p.getMinute() : p.getCurrentMinute();
+    }
+
+    // ===== Measure on demand (REALTIME_MEASUREMENT 0x0236) =====
+
+    /** The watch gives up on its own well before this; the timer is a backstop. */
+    private static final long MEASURE_TIMEOUT_MS = 90_000;
+
+    private void setupMeasureNow(View view) {
+        final View row = view.findViewById(R.id.rowMeasureNow);
+        final TextView value = view.findViewById(R.id.txtMeasureNow);
+        if (row == null || value == null)
+            return;
+
+        final boolean[] busy = { false };
+        final Runnable reset = () -> {
+            busy[0] = false;
+            value.setText(R.string.measure_now);
+        };
+
+        bleManager.setMeasurementListener(new BleManager.MeasurementListener() {
+            @Override
+            public void onMeasurementComplete(int type) {
+                if (!isAdded())
+                    return;
+                value.removeCallbacks(reset);
+                reset.run();
+                Toast.makeText(requireContext(), R.string.measure_done, Toast.LENGTH_SHORT).show();
+                // The reading itself is not in this reply; it lands on the
+                // matching health key, so pull it in.
+                bleManager.syncHealth();
+            }
+
+            @Override
+            public void onMeasurementFailed(int type) {
+                if (!isAdded())
+                    return;
+                value.removeCallbacks(reset);
+                reset.run();
+                Toast.makeText(requireContext(), R.string.measure_failed, Toast.LENGTH_LONG).show();
+            }
+        });
+
+        row.setOnClickListener(v -> {
+            if (!bleManager.isSessionReady()) {
+                Toast.makeText(requireContext(), R.string.device_not_connected,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (busy[0]) {
+                // Second tap cancels; the watch keeps measuring otherwise.
+                value.removeCallbacks(reset);
+                bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, false);
+                reset.run();
+                return;
+            }
+            busy[0] = true;
+            value.setText(R.string.measuring);
+            bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, true);
+            value.postDelayed(() -> {
+                if (!busy[0])
+                    return;
+                bleManager.sendRealtimeMeasurement(BleManager.MEASURE_HEART_RATE, false);
+                reset.run();
+            }, MEASURE_TIMEOUT_MS);
+        });
+    }
 }

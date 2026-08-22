@@ -746,4 +746,21 @@ Elige una actividad arriba para registrar la primera.</string>
     <!-- Call control (INCOMING_CALL 0x0603) -->
     <string name="dev_call_control">Contestar desde el reloj</string>
     <string name="call_control_needs_permission">Sin permiso de teléfono el reloj no puede contestar ni colgar</string>
+
+    <!-- Find watch (FIND_WATCH 0x0234) + health monitoring windows -->
+    <string name="dev_ring_watch">Encontrar el reloj</string>
+    <string name="find_watch_ring">Hacer sonar</string>
+    <string name="find_watch_ringing">Sonando…</string>
+    <string name="dev_hr_monitoring">Ritmo cardiaco automático</string>
+    <string name="dev_spo2_monitoring">SpO2 automático</string>
+    <string name="dev_sleep_monitoring">Seguimiento del sueño</string>
+    <string name="monitoring_every">cada %1$d min</string>
+    <string name="monitoring_window">%1$02d:%2$02d–%3$02d:%4$02d</string>
+    <string name="monitoring_interval">Intervalo</string>
+    <string name="monitoring_enabled">Activado</string>
+    <string name="measure_now">Medir ahora</string>
+    <string name="measuring">Midiendo…</string>
+    <string name="measure_done">Medición completada</string>
+    <string name="measure_failed">No se pudo medir. Ajusta el reloj a la muñeca y prueba otra vez.</string>
+    <string name="dev_measure_now">Medir ritmo cardiaco</string>
 </resources>
