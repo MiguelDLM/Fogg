@@ -115,14 +115,30 @@ public class BleForegroundService extends Service implements BleManager.Connecti
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (bleManager != null)
+        if (bleManager != null) {
             bleManager.removeConnectionObserver(this);
+            bleManager.getMusicController().stop();
+        }
         handler.removeCallbacks(watchdogRunnable);
     }
 
     @Override
     public void onConnectionStateChange(boolean connected, boolean sessionReady) {
         updateNotification(connected);
+
+        // Follow the phone's media session only while the watch can actually
+        // receive the pushes; otherwise every track change would build frames
+        // that sendMusicControl drops anyway.
+        WatchMusicController music = bleManager.getMusicController();
+        if (sessionReady) {
+            music.start();
+            // The watch shows an empty player until the first push, so re-send
+            // everything once the session is up rather than waiting for the
+            // next metadata change.
+            music.pushAll();
+        } else if (!connected) {
+            music.stop();
+        }
     }
 
     /**

@@ -31,6 +31,7 @@ import androidx.core.app.NotificationCompat;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1217,6 +1218,18 @@ public class BleManager {
                 startFindPhoneAlert();
             else
                 stopFindPhoneAlert();
+            return;
+        }
+
+        // Transport command pushed from the watch (MUSIC_CONTROL 0x0402).
+        // Single payload byte, matching MusicCommand.of(byte) in the original SDK.
+        if (cmd == 0x04 && key == 0x02 && !isReply) {
+            sendAck(cmd, key, flag);
+            if (data.length > 9) {
+                int command = data[9] & 0xFF;
+                log("Music command from watch: " + command);
+                handler.post(() -> getMusicController().onWatchCommand(command));
+            }
             return;
         }
 
@@ -2664,6 +2677,79 @@ public class BleManager {
         enqueueLogicalFrame(msg);
         isSending = true;
         sendNextChunk();
+    }
+
+    // ===== Music control (MUSIC_CONTROL 0x0402) =====
+
+    /**
+     * Longest content string we will put in one MUSIC_CONTROL frame.
+     *
+     * The protocol itself sets no limit — the original app sends whatever the
+     * media session reports. This cap is ours: a pathological track title would
+     * otherwise fan out into dozens of MTU chunks and starve the write queue
+     * behind it. 128 bytes comfortably fits any title a watch face can show.
+     */
+    private static final int MUSIC_CONTENT_MAX = 128;
+
+    private WatchMusicController musicController;
+
+    /**
+     * The media bridge, created on first use.
+     *
+     * BleManager owns it because the watch -> phone half arrives here, on the
+     * GATT callback; the caller ({@link BleForegroundService}) drives its
+     * start/stop from the connection state.
+     */
+    public synchronized WatchMusicController getMusicController() {
+        if (musicController == null)
+            musicController = new WatchMusicController(context, this);
+        return musicController;
+    }
+
+    /**
+     * SET MUSIC_CONTROL (BleKey 0x0402, UPDATE) — one attribute of one entity.
+     *
+     * Payload is [entity u8][attr u8][content, UTF-8, NOT NUL-terminated]; the
+     * frame length delimits the string. Verified against BleMusicControl.encode
+     * in the decompiled SDK, whose getMLengthToWrite() is contentBytes + 2 —
+     * i.e. no room for a terminator.
+     */
+    public void sendMusicControl(int entity, int attr, String content) {
+        if (!isSessionReady())
+            return;
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x02, (byte) 0x00,
+                musicControlPayload(entity, attr, content)));
+        // Metadata arrives as a burst of four or five attributes. Kicking the
+        // queue only when it is idle keeps them serialised behind the write
+        // callback instead of racing a write that is already in flight.
+        if (!isSending) {
+            isSending = true;
+            sendNextChunk();
+        }
+    }
+
+    /** Build the MUSIC_CONTROL body. Package-private so it can be unit tested. */
+    static byte[] musicControlPayload(int entity, int attr, String content) {
+        byte[] text = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
+        if (text.length > MUSIC_CONTENT_MAX)
+            text = truncateUtf8(text, MUSIC_CONTENT_MAX);
+
+        byte[] payload = new byte[text.length + 2];
+        payload[0] = (byte) entity;
+        payload[1] = (byte) attr;
+        System.arraycopy(text, 0, payload, 2, text.length);
+        return payload;
+    }
+
+    /** Cut to at most {@code max} bytes without splitting a UTF-8 sequence. */
+    static byte[] truncateUtf8(byte[] bytes, int max) {
+        int end = max;
+        // Continuation bytes are 10xxxxxx; walk back off them to the lead byte.
+        while (end > 0 && (bytes[end] & 0xC0) == 0x80)
+            end--;
+        byte[] out = new byte[end];
+        System.arraycopy(bytes, 0, out, 0, end);
+        return out;
     }
 
     // ===== Find phone (watch rings the phone) =====
