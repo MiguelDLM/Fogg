@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:text="@string/time_group_format"
         android:textStyle="bold"
-        android:textSize="14sp"
+        android:textAppearance="?attr/foggTextRowLabel"
         android:layout_marginBottom="8dp" />
 
     <RadioGroup
@@ -38,7 +38,7 @@
         android:layout_height="wrap_content"
         android:text="@string/time_group_design_mode"
         android:textStyle="bold"
-        android:textSize="14sp"
+        android:textAppearance="?attr/foggTextRowLabel"
         android:layout_marginBottom="8dp" />
 
     <RadioGroup

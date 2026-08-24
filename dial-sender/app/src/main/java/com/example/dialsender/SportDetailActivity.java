@@ -34,6 +34,9 @@ import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 
 public class SportDetailActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private static class LatLng {
         double latitude;
@@ -70,6 +73,8 @@ public class SportDetailActivity extends AppCompatActivity {
     }
 
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sport_detail);
 
@@ -339,10 +344,11 @@ public class SportDetailActivity extends AppCompatActivity {
             txtPace.setText("--'--");
         }
 
+        String bpmUnit = " " + getString(R.string.unit_bpm);
         if (avgHr > 0) {
-            txtAvgHr.setText(avgHr + " ppm");
+            txtAvgHr.setText(avgHr + bpmUnit);
         } else {
-            txtAvgHr.setText("-- ppm");
+            txtAvgHr.setText("--" + bpmUnit);
         }
 
         this.currentPath = path;

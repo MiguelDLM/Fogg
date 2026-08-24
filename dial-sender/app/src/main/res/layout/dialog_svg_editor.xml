@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_surface">
+    android:background="?attr/foggBgSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,7 +14,7 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="150dp"
-            android:background="#0A0A12"
+            android:background="?attr/foggBgPrimary"
             android:layout_marginBottom="16dp">
 
             <ImageView
@@ -30,8 +30,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/recolor"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="6dp"/>
@@ -55,8 +55,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/battery_levels"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
+                android:textColor="?attr/foggTextSecondary"
+                android:textAppearance="?attr/foggTextCaption"
                 android:textStyle="bold"
                 android:letterSpacing="0.08"
                 android:layout_marginBottom="4dp"/>
@@ -68,8 +68,8 @@
                 android:min="1"
                 android:max="10"
                 android:progress="5"
-                android:progressTint="@color/accent_primary"
-                android:thumbTint="@color/accent_primary"
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent"
                 android:layout_marginBottom="4dp"/>
              
             <TextView
@@ -77,7 +77,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="5 levels"
-                android:textColor="@color/text_primary"
+                android:textColor="?attr/foggTextPrimary"
                 android:layout_gravity="end"
                 android:layout_marginBottom="12dp"/>
 
@@ -86,8 +86,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/clip_vertical"
-                android:textColor="@color/text_primary"
-                android:buttonTint="@color/accent_primary"
+                android:textColor="?attr/foggTextPrimary"
+                android:buttonTint="?attr/foggAccent"
                 android:checked="true"/>
         </LinearLayout>
 

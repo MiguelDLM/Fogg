@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:text="@string/anim_import_title"
         android:textStyle="bold"
-        android:textSize="16sp"
+        android:textAppearance="?attr/foggTextRowLabel"
         android:layout_marginBottom="8dp"/>
 
     <TextView
@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/anim_manual_interval"
-            android:textSize="12sp"/>
+            android:textAppearance="?attr/foggTextRowValue"/>
 
         <EditText
             android:id="@+id/etManualInterval"
@@ -68,7 +68,7 @@
             android:layout_height="wrap_content"
             android:inputType="number"
             android:hint="200"
-            android:textSize="12sp"/>
+            android:textAppearance="?attr/foggTextRowValue"/>
     </LinearLayout>
 
     <LinearLayout
@@ -83,7 +83,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/anim_max_frames"
-            android:textSize="12sp"/>
+            android:textAppearance="?attr/foggTextRowValue"/>
 
         <EditText
             android:id="@+id/etMaxFrames"
@@ -91,7 +91,7 @@
             android:layout_height="wrap_content"
             android:inputType="number"
             android:hint="30"
-            android:textSize="12sp"/>
+            android:textAppearance="?attr/foggTextRowValue"/>
     </LinearLayout>
 
 

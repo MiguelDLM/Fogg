@@ -30,6 +30,9 @@ import java.util.Locale;
  * short multi-day forecast, all from the cached Open-Meteo data.
  */
 public class WeatherDetailActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private SharedPreferences prefs;
 
@@ -38,11 +41,14 @@ public class WeatherDetailActivity extends AppCompatActivity {
     }
 
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
 
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF0E1116);
+        scroll.setBackgroundColor(theme.bgPrimary);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(20), dp(18), dp(20), dp(24));
@@ -50,18 +56,19 @@ public class WeatherDetailActivity extends AppCompatActivity {
         // Header
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView back = new TextView(this);
-        back.setText("‹");
-        back.setTextColor(Color.WHITE);
-        back.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
+        // Was a "‹" character; now the same back vector every other screen uses.
+        android.widget.ImageView back = new android.widget.ImageView(this);
+        back.setImageResource(R.drawable.ic_back);
+        back.setColorFilter(theme.textPrimary);
         back.setPadding(0, 0, dp(14), 0);
+        back.setContentDescription(getString(R.string.fogg_back));
         back.setOnClickListener(v -> finish());
-        header.addView(back);
+        header.addView(back, new LinearLayout.LayoutParams(dp(38), dp(24)));
+
         TextView title = new TextView(this);
+        title.setTextAppearance(theme.textScreenTitle);
         title.setText(getString(R.string.weather_title));
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(theme.textPrimary);
         header.addView(title);
 
         View spacer = new View(this);
@@ -69,10 +76,12 @@ public class WeatherDetailActivity extends AppCompatActivity {
         header.addView(spacer);
 
         TextView refresh = new TextView(this);
+        refresh.setTextAppearance(theme.textCardTitle);
         refresh.setText(getString(R.string.weather_refresh));
-        refresh.setTextColor(0xFF22D3EE);
-        refresh.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        refresh.setTypeface(null, Typeface.BOLD);
+        refresh.setTextColor(theme.accentPrimary);
+        refresh.setCompoundDrawablePadding(dp(6));
+        refresh.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                tintedIcon(R.drawable.ic_refresh, theme.accentPrimary), null, null, null);
         refresh.setPadding(dp(12), dp(6), dp(12), dp(6));
         refresh.setClickable(true);
         refresh.setOnClickListener(v -> {
@@ -88,7 +97,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
         if (prefs.getLong("weather_time", 0) <= 0) {
             TextView empty = new TextView(this);
             empty.setText(getString(R.string.weather_no_data));
-            empty.setTextColor(0xFF9AA4B2);
+            empty.setTextColor(theme.textSecondary);
             empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             root.addView(empty);
             scroll.addView(root);
@@ -121,7 +130,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
 
         TextView tempView = new TextView(this);
         tempView.setText(temp + "°");
-        tempView.setTextColor(Color.WHITE);
+        tempView.setTextColor(theme.textPrimary);
         tempView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 56);
         tempView.setTypeface(null, Typeface.BOLD);
         tempView.setGravity(Gravity.CENTER);
@@ -129,7 +138,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
 
         TextView cond = new TextView(this);
         cond.setText(labelFor(code));
-        cond.setTextColor(0xFF22D3EE);
+        cond.setTextColor(theme.accentPrimary);
         cond.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         cond.setGravity(Gravity.CENTER);
         hero.addView(cond);
@@ -137,7 +146,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
         TextView sub = new TextView(this);
         String place = city.isEmpty() ? "" : city + " · ";
         sub.setText(place + getString(R.string.weather_hi_lo, hi, lo));
-        sub.setTextColor(0xFF9AA4B2);
+        sub.setTextColor(theme.textSecondary);
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         sub.setGravity(Gravity.CENTER);
         sub.setPadding(0, dp(4), 0, 0);
@@ -156,7 +165,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
         if (!fc.isEmpty()) {
             TextView fcHead = new TextView(this);
             fcHead.setText(getString(R.string.weather_forecast_header));
-            fcHead.setTextColor(0xFF22D3EE);
+            fcHead.setTextColor(theme.accentPrimary);
             fcHead.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             fcHead.setTypeface(null, Typeface.BOLD);
             fcHead.setPadding(0, dp(24), 0, dp(8));
@@ -165,7 +174,7 @@ public class WeatherDetailActivity extends AppCompatActivity {
             LinearLayout fcCard = new LinearLayout(this);
             fcCard.setOrientation(LinearLayout.VERTICAL);
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(0xFF1A2027);
+            bg.setColor(theme.bgElevated);
             bg.setCornerRadius(dp(14));
             fcCard.setBackground(bg);
             fcCard.setPadding(dp(16), dp(8), dp(16), dp(8));
@@ -212,19 +221,19 @@ public class WeatherDetailActivity extends AppCompatActivity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF1A2027);
+        bg.setColor(theme.bgElevated);
         bg.setCornerRadius(dp(14));
         c.setBackground(bg);
         c.setPadding(dp(16), dp(14), dp(16), dp(14));
         c.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView l = new TextView(this);
         l.setText(label);
-        l.setTextColor(0xFF9AA4B2);
+        l.setTextColor(theme.textSecondary);
         l.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         c.addView(l);
         TextView v = new TextView(this);
         v.setText(value);
-        v.setTextColor(Color.WHITE);
+        v.setTextColor(theme.textPrimary);
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         v.setTypeface(null, Typeface.BOLD);
         v.setPadding(0, dp(4), 0, 0);
@@ -240,21 +249,21 @@ public class WeatherDetailActivity extends AppCompatActivity {
 
         TextView d = new TextView(this);
         d.setText(day);
-        d.setTextColor(0xFFC9D1D9);
+        d.setTextColor(theme.textSecondary);
         d.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         d.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.4f));
         row.addView(d);
 
         TextView e = new TextView(this);
         e.setText(emojiFor(code) + (pop > 0 ? "  " + pop + "%" : ""));
-        e.setTextColor(0xFF6FC3FF);
+        e.setTextColor(theme.accentSpo2);
         e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         e.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f));
         row.addView(e);
 
         TextView t = new TextView(this);
         t.setText(hi + "° / " + lo + "°");
-        t.setTextColor(Color.WHITE);
+        t.setTextColor(theme.textPrimary);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         t.setGravity(Gravity.END);
         t.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -311,6 +320,17 @@ public class WeatherDetailActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener);
+    }
+
+    /** Vector loaded and tinted for use as a compound drawable. */
+    private android.graphics.drawable.Drawable tintedIcon(int res, int color) {
+        android.graphics.drawable.Drawable d =
+                androidx.core.content.ContextCompat.getDrawable(this, res);
+        if (d == null) return null;
+        d = d.mutate();
+        d.setBounds(0, 0, dp(18), dp(18));
+        androidx.core.graphics.drawable.DrawableCompat.setTint(d, color);
+        return d;
     }
 
     private int dp(int v) {

@@ -22,8 +22,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/alarm_repeat"
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"/>
+            android:textAppearance="?attr/foggTextRowValue"
+            android:textColor="?attr/foggTextSecondary"/>
 
         <!-- Filled in code: one toggle per weekday, Monday first, matching the
              protocol's bit order. -->
@@ -39,8 +39,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/alarm_label"
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"/>
+            android:textAppearance="?attr/foggTextRowValue"
+            android:textColor="?attr/foggTextSecondary"/>
 
         <EditText
             android:id="@+id/etAlarmLabel"

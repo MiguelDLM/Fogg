@@ -46,6 +46,9 @@ import java.util.Locale;
  * máx/media/mín summary, plus share.
  */
 public class MetricDetailActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     public static final String EXTRA_METRIC = "metric";
 
@@ -72,6 +75,7 @@ public class MetricDetailActivity extends AppCompatActivity {
     }
 
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREF, Context.MODE_PRIVATE);
         metric = getIntent().getStringExtra(EXTRA_METRIC);
@@ -80,8 +84,10 @@ public class MetricDetailActivity extends AppCompatActivity {
         selDayStart = todayStart();
         configMeta();
 
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF0E1116);
+        scroll.setBackgroundColor(theme.bgPrimary);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
 
@@ -98,41 +104,42 @@ public class MetricDetailActivity extends AppCompatActivity {
     }
 
     private void configMeta() {
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
         switch (metric) {
             case "steps":
-                title = getString(R.string.metric_steps); unit = ""; color = 0xFFFF9800; iconRes = R.drawable.ic_metric_steps;
+                title = getString(R.string.metric_steps); unit = ""; color = theme.accentSteps; iconRes = R.drawable.ic_metric_steps;
                 cumulative = true;
                 desc = getString(R.string.metric_desc_steps);
                 break;
             case "calories":
-                title = getString(R.string.metric_calories); unit = getString(R.string.unit_kcal); color = 0xFFE5552E; iconRes = R.drawable.ic_metric_calories;
+                title = getString(R.string.metric_calories); unit = getString(R.string.unit_kcal); color = theme.accentCalories; iconRes = R.drawable.ic_metric_calories;
                 cumulative = true;
                 desc = getString(R.string.metric_desc_calories);
                 break;
             case "distance":
-                title = getString(R.string.metric_distance); unit = getString(R.string.unit_km); color = 0xFF34C759; iconRes = R.drawable.ic_metric_distance;
+                title = getString(R.string.metric_distance); unit = getString(R.string.unit_km); color = theme.accentDistance; iconRes = R.drawable.ic_metric_distance;
                 cumulative = true;
                 desc = getString(R.string.metric_desc_distance);
                 break;
             case "blood_oxygen":
-                title = getString(R.string.metric_spo2); unit = getString(R.string.unit_pct); color = 0xFF42A5F5; iconRes = R.drawable.ic_metric_spo2;
+                title = getString(R.string.metric_spo2); unit = getString(R.string.unit_pct); color = theme.accentSpo2; iconRes = R.drawable.ic_metric_spo2;
                 desc = getString(R.string.metric_desc_blood_oxygen);
                 break;
             case "stress":
-                title = getString(R.string.metric_stress); unit = ""; color = 0xFF34C759; iconRes = R.drawable.ic_metric_pulse;
+                title = getString(R.string.metric_stress); unit = ""; color = theme.accentStress; iconRes = R.drawable.ic_metric_pulse;
                 desc = getString(R.string.metric_desc_stress);
                 break;
             case "blood_pressure":
-                title = getString(R.string.metric_blood_pressure); unit = getString(R.string.unit_mmhg); color = 0xFFEF5350; iconRes = R.drawable.ic_metric_pulse;
+                title = getString(R.string.metric_blood_pressure); unit = getString(R.string.unit_mmhg); color = theme.accentBp; iconRes = R.drawable.ic_metric_pulse;
                 isBp = true;
                 desc = getString(R.string.metric_desc_blood_pressure);
                 break;
             case "sleep":
-                title = getString(R.string.metric_sleep); unit = "h"; color = 0xFF7E57C2; iconRes = R.drawable.ic_metric_sleep;
+                title = getString(R.string.metric_sleep); unit = "h"; color = theme.accentSleep; iconRes = R.drawable.ic_metric_sleep;
                 desc = getString(R.string.metric_desc_sleep);
                 break;
             default:
-                title = getString(R.string.metric_heart_rate); unit = getString(R.string.unit_bpm); color = 0xFFE5552E;
+                title = getString(R.string.metric_heart_rate); unit = getString(R.string.unit_bpm); color = theme.accentHeart;
                 iconRes = R.drawable.ic_metric_heart;
                 desc = getString(R.string.metric_desc_heart_rate);
                 break;
@@ -149,29 +156,28 @@ public class MetricDetailActivity extends AppCompatActivity {
 
         ImageView back = new ImageView(this);
         back.setImageResource(R.drawable.ic_back);
-        back.setColorFilter(Color.WHITE);
+        back.setColorFilter(theme.textPrimary);
         back.setPadding(dp(12), dp(12), dp(12), dp(12));
         back.setOnClickListener(v -> finish());
         h.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         TextView t = new TextView(this);
+        t.setTextAppearance(theme.textScreenTitle);
         t.setText(title);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
-        t.setTypeface(null, Typeface.BOLD);
+        t.setTextColor(theme.textPrimary);
         t.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         h.addView(t);
 
         ImageView cal = new ImageView(this);
         cal.setImageResource(R.drawable.ic_calendar);
-        cal.setColorFilter(Color.WHITE);
+        cal.setColorFilter(theme.textPrimary);
         cal.setPadding(dp(12), dp(12), dp(12), dp(12));
         cal.setOnClickListener(v -> pickDate());
         h.addView(cal, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         ImageView share = new ImageView(this);
         share.setImageResource(R.drawable.ic_share);
-        share.setColorFilter(Color.WHITE);
+        share.setColorFilter(theme.textPrimary);
         share.setPadding(dp(12), dp(12), dp(12), dp(12));
         share.setOnClickListener(v -> share());
         h.addView(share, new LinearLayout.LayoutParams(dp(48), dp(48)));
@@ -206,7 +212,7 @@ public class MetricDetailActivity extends AppCompatActivity {
     private void updateTabs() {
         for (int i = 0; i < 3; i++) {
             boolean sel = i == range;
-            tabs[i].setTextColor(sel ? 0xFF22D3EE : 0xFF8B949E);
+            tabs[i].setTextColor(sel ? theme.accentPrimary : theme.textSecondary);
             tabs[i].setTypeface(null, sel ? Typeface.BOLD : Typeface.NORMAL);
         }
     }
@@ -299,15 +305,15 @@ public class MetricDetailActivity extends AppCompatActivity {
             LinearLayout legend = new LinearLayout(this);
             legend.setOrientation(LinearLayout.HORIZONTAL);
             legend.setPadding(0, dp(12), 0, dp(8));
-            addSleepLegendItem(legend, getString(R.string.sleep_deep), 0xFF3F51B5, sr.deepMin);
-            addSleepLegendItem(legend, getString(R.string.sleep_light), 0xFF22D3EE, sr.lightMin);
-            addSleepLegendItem(legend, getString(R.string.sleep_rem), 0xFF9C27B0, sr.remMin);
-            addSleepLegendItem(legend, getString(R.string.sleep_awake), 0xFF6B7280, sr.awakeMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_deep), theme.sleepDeep, sr.deepMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_light), theme.accentPrimary, sr.lightMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_rem), theme.sleepRem, sr.remMin);
+            addSleepLegendItem(legend, getString(R.string.sleep_awake), theme.textMuted, sr.awakeMin);
             content.addView(legend);
         } else {
             TextView noData = new TextView(this);
             noData.setText(getString(R.string.sleep_no_data_day));
-            noData.setTextColor(0xFF6B7280);
+            noData.setTextColor(theme.textMuted);
             noData.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             noData.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -381,13 +387,13 @@ public class MetricDetailActivity extends AppCompatActivity {
         c.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView l = new TextView(this);
         l.setText(title + "\n" + label);
-        l.setTextColor(0xFF8B949E);
+        l.setTextColor(theme.textSecondary);
         l.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         l.setGravity(Gravity.CENTER);
         c.addView(l);
         TextView v = new TextView(this);
         v.setText(getString(R.string.sleep_hours_min, minutes / 60, minutes % 60));
-        v.setTextColor(Color.WHITE);
+        v.setTextColor(theme.textPrimary);
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         v.setTypeface(null, Typeface.BOLD);
         v.setGravity(Gravity.CENTER);
@@ -412,7 +418,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         item.addView(dot);
         TextView t = new TextView(this);
         t.setText(name + "\n" + (minutes / 60) + "h " + (minutes % 60) + "m");
-        t.setTextColor(0xFF9AA4B2);
+        t.setTextColor(theme.textSecondary);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
         item.addView(t);
         row.addView(item);
@@ -425,7 +431,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF1A2027);
+        bg.setColor(theme.bgElevated);
         bg.setCornerRadius(dp(14));
         card.setBackground(bg);
         card.setPadding(dp(16), dp(16), dp(16), dp(16));
@@ -436,7 +442,7 @@ public class MetricDetailActivity extends AppCompatActivity {
 
         TextView head = new TextView(this);
         head.setText(getString(R.string.metric_about_fmt, title.toLowerCase(Locale.getDefault())));
-        head.setTextColor(0xFF22D3EE);
+        head.setTextColor(theme.accentPrimary);
         head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         head.setTypeface(null, Typeface.BOLD);
         head.setPadding(0, 0, 0, dp(8));
@@ -444,7 +450,7 @@ public class MetricDetailActivity extends AppCompatActivity {
 
         TextView body = new TextView(this);
         body.setText(desc);
-        body.setTextColor(0xFF9AA4B2);
+        body.setTextColor(theme.textSecondary);
         body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         body.setLineSpacing(dp(3), 1f);
         card.addView(body);
@@ -457,7 +463,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(4), dp(8), dp(4), dp(4));
 
-        TextView prev = navArrow("‹");
+        ImageView prev = navArrow(R.drawable.ic_chevron_left);
         prev.setOnClickListener(v -> {
             selDayStart -= 86400L;
             render();
@@ -469,12 +475,12 @@ public class MetricDetailActivity extends AppCompatActivity {
         label.setText(isToday ? getString(R.string.label_today)
                 : new SimpleDateFormat("EEE d MMM", Locale.getDefault())
                         .format(new Date(selDayStart * 1000L)));
-        label.setTextColor(0xFFC9D1D9);
+        label.setTextColor(theme.textSecondary);
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         label.setGravity(Gravity.CENTER);
         GradientDrawable lb = new GradientDrawable();
-        lb.setColor(0xFF1A2027);
-        lb.setCornerRadius(dp(20));
+        lb.setColor(theme.bgElevated);
+        lb.setCornerRadius(theme.radiusChip);
         label.setBackground(lb);
         label.setPadding(dp(28), dp(8), dp(28), dp(8));
         LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(0,
@@ -483,7 +489,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         label.setOnClickListener(v -> pickDate());
         row.addView(label);
 
-        TextView next = navArrow("›");
+        ImageView next = navArrow(R.drawable.ic_chevron_right);
         next.setEnabled(!isToday);
         next.setAlpha(isToday ? 0.3f : 1f);
         next.setOnClickListener(v -> {
@@ -496,14 +502,14 @@ public class MetricDetailActivity extends AppCompatActivity {
         return row;
     }
 
-    private TextView navArrow(String s) {
-        TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextColor(0xFFC9D1D9);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
-        t.setGravity(Gravity.CENTER);
-        t.setPadding(dp(16), dp(4), dp(16), dp(4));
-        return t;
+    /** Day stepper arrow. Was a "‹"/"›" character in a TextView. */
+    private ImageView navArrow(int iconRes) {
+        ImageView v = new ImageView(this);
+        v.setImageResource(iconRes);
+        v.setColorFilter(theme.textSecondary);
+        v.setPadding(dp(14), dp(10), dp(14), dp(10));
+        v.setLayoutParams(new LinearLayout.LayoutParams(dp(48), dp(44)));
+        return v;
     }
 
     private void pickDate() {
@@ -536,7 +542,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         icon.setBackground(bg);
         icon.setPadding(dp(9), dp(9), dp(9), dp(9));
         icon.setImageResource(iconRes);
-        icon.setColorFilter(Color.WHITE);
+        icon.setColorFilter(theme.textPrimary);
         LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(dp(44), dp(44));
         il.setMargins(0, 0, dp(16), 0);
         h.addView(icon, il);
@@ -549,14 +555,14 @@ public class MetricDetailActivity extends AppCompatActivity {
         vr.setGravity(Gravity.BOTTOM);
         TextView v = new TextView(this);
         v.setText(value);
-        v.setTextColor(Color.WHITE);
+        v.setTextColor(theme.textPrimary);
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
         v.setTypeface(null, Typeface.BOLD);
         vr.addView(v);
         if (!unit.isEmpty()) {
             TextView u = new TextView(this);
             u.setText(" " + unit);
-            u.setTextColor(0xFF8B949E);
+            u.setTextColor(theme.textSecondary);
             u.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
             u.setPadding(0, 0, 0, dp(8));
             vr.addView(u);
@@ -565,7 +571,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         if (sub != null && !sub.isEmpty()) {
             TextView st = new TextView(this);
             st.setText(sub);
-            st.setTextColor(0xFF6B7280);
+            st.setTextColor(theme.textMuted);
             st.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             col.addView(st);
         }
@@ -617,13 +623,13 @@ public class MetricDetailActivity extends AppCompatActivity {
         c.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView l = new TextView(this);
         l.setText(label);
-        l.setTextColor(0xFF8B949E);
+        l.setTextColor(theme.textSecondary);
         l.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         l.setGravity(Gravity.CENTER);
         c.addView(l);
         TextView v = new TextView(this);
         v.setText(String.valueOf(value));
-        v.setTextColor(Color.WHITE);
+        v.setTextColor(theme.textPrimary);
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
         v.setTypeface(null, Typeface.BOLD);
         v.setGravity(Gravity.CENTER);
@@ -632,7 +638,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         if (!unit.isEmpty()) {
             TextView u = new TextView(this);
             u.setText(unit);
-            u.setTextColor(0xFF6B7280);
+            u.setTextColor(theme.textMuted);
             u.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             u.setGravity(Gravity.CENTER);
             c.addView(u);
@@ -779,12 +785,12 @@ public class MetricDetailActivity extends AppCompatActivity {
         XAxis x = chart.getXAxis();
         x.setPosition(XAxis.XAxisPosition.BOTTOM);
         x.setDrawGridLines(false);
-        x.setTextColor(0xFF6B7280);
+        x.setTextColor(theme.textMuted);
         x.setTextSize(9f);
-        chart.getAxisLeft().setTextColor(0xFF6B7280);
+        chart.getAxisLeft().setTextColor(theme.textMuted);
         chart.getAxisLeft().setTextSize(9f);
         chart.getAxisLeft().setAxisMinimum(0f);
-        chart.getAxisLeft().setGridColor(0x22FFFFFF);
+        chart.getAxisLeft().setGridColor(com.example.dialsender.theme.ThemeManager.withAlpha(theme.textMuted, 0x44));
         chart.getAxisRight().setEnabled(false);
         chart.animateY(500);
     }

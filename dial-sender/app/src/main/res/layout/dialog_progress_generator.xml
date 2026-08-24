@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_surface"
+    android:background="?attr/foggBgSurface"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,17 +15,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/progress_builder_title"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextScreenTitle"
             android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/progress_frames_hint"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption"
             android:layout_marginBottom="10dp" />
 
         <!-- Live preview: 0 %, 20 %, 40 %, 60 %, 80 %, 100 % -->
@@ -34,7 +33,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:background="@color/bg_elevated"
+            android:background="?attr/foggBgElevated"
             android:padding="10dp"
             android:layout_marginBottom="12dp">
 
@@ -51,8 +50,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/progress_style"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <Spinner
             android:id="@+id/spinnerProgressStyle"
             android:layout_width="match_parent"
@@ -64,8 +63,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/progress_color_fill"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteProgressFill"
             android:layout_width="match_parent"
@@ -78,8 +77,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/progress_color_end"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteProgressEnd"
             android:layout_width="match_parent"
@@ -92,8 +91,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/progress_color_track"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteProgressTrack"
             android:layout_width="match_parent"
@@ -114,8 +113,8 @@
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:text="@string/progress_gradient"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp" />
+                android:textColor="?attr/foggTextPrimary"
+                android:textAppearance="?attr/foggTextRowValue" />
 
             <CheckBox
                 android:id="@+id/chkProgressTrack"
@@ -124,8 +123,8 @@
                 android:layout_height="wrap_content"
                 android:checked="true"
                 android:text="@string/progress_show_track"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp" />
+                android:textColor="?attr/foggTextPrimary"
+                android:textAppearance="?attr/foggTextRowValue" />
         </LinearLayout>
 
         <CheckBox
@@ -134,8 +133,8 @@
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/progress_rounded"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextRowValue"
             android:layout_marginBottom="6dp" />
 
         <!-- Thickness -->
@@ -148,8 +147,8 @@
                 android:layout_width="76dp"
                 android:layout_height="wrap_content"
                 android:text="@string/progress_thickness"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption" />
             <SeekBar
                 android:id="@+id/seekProgressThickness"
                 android:layout_width="0dp"
@@ -157,8 +156,8 @@
                 android:layout_weight="1"
                 android:max="40"
                 android:progress="10"
-                android:progressTint="@color/accent_primary"
-                android:thumbTint="@color/accent_primary" />
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent" />
         </LinearLayout>
 
         <!-- Sweep -->
@@ -172,8 +171,8 @@
                 android:layout_width="76dp"
                 android:layout_height="wrap_content"
                 android:text="@string/progress_sweep"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption" />
             <SeekBar
                 android:id="@+id/seekProgressSweep"
                 android:layout_width="0dp"
@@ -181,8 +180,8 @@
                 android:layout_weight="1"
                 android:max="360"
                 android:progress="270"
-                android:progressTint="@color/accent_purple"
-                android:thumbTint="@color/accent_purple" />
+                android:progressTint="?attr/foggSleep"
+                android:thumbTint="?attr/foggSleep" />
         </LinearLayout>
 
         <!-- Start angle -->
@@ -197,8 +196,8 @@
                 android:layout_width="76dp"
                 android:layout_height="wrap_content"
                 android:text="@string/progress_start"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption" />
             <SeekBar
                 android:id="@+id/seekProgressStart"
                 android:layout_width="0dp"
@@ -206,8 +205,8 @@
                 android:layout_weight="1"
                 android:max="360"
                 android:progress="135"
-                android:progressTint="@color/accent_cyan"
-                android:thumbTint="@color/accent_cyan" />
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent" />
         </LinearLayout>
 
         <!-- Segments -->
@@ -223,8 +222,8 @@
                 android:layout_width="76dp"
                 android:layout_height="wrap_content"
                 android:text="@string/progress_segments"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption" />
             <SeekBar
                 android:id="@+id/seekProgressSegments"
                 android:layout_width="0dp"
@@ -232,8 +231,8 @@
                 android:layout_weight="1"
                 android:max="30"
                 android:progress="12"
-                android:progressTint="@color/accent_primary"
-                android:thumbTint="@color/accent_primary" />
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent" />
         </LinearLayout>
 
         <!-- Dimensions -->
@@ -253,18 +252,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/width"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtProgressWidth"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="120"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
 
             <LinearLayout
@@ -277,18 +276,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/height"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtProgressHeight"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="120"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
         </LinearLayout>
 
@@ -298,7 +297,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:text="@string/progress_apply"
-            android:textSize="14sp" />
+            android:textAppearance="?attr/foggTextRowLabel" />
 
     </LinearLayout>
 </ScrollView>

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0E1116"
+    android:background="?attr/foggBgPrimary"
     android:fillViewport="true">
 
     <LinearLayout
@@ -37,8 +37,7 @@
                 android:layout_marginStart="8dp"
                 android:text="@string/sport_detail_title"
                 android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:textAppearance="?attr/foggTextScreenTitle" />
 
             <ImageButton
                 android:id="@+id/btnDeleteSession"
@@ -63,7 +62,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            android:background="?attr/foggCardBg"
             android:orientation="vertical"
             android:padding="16dp"
             android:layout_marginBottom="16dp">
@@ -72,9 +71,9 @@
                 android:id="@+id/txtSessionDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="01 de Enero de 2026, 08:30"
-                android:textColor="#9AA4B2"
-                android:textSize="13sp"
+                android:text=""
+                android:textColor="?attr/foggTextSecondary"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:layout_marginBottom="16dp"/>
 
             <!-- Main Stats Grid -->
@@ -98,16 +97,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sport_duration"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtDuration"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="00:00:00"
-                        android:textColor="#22D3EE"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:textColor="?attr/foggAccent"
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
                 <!-- Distance -->
@@ -121,16 +119,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/metric_distance"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtDistance"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0.00 km"
-                        android:textColor="#22D3EE"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:textColor="?attr/foggAccent"
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
                 <!-- Calories -->
@@ -144,16 +141,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/metric_calories"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtCalories"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0 kcal"
-                        android:textColor="#EF4444"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:textColor="?attr/foggDanger"
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
                 <!-- Ritmo/Pace -->
@@ -167,16 +163,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sport_avg_pace"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtPace"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="--'--"
-                        android:textColor="#22D3EE"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:textColor="?attr/foggAccent"
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
                 <!-- Heart Rate Avg -->
@@ -190,16 +185,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sport_avg_hr"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtAvgHr"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="-- ppm"
-                        android:textColor="#EF4444"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:text="--"
+                        android:textColor="?attr/foggDanger"
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
                 <!-- Elevation gain -->
@@ -213,16 +207,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sport_elevation_gain"
-                        android:textColor="#9AA4B2"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <TextView
                         android:id="@+id/txtElevation"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="-- m"
                         android:textColor="#F59E0B"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
+                        android:textAppearance="?attr/foggTextScreenTitle"/>
                 </LinearLayout>
 
             </GridLayout>
@@ -239,8 +232,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/detail_route"
-                android:textColor="#9AA4B2"
-                android:textSize="13sp"
+                android:textColor="?attr/foggTextSecondary"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:textStyle="bold"
                 android:layout_marginStart="4dp"
                 android:layout_marginBottom="8dp" />
@@ -251,7 +244,7 @@
                 app:cardCornerRadius="14dp"
                 app:cardElevation="0dp"
                 android:layout_marginBottom="18dp"
-                android:backgroundTint="#1A2027">
+                android:backgroundTint="?attr/foggBgElevated">
 
                 <WebView
                     android:id="@+id/mapWebView"
@@ -264,12 +257,12 @@
             android:id="@+id/txtNoSensorData"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            android:background="?attr/foggCardBg"
             android:padding="16dp"
             android:layout_marginBottom="18dp"
             android:text="@string/detail_no_sensor_data"
-            android:textColor="#6B7280"
-            android:textSize="13sp"
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextRowValue"
             android:visibility="gone" />
 
         <TextView
@@ -277,8 +270,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/detail_charts"
-            android:textColor="#9AA4B2"
-            android:textSize="13sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextRowValue"
             android:textStyle="bold"
             android:layout_marginStart="4dp"
             android:layout_marginBottom="8dp" />
@@ -288,7 +281,7 @@
             android:id="@+id/sectionHeartRate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            android:background="?attr/foggCardBg"
             android:orientation="vertical"
             android:padding="14dp"
             android:layout_marginBottom="12dp">
@@ -297,7 +290,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sport_chart_hr"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textAppearance="?attr/foggTextRowLabel"
                 android:textStyle="bold"
                 android:layout_marginBottom="10dp"/>
             <com.github.mikephil.charting.charts.LineChart
@@ -311,7 +304,7 @@
             android:id="@+id/sectionElevation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            android:background="?attr/foggCardBg"
             android:orientation="vertical"
             android:padding="14dp"
             android:layout_marginBottom="12dp">
@@ -320,7 +313,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sport_chart_elevation"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textAppearance="?attr/foggTextRowLabel"
                 android:textStyle="bold"
                 android:layout_marginBottom="10dp"/>
             <com.github.mikephil.charting.charts.LineChart
@@ -334,7 +327,7 @@
             android:id="@+id/sectionSpeed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            android:background="?attr/foggCardBg"
             android:orientation="vertical"
             android:padding="14dp"
             android:layout_marginBottom="16dp">
@@ -343,7 +336,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sport_chart_speed"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textAppearance="?attr/foggTextRowLabel"
                 android:textStyle="bold"
                 android:layout_marginBottom="10dp"/>
             <com.github.mikephil.charting.charts.LineChart

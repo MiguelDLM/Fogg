@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_surface">
+    android:background="?attr/foggBgSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,7 +15,7 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="100dp"
-            android:background="#0A0A12"
+            android:background="?attr/foggBgPrimary"
             android:layout_marginBottom="16dp">
 
             <ImageView
@@ -31,8 +31,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/font_label"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="4dp"/>
@@ -41,7 +41,7 @@
             android:id="@+id/spinnerFont"
             android:layout_width="match_parent"
             android:layout_height="40dp"
-            android:background="@color/bg_card"
+            android:background="?attr/foggBgCard"
             android:padding="8dp"
             android:layout_marginBottom="4dp"/>
 
@@ -50,8 +50,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/font_creator_step_font"
-        android:textColor="@color/text_primary"
-        android:textSize="14sp"
+        android:textColor="?attr/foggTextPrimary"
+        android:textAppearance="?attr/foggTextRowLabel"
         android:textStyle="bold"
         android:layout_marginBottom="8dp"/>
 
@@ -63,7 +63,7 @@
         app:icon="@android:drawable/ic_menu_agenda"
         android:text="@string/font_creator_browse"
         android:textStyle="bold"
-        android:textSize="14sp"
+        android:textAppearance="?attr/foggTextRowLabel"
         android:layout_marginBottom="16dp"/>
 
         <!-- Language (Hidden by default) -->
@@ -95,8 +95,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/font_creator_step_text"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextRowLabel"
             android:textStyle="bold"
             android:visibility="gone"
             android:layout_marginTop="8dp"
@@ -122,8 +122,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/digit_size"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="4dp"/>
@@ -135,8 +135,8 @@
             android:min="16"
             android:max="120"
             android:progress="48"
-            android:progressTint="@color/accent_primary"
-            android:thumbTint="@color/accent_primary"
+            android:progressTint="?attr/foggAccent"
+            android:thumbTint="?attr/foggAccent"
             android:layout_marginBottom="12dp"/>
 
         <!-- Color -->
@@ -144,8 +144,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/font_color"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="6dp"/>
@@ -162,8 +162,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/glow_label"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="4dp"/>
@@ -174,8 +174,8 @@
             android:layout_height="wrap_content"
             android:max="20"
             android:progress="0"
-            android:progressTint="@color/accent_purple"
-            android:thumbTint="@color/accent_purple"
+            android:progressTint="?attr/foggSleep"
+            android:thumbTint="?attr/foggSleep"
             android:layout_marginBottom="12dp"/>
 
         <!-- Border / Outline -->
@@ -183,8 +183,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/border_label"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="4dp"/>
@@ -195,8 +195,8 @@
             android:layout_height="wrap_content"
             android:max="10"
             android:progress="0"
-            android:progressTint="@color/accent_primary"
-            android:thumbTint="@color/accent_primary"
+            android:progressTint="?attr/foggAccent"
+            android:thumbTint="?attr/foggAccent"
             android:layout_marginBottom="6dp"/>
 
         <!-- Border Color -->
@@ -204,8 +204,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/border_color"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="6dp"/>
@@ -222,8 +222,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/spacing_label"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextSecondary"
+            android:textAppearance="?attr/foggTextCaption"
             android:textStyle="bold"
             android:letterSpacing="0.08"
             android:layout_marginBottom="4dp"/>
@@ -234,8 +234,8 @@
             android:layout_height="wrap_content"
             android:max="40"
             android:progress="0"
-            android:progressTint="@color/accent_cyan"
-            android:thumbTint="@color/accent_cyan"
+            android:progressTint="?attr/foggAccent"
+            android:thumbTint="?attr/foggAccent"
             android:layout_marginBottom="12dp"/>
 
     </LinearLayout>

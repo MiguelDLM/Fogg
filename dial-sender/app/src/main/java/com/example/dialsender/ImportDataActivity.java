@@ -36,6 +36,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class ImportDataActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private static final String PREF_NAME = "dial_sender_prefs";
     private static final long WATCH_EPOCH_OFFSET = 946684800L; // watch → Unix epoch (seconds)
@@ -55,10 +58,13 @@ public class ImportDataActivity extends AppCompatActivity {
     }
 
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
 
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF0D1117);
+        scroll.setBackgroundColor(theme.bgPrimary);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -76,14 +82,14 @@ public class ImportDataActivity extends AppCompatActivity {
         ImageButton btnBack = new ImageButton(this);
         btnBack.setImageResource(R.drawable.ic_back);
         btnBack.setBackground(null);
-        btnBack.setColorFilter(0xFFFFFFFF);
+        btnBack.setColorFilter(theme.textPrimary);
         btnBack.setLayoutParams(lp(dp(40), dp(40)));
         btnBack.setOnClickListener(v -> finish());
         header.addView(btnBack);
 
         TextView title = new TextView(this);
         title.setText(getString(R.string.import_title));
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(theme.textPrimary);
         title.setTextSize(20);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(dp(12), 0, 0, 0);
@@ -124,8 +130,8 @@ public class ImportDataActivity extends AppCompatActivity {
         // Select file button
         btnSelectFile = new Button(this);
         btnSelectFile.setText(getString(R.string.import_select_file));
-        btnSelectFile.setTextColor(0xFF06121A);
-        btnSelectFile.setBackgroundColor(0xFF22D3EE);
+        btnSelectFile.setTextColor(theme.onAccent);
+        btnSelectFile.setBackgroundColor(theme.accentPrimary);
         LinearLayout.LayoutParams btnLp = lp(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
         btnSelectFile.setLayoutParams(btnLp);
         btnSelectFile.setOnClickListener(v -> pickFile.launch(new String[]{"*/*"}));
@@ -140,7 +146,7 @@ public class ImportDataActivity extends AppCompatActivity {
         root.addView(progressBar);
 
         txtStatus = new TextView(this);
-        txtStatus.setTextColor(0xFF9AA4B2);
+        txtStatus.setTextColor(theme.textSecondary);
         txtStatus.setTextSize(13);
         txtStatus.setVisibility(View.GONE);
         root.addView(txtStatus);
@@ -845,7 +851,7 @@ public class ImportDataActivity extends AppCompatActivity {
     private View infoCard(String titleText, String bodyText) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundColor(0xFF161B22);
+        card.setBackgroundColor(theme.bgCard);
         card.setPadding(dp(16), dp(14), dp(16), dp(14));
         LinearLayout.LayoutParams lp = lp(LinearLayout.LayoutParams.MATCH_PARENT, -2);
         lp.bottomMargin = dp(4);
@@ -853,7 +859,7 @@ public class ImportDataActivity extends AppCompatActivity {
 
         TextView t = new TextView(this);
         t.setText(titleText);
-        t.setTextColor(0xFF22D3EE);
+        t.setTextColor(theme.accentPrimary);
         t.setTextSize(13);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
         t.setPadding(0, 0, 0, dp(8));
@@ -861,7 +867,7 @@ public class ImportDataActivity extends AppCompatActivity {
 
         TextView b = new TextView(this);
         b.setText(bodyText);
-        b.setTextColor(0xFF9AA4B2);
+        b.setTextColor(theme.textSecondary);
         b.setTextSize(12);
         b.setLineSpacing(dp(2), 1f);
         card.addView(b);

@@ -46,14 +46,15 @@ import java.util.Locale;
  * is no half-running stopwatch left behind on the tab underneath.
  */
 public class WorkoutActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     public static final String EXTRA_SPORT = "sport_mode";
 
     private static final String PREF = "dial_sender_prefs";
     private static final String KEY_SESSIONS = "sport_sessions";
 
-    private static final int BG = 0xFF0A0D11;
-    private static final int SURFACE = 0xFF161C24;
 
     private Sport sport = Sport.RUN;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -117,7 +118,10 @@ public class WorkoutActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
+
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
 
         Sport requested = Sport.byMode(getIntent().getIntExtra(EXTRA_SPORT, Sport.RUN.mode));
         if (requested != null)
@@ -125,8 +129,8 @@ public class WorkoutActivity extends AppCompatActivity {
 
         // A workout screen that blanks mid-session is useless.
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().setStatusBarColor(BG);
-        getWindow().setNavigationBarColor(BG);
+        getWindow().setStatusBarColor(theme.bgPrimary);
+        getWindow().setNavigationBarColor(theme.bgPrimary);
 
         setContentView(buildRoot());
 
@@ -199,7 +203,7 @@ public class WorkoutActivity extends AppCompatActivity {
 
     private View buildRoot() {
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(BG);
+        frame.setBackgroundColor(theme.bgPrimary);
 
         // Accent glow bleeding down from the top, so the activity's colour is
         // the first thing you see.
@@ -237,7 +241,7 @@ public class WorkoutActivity extends AppCompatActivity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
 
         ImageView back = new ImageView(this);
-        back.setImageDrawable(tinted(R.drawable.ic_back, Color.WHITE));
+        back.setImageDrawable(tinted(R.drawable.ic_back, theme.textPrimary));
         back.setLayoutParams(new LinearLayout.LayoutParams(dp(26), dp(26)));
         back.setOnClickListener(v -> onBackPressed());
         bar.addView(back);
@@ -251,7 +255,7 @@ public class WorkoutActivity extends AppCompatActivity {
 
         TextView name = new TextView(this);
         name.setText(sport.label(this));
-        name.setTextColor(Color.WHITE);
+        name.setTextColor(theme.textPrimary);
         name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
         name.setTypeface(null, Typeface.BOLD);
         titleCol.addView(name);
@@ -293,7 +297,7 @@ public class WorkoutActivity extends AppCompatActivity {
 
         TextView caption = new TextView(this);
         caption.setText(getString(R.string.workout_elapsed));
-        caption.setTextColor(0xFF6B7280);
+        caption.setTextColor(theme.textMuted);
         caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         caption.setAllCaps(true);
         caption.setLetterSpacing(0.18f);
@@ -301,7 +305,7 @@ public class WorkoutActivity extends AppCompatActivity {
         centre.addView(caption);
 
         timerText = new TextView(this);
-        timerText.setTextColor(Color.WHITE);
+        timerText.setTextColor(theme.textPrimary);
         timerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 52);
         timerText.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
         timerText.setGravity(Gravity.CENTER);
@@ -331,7 +335,7 @@ public class WorkoutActivity extends AppCompatActivity {
         card.setGravity(Gravity.CENTER);
         card.setPadding(dp(14), dp(16), dp(14), dp(16));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(SURFACE);
+        bg.setColor(theme.bgCard);
         bg.setCornerRadius(dp(18));
         card.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -339,7 +343,7 @@ public class WorkoutActivity extends AppCompatActivity {
         lp.setMargins(startMargin, 0, 0, 0);
         card.setLayoutParams(lp);
 
-        value.setTextColor(Color.WHITE);
+        value.setTextColor(theme.textPrimary);
         value.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         value.setTypeface(null, Typeface.BOLD);
         value.setGravity(Gravity.CENTER);
@@ -347,7 +351,7 @@ public class WorkoutActivity extends AppCompatActivity {
 
         TextView caption = new TextView(this);
         caption.setText(label);
-        caption.setTextColor(0xFF6B7280);
+        caption.setTextColor(theme.textMuted);
         caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         caption.setAllCaps(true);
         caption.setLetterSpacing(0.1f);
@@ -366,15 +370,15 @@ public class WorkoutActivity extends AppCompatActivity {
         lp.setMargins(0, dp(24), 0, 0);
         row.setLayoutParams(lp);
 
-        btnPause = bigButton("", sport.accent, 0xFF06121A);
+        btnPause = bigButton("", sport.accent, theme.onAccent);
         btnPause.setOnClickListener(v -> togglePause());
         row.addView(btnPause);
 
-        TextView stop = bigButton(getString(R.string.workout_finish), 0x00000000, 0xFFF87171);
+        TextView stop = bigButton(getString(R.string.workout_finish), 0x00000000, theme.danger);
         GradientDrawable outline = new GradientDrawable();
         outline.setColor(0x00000000);
         outline.setCornerRadius(dp(32));
-        outline.setStroke(dp(2), 0xFFF87171);
+        outline.setStroke(dp(2), theme.danger);
         stop.setBackground(outline);
         ((LinearLayout.LayoutParams) stop.getLayoutParams()).setMargins(dp(12), 0, 0, 0);
         stop.setOnClickListener(v -> finishSession());
@@ -426,7 +430,7 @@ public class WorkoutActivity extends AppCompatActivity {
 
         stateLabel.setText(running ? getString(R.string.workout_in_progress)
                 : getString(R.string.workout_paused));
-        stateLabel.setTextColor(running ? sport.accent : 0xFF9AA4B2);
+        stateLabel.setTextColor(running ? sport.accent : theme.textSecondary);
         btnPause.setText(running ? getString(R.string.sport_pause)
                 : getString(R.string.sport_resume));
     }

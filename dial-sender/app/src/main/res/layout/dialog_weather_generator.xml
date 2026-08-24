@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_surface"
+    android:background="?attr/foggBgSurface"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,17 +15,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/weather_builder_title"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextScreenTitle"
             android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/weather_frames_hint"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption"
             android:layout_marginBottom="10dp" />
 
         <!-- Live 12-icon Preview Grid -->
@@ -36,7 +35,7 @@
             android:layout_gravity="center_horizontal"
             android:columnCount="6"
             android:rowCount="2"
-            android:background="@color/bg_elevated"
+            android:background="?attr/foggBgElevated"
             android:padding="8dp"
             android:layout_marginBottom="12dp">
 
@@ -59,8 +58,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/weather_style"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
 
         <RadioGroup
             android:id="@+id/rgWeatherStyle"
@@ -75,8 +74,8 @@
                 android:layout_height="wrap_content"
                 android:checked="true"
                 android:text="@string/weather_style_filled"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp"
+                android:textColor="?attr/foggTextPrimary"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:layout_marginEnd="16dp" />
 
             <RadioButton
@@ -84,8 +83,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/weather_style_outline"
-                android:textColor="@color/text_primary"
-                android:textSize="12sp" />
+                android:textColor="?attr/foggTextPrimary"
+                android:textAppearance="?attr/foggTextRowValue" />
         </RadioGroup>
 
         <!-- Sun colour -->
@@ -93,8 +92,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/weather_color_sun"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteWeatherSun"
             android:layout_width="match_parent"
@@ -107,8 +106,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/weather_color_cloud"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteWeatherCloud"
             android:layout_width="match_parent"
@@ -121,8 +120,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/weather_color_rain"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteWeatherRain"
             android:layout_width="match_parent"
@@ -142,8 +141,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/weather_stroke"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp"
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption"
                 android:layout_marginEnd="8dp" />
 
             <SeekBar
@@ -153,8 +152,8 @@
                 android:layout_weight="1"
                 android:max="8"
                 android:progress="3"
-                android:progressTint="@color/accent_primary"
-                android:thumbTint="@color/accent_primary" />
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent" />
         </LinearLayout>
 
         <!-- Dimensions -->
@@ -174,18 +173,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/width"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtWeatherWidth"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="64"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
 
             <LinearLayout
@@ -198,18 +197,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/height"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtWeatherHeight"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="64"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
         </LinearLayout>
 
@@ -220,7 +219,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:text="@string/weather_apply"
-            android:textSize="14sp" />
+            android:textAppearance="?attr/foggTextRowLabel" />
 
     </LinearLayout>
 </ScrollView>

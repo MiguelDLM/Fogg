@@ -35,6 +35,9 @@ import java.util.Locale;
  * that don't belong in the everyday UI.
  */
 public class DeveloperToolsActivity extends AppCompatActivity implements BleManager.BleStateListener {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private TextView txtLog, txtLogCount, txtFindPhone;
     private ScrollView logScroll;
@@ -45,11 +48,14 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
     }
 
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         ble = BleManager.getInstance(this);
 
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+
         ScrollView outer = new ScrollView(this);
-        outer.setBackgroundColor(0xFF0E1116);
+        outer.setBackgroundColor(theme.bgPrimary);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(20), dp(20), dp(20), dp(24));
@@ -58,18 +64,18 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView back = new TextView(this);
-        back.setText("‹");
-        back.setTextColor(Color.WHITE);
-        back.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
+        android.widget.ImageView back = new android.widget.ImageView(this);
+        back.setImageResource(R.drawable.ic_back);
+        back.setColorFilter(theme.textPrimary);
         back.setPadding(0, 0, dp(14), 0);
+        back.setContentDescription(getString(R.string.fogg_back));
         back.setOnClickListener(v -> finish());
-        header.addView(back);
+        header.addView(back, new LinearLayout.LayoutParams(dp(38), dp(24)));
+
         TextView title = new TextView(this);
+        title.setTextAppearance(theme.textScreenTitle);
         title.setText(R.string.devtools_title);
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(theme.textPrimary);
         header.addView(title);
         root.addView(header);
 
@@ -77,7 +83,7 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         root.addView(sectionLabel(getString(R.string.devtools_findphone_section)));
         TextView hint = new TextView(this);
         hint.setText(R.string.devtools_findphone_hint);
-        hint.setTextColor(0xFF9AA4B2);
+        hint.setTextColor(theme.textSecondary);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         hint.setPadding(0, 0, 0, dp(10));
         root.addView(hint);
@@ -99,19 +105,19 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
         // --- BLE log ---
         root.addView(sectionLabel(getString(R.string.devtools_ble_section)));
         txtLogCount = new TextView(this);
-        txtLogCount.setTextColor(0xFF6B7280);
+        txtLogCount.setTextColor(theme.textMuted);
         txtLogCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         txtLogCount.setPadding(0, 0, 0, dp(6));
         root.addView(txtLogCount);
 
         logScroll = new ScrollView(this);
-        logScroll.setBackgroundColor(0xFF161B22);
+        logScroll.setBackgroundColor(theme.bgCard);
         logScroll.setPadding(dp(10), dp(10), dp(10), dp(10));
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(280));
         logScroll.setLayoutParams(slp);
         txtLog = new TextView(this);
-        txtLog.setTextColor(0xFF22D3EE);
+        txtLog.setTextColor(theme.accentPrimary);
         txtLog.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
         txtLog.setTypeface(Typeface.MONOSPACE);
         logScroll.addView(txtLog);
@@ -151,7 +157,7 @@ public class DeveloperToolsActivity extends AppCompatActivity implements BleMana
     private TextView sectionLabel(String s) {
         TextView t = new TextView(this);
         t.setText(s);
-        t.setTextColor(0xFF22D3EE);
+        t.setTextColor(theme.accentPrimary);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         t.setTypeface(null, Typeface.BOLD);
         t.setPadding(0, dp(20), 0, dp(8));

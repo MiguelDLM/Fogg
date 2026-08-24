@@ -28,6 +28,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class ExportDataActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private static final String PREF_NAME = "dial_sender_prefs";
 
@@ -43,10 +46,13 @@ public class ExportDataActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
 
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF0D1117);
+        scroll.setBackgroundColor(theme.bgPrimary);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -63,14 +69,14 @@ public class ExportDataActivity extends AppCompatActivity {
         ImageButton btnBack = new ImageButton(this);
         btnBack.setImageResource(R.drawable.ic_back);
         btnBack.setBackground(null);
-        btnBack.setColorFilter(0xFFFFFFFF);
+        btnBack.setColorFilter(theme.textPrimary);
         btnBack.setLayoutParams(lp(dp(40), dp(40)));
         btnBack.setOnClickListener(v -> finish());
         header.addView(btnBack);
 
         TextView title = new TextView(this);
         title.setText(getString(R.string.export_title));
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(theme.textPrimary);
         title.setTextSize(20);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(dp(12), 0, 0, 0);
@@ -81,7 +87,7 @@ public class ExportDataActivity extends AppCompatActivity {
 
         layoutSummary = new LinearLayout(this);
         layoutSummary.setOrientation(LinearLayout.VERTICAL);
-        layoutSummary.setBackgroundColor(0xFF161B22);
+        layoutSummary.setBackgroundColor(theme.bgCard);
         layoutSummary.setPadding(dp(16), dp(14), dp(16), dp(14));
         root.addView(layoutSummary);
 
@@ -89,7 +95,7 @@ public class ExportDataActivity extends AppCompatActivity {
 
         TextView infoTxt = new TextView(this);
         infoTxt.setText(getString(R.string.export_info));
-        infoTxt.setTextColor(0xFF6B7280);
+        infoTxt.setTextColor(theme.textMuted);
         infoTxt.setTextSize(12);
         infoTxt.setLineSpacing(dp(2), 1f);
         root.addView(infoTxt);
@@ -98,8 +104,8 @@ public class ExportDataActivity extends AppCompatActivity {
 
         btnExport = new Button(this);
         btnExport.setText(getString(R.string.export_btn));
-        btnExport.setTextColor(0xFF06121A);
-        btnExport.setBackgroundColor(0xFF22D3EE);
+        btnExport.setTextColor(theme.onAccent);
+        btnExport.setBackgroundColor(theme.accentPrimary);
         btnExport.setLayoutParams(lp(-1, dp(48)));
         btnExport.setOnClickListener(v -> doExport());
         root.addView(btnExport);
@@ -112,7 +118,7 @@ public class ExportDataActivity extends AppCompatActivity {
         root.addView(progressBar);
 
         txtStatus = new TextView(this);
-        txtStatus.setTextColor(0xFF9AA4B2);
+        txtStatus.setTextColor(theme.textSecondary);
         txtStatus.setTextSize(13);
         txtStatus.setVisibility(View.GONE);
         root.addView(txtStatus);
@@ -150,7 +156,7 @@ public class ExportDataActivity extends AppCompatActivity {
         if (totalRows == 0) {
             TextView empty = new TextView(this);
             empty.setText(getString(R.string.export_no_data));
-            empty.setTextColor(0xFF6B7280);
+            empty.setTextColor(theme.textMuted);
             empty.setTextSize(13);
             layoutSummary.addView(empty);
             btnExport.setEnabled(false);
@@ -172,7 +178,7 @@ public class ExportDataActivity extends AppCompatActivity {
 
         TextView val = new TextView(this);
         val.setText(count + " " + getString(R.string.export_records));
-        val.setTextColor(0xFF22D3EE);
+        val.setTextColor(theme.accentPrimary);
         val.setTextSize(13);
         row.addView(val);
 
@@ -184,7 +190,7 @@ public class ExportDataActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         txtStatus.setVisibility(View.VISIBLE);
         txtStatus.setText(getString(R.string.export_generating));
-        txtStatus.setTextColor(0xFF9AA4B2);
+        txtStatus.setTextColor(theme.textSecondary);
 
         new Thread(() -> {
             try {

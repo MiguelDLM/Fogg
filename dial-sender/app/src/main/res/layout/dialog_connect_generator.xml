@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/bg_surface"
+    android:background="?attr/foggBgSurface"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,17 +15,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/connect_builder_title"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextScreenTitle"
             android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/connect_frames_hint"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption"
             android:layout_marginBottom="10dp" />
 
         <!-- Live preview: off / on -->
@@ -34,7 +33,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:background="@color/bg_elevated"
+            android:background="?attr/foggBgElevated"
             android:padding="12dp"
             android:layout_marginBottom="12dp">
 
@@ -52,8 +51,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/connect_state_off"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
             </LinearLayout>
 
             <LinearLayout
@@ -69,8 +68,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/connect_state_on"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
             </LinearLayout>
         </LinearLayout>
 
@@ -79,8 +78,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/connect_style"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <Spinner
             android:id="@+id/spinnerConnectStyle"
             android:layout_width="match_parent"
@@ -92,8 +91,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/connect_color_on"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteConnectOn"
             android:layout_width="match_parent"
@@ -106,8 +105,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/connect_color_off"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
+            android:textColor="?attr/foggTextMuted"
+            android:textAppearance="?attr/foggTextCaption" />
         <LinearLayout
             android:id="@+id/paletteConnectOff"
             android:layout_width="match_parent"
@@ -121,16 +120,16 @@
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/connect_slash"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp" />
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextRowValue" />
 
         <CheckBox
             android:id="@+id/chkConnectBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/connect_badge"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp"
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextRowValue"
             android:layout_marginBottom="6dp" />
 
         <!-- Stroke -->
@@ -144,8 +143,8 @@
                 android:layout_width="76dp"
                 android:layout_height="wrap_content"
                 android:text="@string/weather_stroke"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
+                android:textColor="?attr/foggTextMuted"
+                android:textAppearance="?attr/foggTextCaption" />
             <SeekBar
                 android:id="@+id/seekConnectStroke"
                 android:layout_width="0dp"
@@ -153,8 +152,8 @@
                 android:layout_weight="1"
                 android:max="10"
                 android:progress="4"
-                android:progressTint="@color/accent_primary"
-                android:thumbTint="@color/accent_primary" />
+                android:progressTint="?attr/foggAccent"
+                android:thumbTint="?attr/foggAccent" />
         </LinearLayout>
 
         <!-- Dimensions -->
@@ -174,18 +173,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/width"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtConnectWidth"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="48"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
 
             <LinearLayout
@@ -198,18 +197,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/height"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextCaption" />
                 <EditText
                     android:id="@+id/edtConnectHeight"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:inputType="number"
                     android:text="48"
-                    android:textColor="@color/text_primary"
-                    android:background="@color/bg_elevated"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:background="?attr/foggBgElevated"
                     android:padding="6dp"
-                    android:textSize="13sp" />
+                    android:textAppearance="?attr/foggTextRowValue" />
             </LinearLayout>
         </LinearLayout>
 
@@ -219,7 +218,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:text="@string/connect_apply"
-            android:textSize="14sp" />
+            android:textAppearance="?attr/foggTextRowLabel" />
 
     </LinearLayout>
 </ScrollView>
