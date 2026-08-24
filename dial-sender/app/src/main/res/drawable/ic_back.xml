@@ -2,8 +2,9 @@
     android:width="48dp"
     android:height="48dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/foggTextPrimary">
     <path
-        android:fillColor="@color/accent_primary"
+        android:fillColor="@android:color/white"
         android:pathData="M15.67,4.17L14.27,2.77L6.54,10.5L14.27,18.23L15.67,16.83L9.34,10.5z"/>
 </vector>

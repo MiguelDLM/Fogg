@@ -5,24 +5,24 @@
     android:viewportHeight="96">
     <!-- Straps -->
     <path
-        android:fillColor="#3A4250"
+        android:fillColor="@android:color/white"
         android:pathData="M36,6h24v18h-24z M36,72h24v18h-24z" />
     <!-- Watch body -->
     <path
-        android:fillColor="#11161D"
+        android:fillColor="@android:color/white"
         android:strokeColor="#5A6678"
         android:strokeWidth="2"
         android:pathData="M28,28 m0,4 a4,4 0 0 1 4,-4 h32 a4,4 0 0 1 4,4 v32 a4,4 0 0 1 -4,4 h-32 a4,4 0 0 1 -4,-4 z" />
     <!-- Crown -->
     <path
-        android:fillColor="#5A6678"
+        android:fillColor="@android:color/white"
         android:pathData="M68,44h4v8h-4z" />
     <!-- Screen content: time -->
     <path
-        android:fillColor="#22D3EE"
+        android:fillColor="@android:color/white"
         android:pathData="M37,40h6v3h-6z M37,46h22v2h-22z M37,50h16v2h-16z" />
     <!-- Heart dot -->
     <path
-        android:fillColor="#E5552E"
+        android:fillColor="@android:color/white"
         android:pathData="M56,40 a3,3 0 1 1 -0.01,0 z" />
 </vector>

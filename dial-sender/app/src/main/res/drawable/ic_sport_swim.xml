@@ -1,14 +1,15 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:pathData="M5.2,7.5 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0" android:fillColor="#FFFFFFFF"/>
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?attr/foggTextPrimary">
+    <path android:pathData="M5.2,7.5 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0" android:fillColor="@android:color/white"/>
     <path android:pathData="M9,9.5 L14,6.5 L18.5,9" android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2" android:strokeLineCap="round"
-        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        android:strokeLineJoin="round" android:fillColor="@android:color/white"/>
     <path android:pathData="M2,15 C5,13 7,17 10,15 C13,13 15,17 18,15 C20,13.8 21,15 22,15.6" android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.7" android:strokeLineCap="round"
-        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        android:strokeLineJoin="round" android:fillColor="@android:color/white"/>
     <path android:pathData="M2,19.5 C5,17.5 7,21.5 10,19.5 C13,17.5 15,21.5 18,19.5 C20,18.3 21,19.5 22,20.1" android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.7" android:strokeLineCap="round"
-        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        android:strokeLineJoin="round" android:fillColor="@android:color/white"/>
 </vector>
