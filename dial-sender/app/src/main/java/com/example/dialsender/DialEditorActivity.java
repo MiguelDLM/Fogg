@@ -245,7 +245,11 @@ public class DialEditorActivity extends AppCompatActivity {
                     DialLayer layer = layers.get(selectedLayerIndex);
                     if (layer.locked)
                         return;
-                    layer.scale = progress / 100.0f;
+                    float scale = progress / 100.0f;
+                    // A joined time group scales as one block, digits and colons alike
+                    if (!applyGroupTransform(layer, scale, null)) {
+                        layer.scale = scale;
+                    }
                     updatePreview();
                 }
             }
@@ -260,7 +264,9 @@ public class DialEditorActivity extends AppCompatActivity {
                     DialLayer layer = layers.get(selectedLayerIndex);
                     if (layer.locked)
                         return;
-                    layer.rotation = progress;
+                    if (!applyGroupTransform(layer, null, (float) progress)) {
+                        layer.rotation = progress;
+                    }
                     updatePreview();
                 }
             }
@@ -505,11 +511,54 @@ public class DialEditorActivity extends AppCompatActivity {
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(Color.WHITE);
+        p.setColor(colonColorFor(colon));
         float r = Math.max(2f, Math.min(w * 0.28f, h * 0.09f));
         c.drawCircle(w / 2f, h * 0.36f, r, p);
         c.drawCircle(w / 2f, h * 0.64f, r, p);
         return bmp;
+    }
+
+    /** Cache keyed by the sampled bitmap: recomputed only when the glyphs change. */
+    private final java.util.WeakHashMap<Bitmap, Integer> dominantColorCache = new java.util.WeakHashMap<>();
+
+    /** The colon borrows the colour of the digits beside it, not a hardcoded white. */
+    private int colonColorFor(DialLayer colon) {
+        TimeGroup g = colon.timeGroupId != null ? findGroup(colon.timeGroupId) : null;
+        DialLayer donor = g != null ? g.styledSiblingOf(colon) : null;
+        if (donor == null || donor.frames == null || donor.frames.length == 0) return Color.WHITE;
+        Bitmap sample = donor.frames[Math.min(1, donor.frames.length - 1)];
+        return sample != null ? dominantColorOf(sample) : Color.WHITE;
+    }
+
+    /**
+     * Most common opaque colour in a glyph, quantised to 5 bits per channel so
+     * antialiased edges do not outvote the fill.
+     */
+    private int dominantColorOf(Bitmap bmp) {
+        Integer cached = dominantColorCache.get(bmp);
+        if (cached != null) return cached;
+
+        int w = bmp.getWidth(), h = bmp.getHeight();
+        if (w <= 0 || h <= 0) return Color.WHITE;
+        // Sample at most ~4k pixels; glyphs are small but this keeps redraws cheap
+        int step = Math.max(1, (int) Math.sqrt((w * (long) h) / 4096.0));
+        java.util.HashMap<Integer, Integer> hist = new java.util.HashMap<>();
+        int best = Color.WHITE, bestCount = 0;
+        for (int y = 0; y < h; y += step) {
+            for (int x = 0; x < w; x += step) {
+                int px = bmp.getPixel(x, y);
+                if (Color.alpha(px) < 200) continue;
+                int key = (Color.red(px) >> 3 << 10) | (Color.green(px) >> 3 << 5) | (Color.blue(px) >> 3);
+                int count = hist.containsKey(key) ? hist.get(key) + 1 : 1;
+                hist.put(key, count);
+                if (count > bestCount) {
+                    bestCount = count;
+                    best = px;
+                }
+            }
+        }
+        dominantColorCache.put(bmp, best);
+        return best;
     }
 
     /**
@@ -2186,30 +2235,121 @@ public class DialEditorActivity extends AppCompatActivity {
      * the preview and on the watch. The group's visual centre is preserved.
      */
     private void relayoutTimeGroup(TimeGroup group) {
+        relayoutTimeGroup(group, null);
+    }
+
+    /**
+     * @param ref the part whose size the rest of the group must match — the layer
+     *            the user is currently scaling or restyling. Null keeps the first
+     *            styled part as the reference.
+     */
+    private void relayoutTimeGroup(TimeGroup group, DialLayer ref) {
         if (group == null || group.parts.isEmpty()) return;
-        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
-        float centerY = 0;
+
+        float[] centreBefore = groupCentre(group);
+        normalizeGroupHeights(group, ref);
+
         List<float[]> sizes = new ArrayList<>();
+        float centerY = 0;
         for (DialLayer part : group.parts) {
             android.graphics.RectF r = layerScreenRect(part);
             float w = r != null ? r.width() : 40;
             float h = r != null ? r.height() : 60;
             sizes.add(new float[] { w, h });
-            minX = Math.min(minX, part.posX);
-            maxX = Math.max(maxX, part.posX + w);
             centerY += part.posY + h / 2f;
         }
         centerY /= group.parts.size();
-        float groupCenterX = (minX + maxX) / 2f;
+
         float totalW = 0;
-        for (float[] s : sizes) totalW += s[0];
-        float x = groupCenterX - totalW / 2f;
+        for (float[] sz : sizes) totalW += sz[0];
+        float x = centreBefore[0] - totalW / 2f;
         for (int i = 0; i < group.parts.size(); i++) {
             DialLayer part = group.parts.get(i);
             part.posX = x;
             part.posY = centerY - sizes.get(i)[1] / 2f;
             x += sizes.get(i)[0];
         }
+
+        // Scaling changes the packed width, so re-centre on where the group was
+        float[] centreAfter = groupCentre(group);
+        float dx = centreBefore[0] - centreAfter[0];
+        float dy = centreBefore[1] - centreAfter[1];
+        if (dx != 0 || dy != 0) {
+            for (DialLayer part : group.parts) {
+                part.posX += dx;
+                part.posY += dy;
+            }
+        }
+    }
+
+    /** Centre of the bounding box the group's parts currently occupy. */
+    private float[] groupCentre(TimeGroup group) {
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
+        float minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (DialLayer part : group.parts) {
+            android.graphics.RectF r = layerScreenRect(part);
+            float w = r != null ? r.width() : 40;
+            float h = r != null ? r.height() : 60;
+            minX = Math.min(minX, part.posX);
+            maxX = Math.max(maxX, part.posX + w);
+            minY = Math.min(minY, part.posY);
+            maxY = Math.max(maxY, part.posY + h);
+        }
+        if (minX > maxX) return new float[] { 0, 0 };
+        return new float[] { (minX + maxX) / 2f, (minY + maxY) / 2f };
+    }
+
+    /**
+     * Gives every part of a joined time group the same rendered height. Digit
+     * sets can come from different styles with different source resolutions, so
+     * a shared scale factor is not enough — hours would end up bigger than
+     * minutes. The reference part keeps its own scale; the others are derived.
+     */
+    private void normalizeGroupHeights(TimeGroup group, DialLayer ref) {
+        if (group.mode != TimeGroup.Mode.TOGETHER) return;
+        if (ref == null || ref.isColonSeparator || ref.pendingStyle) {
+            ref = null;
+            for (DialLayer part : group.parts) {
+                if (!part.isColonSeparator && !part.pendingStyle) { ref = part; break; }
+            }
+        }
+        if (ref == null) return;
+        Bitmap refBmp = getPreviewBitmap(ref);
+        if (refBmp == null || refBmp.getHeight() <= 0) return;
+        float targetH = refBmp.getHeight() * ref.scale;
+
+        for (DialLayer part : group.parts) {
+            if (part == ref || part.isColonSeparator || part.pendingStyle) continue;
+            Bitmap bmp = getPreviewBitmap(part);
+            if (bmp == null || bmp.getHeight() <= 0) continue;
+            part.scale = targetH / bmp.getHeight();
+        }
+    }
+
+    /**
+     * Applies a transform to every part of a joined time group. Scaling a single
+     * digit block on its own is what used to leave hours, minutes and seconds at
+     * different sizes with gaps between them.
+     *
+     * @return true when the layer belongs to a joined group and was handled here.
+     */
+    private boolean applyGroupTransform(DialLayer layer, Float scale, Float rotation) {
+        if (layer.timeGroupId == null) return false;
+        TimeGroup group = findGroup(layer.timeGroupId);
+        if (group == null || group.mode != TimeGroup.Mode.TOGETHER) return false;
+
+        DialLayer ref = layer;
+        if (ref.isColonSeparator) {
+            // The colon is sized from its digit sibling, so drive that instead
+            ref = group.styledSiblingOf(layer);
+            if (ref == null) return false;
+        }
+        if (scale != null) ref.scale = scale;
+        if (rotation != null) {
+            for (DialLayer part : group.parts) part.rotation = rotation;
+        }
+        relayoutTimeGroup(group, ref);
+        return true;
     }
 
     // ===================== GALLERY PICK =====================
