@@ -53,6 +53,7 @@ public class DialLayer {
     public int fontShadowColor = android.graphics.Color.TRANSPARENT;
     public int fontShadowRadius = 0;
 
+    public FontStyleConfig fontConfig;
     public HandGenerator.HandConfig handConfig;
     public BatteryGenerator.BatteryConfig batteryConfig;
     public WeatherGenerator.WeatherConfig weatherConfig;

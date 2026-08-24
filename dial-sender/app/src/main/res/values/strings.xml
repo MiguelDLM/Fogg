@@ -861,4 +861,19 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="weather_color_cloud">COLOR DE LA NUBE</string>
     <string name="weather_color_rain">COLOR DE LLUVIA / VIENTO</string>
     <string name="weather_stroke">Grosor</string>
+    <string name="weather_update">Actualizar Iconos de Clima</string>
+
+    <!-- Re-editing existing elements -->
+    <string name="edit_element">✏️ Editar</string>
+    <string name="edit_element_full">Editar elemento</string>
+    <string name="replace_style">Cambiar estilo</string>
+    <string name="edit_font_digits">Editar dígitos (fuente)</string>
+    <string name="edit_hand_set">Editar set de manecillas</string>
+    <string name="edit_battery">Editar generador de batería</string>
+    <string name="edit_weather">Editar generador de clima</string>
+    <string name="edit_not_available">Este elemento no tiene editor; usa «Cambiar estilo»</string>
+    <string name="element_updated">Elemento actualizado</string>
+    <string name="battery_update">Actualizar Tira de Batería</string>
+    <string name="hand_update_set">Actualizar Set de Manecillas</string>
+    <string name="update_digits">Actualizar dígitos</string>
 </resources>

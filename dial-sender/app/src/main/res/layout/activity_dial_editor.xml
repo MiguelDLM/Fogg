@@ -175,6 +175,16 @@
                         android:textStyle="bold"/>
 
                     <Button
+                        android:id="@+id/btnEditLayer"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:text="@string/edit_element"
+                        android:textSize="10sp"
+                        android:paddingHorizontal="8dp"
+                        android:layout_marginEnd="4dp"/>
+
+                    <Button
                         android:id="@+id/btnCopyStyle"
                         style="@style/ButtonSecondary"
                         android:layout_width="wrap_content"

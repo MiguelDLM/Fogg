@@ -861,4 +861,19 @@ Pick an activity above to record your first one.</string>
     <string name="weather_color_cloud">CLOUD COLOR</string>
     <string name="weather_color_rain">RAIN / WIND COLOR</string>
     <string name="weather_stroke">Stroke</string>
+    <string name="weather_update">Update Weather Icons</string>
+
+    <!-- Re-editing existing elements -->
+    <string name="edit_element">✏️ Edit</string>
+    <string name="edit_element_full">Edit element</string>
+    <string name="replace_style">Change style</string>
+    <string name="edit_font_digits">Edit digits (font)</string>
+    <string name="edit_hand_set">Edit hand set</string>
+    <string name="edit_battery">Edit battery generator</string>
+    <string name="edit_weather">Edit weather generator</string>
+    <string name="edit_not_available">This element has no editor; use \"Change style\"</string>
+    <string name="element_updated">Element updated</string>
+    <string name="battery_update">Update Battery Strip</string>
+    <string name="hand_update_set">Update Hand Set</string>
+    <string name="update_digits">Update digits</string>
 </resources>

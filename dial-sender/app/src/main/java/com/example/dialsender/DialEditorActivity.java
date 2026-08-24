@@ -82,6 +82,7 @@ public class DialEditorActivity extends AppCompatActivity {
     private LinearLayout layoutAlignmentControls, layoutBgFitControls;
     private Button btnBgFit, btnBgFill, btnBgReset;
     private Button btnCopyStyle;
+    private Button btnEditLayer;
     private boolean isUpdatingPosText = false;
 
     private List<DialLayer> layers = new ArrayList<>();
@@ -185,6 +186,7 @@ public class DialEditorActivity extends AppCompatActivity {
         btnBgFill = findViewById(R.id.btnBgFill);
         btnBgReset = findViewById(R.id.btnBgReset);
         btnCopyStyle = findViewById(R.id.btnCopyStyle);
+        btnEditLayer = findViewById(R.id.btnEditLayer);
 
         btnCenterX.setOnClickListener(v -> centerSelectedLayer(true, false));
         btnCenterY.setOnClickListener(v -> centerSelectedLayer(false, true));
@@ -193,6 +195,7 @@ public class DialEditorActivity extends AppCompatActivity {
         btnBgFill.setOnClickListener(v -> fitBackground(true));
         btnBgReset.setOnClickListener(v -> resetBackground());
         btnCopyStyle.setOnClickListener(v -> showCopyStyleDialog());
+        btnEditLayer.setOnClickListener(v -> editSelectedLayer());
 
         android.text.TextWatcher posWatcher = new android.text.TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -923,6 +926,9 @@ public class DialEditorActivity extends AppCompatActivity {
             return;
         }
         List<String> options = new ArrayList<>();
+        String editLabel = builderLabelFor(layer);
+        if (editLabel != null) options.add(editLabel);
+        options.add(getString(R.string.replace_style));
         if (layer.timeGroupId != null && !layer.isColonSeparator) {
             options.add(getString(R.string.ungroup));
         }
@@ -931,13 +937,102 @@ public class DialEditorActivity extends AppCompatActivity {
                 .setTitle(layer.name)
                 .setItems(options.toArray(new String[0]), (d, w) -> {
                     String chosen = options.get(w);
-                    if (getString(R.string.ungroup).equals(chosen)) {
+                    if (chosen.equals(editLabel)) {
+                        openBuilderFor(layer);
+                    } else if (getString(R.string.replace_style).equals(chosen)) {
+                        replaceLayerStyle(layer);
+                    } else if (getString(R.string.ungroup).equals(chosen)) {
                         ungroupTimeGroup(layer.timeGroupId);
                     } else {
                         saveLayerAsPreset(layer);
                     }
                 })
                 .show();
+    }
+
+    // ===================== RE-EDITING AN EXISTING ELEMENT =====================
+
+    /**
+     * Entry point for the ✏️ button: reopen whatever produced this layer. Falls
+     * back to the layer menu when the element has no builder of its own, so
+     * every element offers a way back in instead of forcing a delete-and-redo.
+     */
+    private void editSelectedLayer() {
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer layer = layers.get(selectedLayerIndex);
+
+        if (layer.pendingStyle) {
+            showSourcePickerForPendingLayer(layer);
+            return;
+        }
+        // The colon has no style of its own — it follows the digits beside it
+        if (layer.isColonSeparator) {
+            TimeGroup group = layer.timeGroupId != null ? findGroup(layer.timeGroupId) : null;
+            DialLayer donor = group != null ? group.styledSiblingOf(layer) : null;
+            if (donor == null) {
+                Toast.makeText(this, R.string.edit_not_available, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            layer = donor;
+        }
+        // Straight to the builder only when we know exactly how this element was
+        // made; anything else gets the menu so the user picks what "edit" means
+        if (hasBuilderConfig(layer) && openBuilderFor(layer)) return;
+        showLayerContextMenu(layer, layers.indexOf(layer));
+    }
+
+    /** True when the layer still carries the settings that generated it. */
+    private boolean hasBuilderConfig(DialLayer layer) {
+        return layer.fontConfig != null || layer.handConfig != null
+                || layer.batteryConfig != null || layer.weatherConfig != null;
+    }
+
+    /** Menu label of the builder that can re-edit this layer, or null if it has none. */
+    private String builderLabelFor(DialLayer layer) {
+        if (layer.isColonSeparator) return null;
+        if (layer.fontConfig != null || isDigitElementType(layer.nativeElementType))
+            return getString(R.string.edit_font_digits);
+        if (layer.handConfig != null || isHandType(layer.nativeElementType))
+            return getString(R.string.edit_hand_set);
+        if (layer.batteryConfig != null || layer.nativeElementType == DialCompiler.TYPE_BATT_STRIP)
+            return getString(R.string.edit_battery);
+        if (layer.weatherConfig != null || layer.nativeElementType == DialCompiler.TYPE_WEATHER)
+            return getString(R.string.edit_weather);
+        return null;
+    }
+
+    /** @return true when a builder was opened for this layer. */
+    private boolean openBuilderFor(DialLayer layer) {
+        if (layer.isColonSeparator) return false;
+        if (layer.fontConfig != null || isDigitElementType(layer.nativeElementType)) {
+            showFontCreator(layer.nativeElementType, layer);
+            return true;
+        }
+        if (layer.handConfig != null || isHandType(layer.nativeElementType)) {
+            showHandSetBuilder(true);
+            return true;
+        }
+        if (layer.batteryConfig != null || layer.nativeElementType == DialCompiler.TYPE_BATT_STRIP) {
+            showBatteryGenerator(layer);
+            return true;
+        }
+        if (layer.weatherConfig != null || layer.nativeElementType == DialCompiler.TYPE_WEATHER) {
+            showWeatherGenerator(layer);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Swaps the artwork of an existing layer for a freshly picked style while
+     * keeping its position, size and place in the stack.
+     */
+    private void replaceLayerStyle(DialLayer layer) {
+        pendingGroupTarget      = null;
+        pendingGroupSourceLayer = null;
+        pendingStyleTarget      = layer;
+        pendingElementType      = layer.nativeElementType;
+        showSourcePicker(layer.nativeElementType);
     }
 
     private void showPendingLayerMenu(DialLayer layer) {
@@ -1161,7 +1256,10 @@ public class DialEditorActivity extends AppCompatActivity {
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(galleryView)
-                .setNegativeButton(R.string.cancel, null)
+                // Abandoning the picker must not leave a replace target armed,
+                // or the next element created would be swallowed by this layer
+                .setNegativeButton(R.string.cancel, (d, w) -> pendingStyleTarget = null)
+                .setOnCancelListener(d -> pendingStyleTarget = null)
                 .create();
 
         grid.setAdapter(new RecyclerView.Adapter<PresetVH>() {
@@ -1195,11 +1293,16 @@ public class DialEditorActivity extends AppCompatActivity {
                         pendingElementType = elementType;
                         pickImageFromGallery();
                     } else if ("__HAND_BUILDER__".equals(path)) {
-                        showHandSetBuilder();
+                        pendingStyleTarget = null;
+                        showHandSetBuilder(findLayerOfType(DialCompiler.TYPE_ARM_HOUR) != null);
                     } else if ("__BATTERY_BUILDER__".equals(path)) {
-                        showBatteryGenerator();
+                        DialLayer target = pendingStyleTarget;
+                        pendingStyleTarget = null;
+                        showBatteryGenerator(target);
                     } else if ("__WEATHER_BUILDER__".equals(path)) {
-                        showWeatherGenerator();
+                        DialLayer target = pendingStyleTarget;
+                        pendingStyleTarget = null;
+                        showWeatherGenerator(target);
                     } else if ("__FONT__".equals(path)) {
                         showFontCreator(elementType);
                     } else if ("__SVG__".equals(path)) {
@@ -1324,6 +1427,16 @@ public class DialEditorActivity extends AppCompatActivity {
     // ===================== FONT-BASED DIGIT CREATOR =====================
 
     private void showFontCreator(int elementType) {
+        showFontCreator(elementType, null);
+    }
+
+    /**
+     * @param editTarget non-null reopens the creator on the settings that produced
+     *                   that layer and re-renders its glyphs in place.
+     */
+    private void showFontCreator(int elementType, DialLayer editTarget) {
+        final FontStyleConfig saved = (editTarget != null && editTarget.fontConfig != null)
+                ? editTarget.fontConfig.copy() : null;
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_font_creator, null);
         ImageView imgPreview = view.findViewById(R.id.imgFontPreview);
         Spinner spinnerFont = view.findViewById(R.id.spinnerFont);
@@ -1358,7 +1471,7 @@ public class DialEditorActivity extends AppCompatActivity {
         }
 
         seekSpacing.setMax(100);
-        seekSpacing.setProgress(50); // Center = 0 spacing
+        seekSpacing.setProgress(50 + (saved != null ? clampInt(saved.spacing, -50, 50) : 0)); // Center = 0 spacing
         LinearLayout colorPalette = view.findViewById(R.id.colorPalette);
         LinearLayout borderColorPalette = view.findViewById(R.id.borderColorPalette);
 
@@ -1411,6 +1524,18 @@ public class DialEditorActivity extends AppCompatActivity {
                 android.R.layout.simple_spinner_dropdown_item, fontNames);
         spinnerFont.setAdapter(fontAdapter);
 
+        if (saved != null) {
+            // Match the typeface by name: the list order shifts as the user
+            // imports fonts, so a stored index would drift.
+            int idx = fontNames.indexOf(saved.fontName);
+            if (idx >= 0) spinnerFont.setSelection(idx);
+            seekSize.setProgress(saved.size);
+            seekGlow.setProgress(saved.glow);
+            seekBorder.setProgress(saved.border);
+            spinnerLang.setSelection("es".equals(saved.lang) ? 1 : 0);
+            if (saved.customText != null) edtCustomText.setText(saved.customText);
+        }
+
         Button btnLoadFont = view.findViewById(R.id.btnLoadFont);
         if (btnLoadFont != null) {
             btnLoadFont.setOnClickListener(v -> {
@@ -1428,8 +1553,8 @@ public class DialEditorActivity extends AppCompatActivity {
                 Color.parseColor("#FF44FF"), Color.parseColor("#44FFFF"),
                 Color.parseColor("#FF8844"), Color.parseColor("#88FF44")
         };
-        final int[] selectedColor = { Color.WHITE };
-        final int[] selectedBorderColor = { Color.BLACK };
+        final int[] selectedColor = { saved != null ? saved.color : Color.WHITE };
+        final int[] selectedBorderColor = { saved != null ? saved.borderColor : Color.BLACK };
 
         // Helper to setup a palette
         View.OnClickListener colorClickListener = v -> {
@@ -1565,8 +1690,11 @@ public class DialEditorActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.font_creator_title)
                 .setView(view)
-                .setPositiveButton(R.string.create_digits, (dialog, which) -> {
-                    Typeface tf = fontFaces.get(spinnerFont.getSelectedItemPosition());
+                .setPositiveButton(editTarget != null ? R.string.update_digits : R.string.create_digits,
+                        (dialog, which) -> {
+                    int fontPos = spinnerFont.getSelectedItemPosition();
+                    if (fontPos < 0 || fontPos >= fontFaces.size()) fontPos = 0;
+                    Typeface tf = fontFaces.get(fontPos);
                     int size = seekSize.getProgress();
                     int color = selectedColor[0];
                     int borderColor = selectedBorderColor[0];
@@ -1578,26 +1706,60 @@ public class DialEditorActivity extends AppCompatActivity {
 
                     Bitmap[] frames = renderDigitBitmaps(elementType, tf, size, color, borderColor, glow, border,
                             spacing, lang, custom);
-                    if (frames != null && frames.length > 0) {
-                        String name = getBlockLabel(elementType);
-                        DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0], name, elementType);
-                        layer.frames = frames;
-                        layer.frameCount = frames.length;
-                        layer.isSpriteSheet = frames.length > 1;
-                        layer.alpha = 1.0f;
-                        layer.posX = canvasWidth / 4f;
-                        layer.posY = canvasHeight / 4f;
-                        layers.add(layer);
-                        selectedLayerIndex = layers.size() - 1;
-                        applyGroupPropagation(layer);
-                        adoptStyleIntoPending(layer);
+                    if (frames == null || frames.length == 0) return;
+
+                    // Remember the recipe so this element can be edited later
+                    FontStyleConfig cfg = new FontStyleConfig();
+                    cfg.fontName = fontNames.get(fontPos);
+                    cfg.size = size;
+                    cfg.color = color;
+                    cfg.borderColor = borderColor;
+                    cfg.glow = glow;
+                    cfg.border = border;
+                    cfg.spacing = spacing;
+                    cfg.lang = lang;
+                    cfg.customText = custom;
+
+                    String name = getBlockLabel(elementType);
+                    if (editTarget != null) {
+                        Bitmap[] previousFrames = editTarget.frames;
+                        editTarget.icon = frames[0];
+                        editTarget.frames = frames;
+                        editTarget.frameCount = frames.length;
+                        editTarget.isSpriteSheet = frames.length > 1;
+                        editTarget.fontConfig = cfg;
+                        // Digits changing size re-flows the time group around them
+                        if (editTarget.timeGroupId != null) {
+                            propagateStyleToGroup(editTarget, previousFrames);
+                            relayoutTimeGroup(findGroup(editTarget.timeGroupId), editTarget);
+                        }
                         refreshAll();
-                        Toast.makeText(this, "\u2713 " + name + " \u2014 " + frames.length + " frames",
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, R.string.element_updated, Toast.LENGTH_SHORT).show();
+                        return;
                     }
+
+                    DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0], name, elementType);
+                    layer.frames = frames;
+                    layer.frameCount = frames.length;
+                    layer.isSpriteSheet = frames.length > 1;
+                    layer.alpha = 1.0f;
+                    layer.posX = canvasWidth / 4f;
+                    layer.posY = canvasHeight / 4f;
+                    layer.fontConfig = cfg;
+                    layers.add(layer);
+                    selectedLayerIndex = layers.size() - 1;
+                    applyGroupPropagation(layer);
+                    adoptStyleIntoPending(layer);
+                    refreshAll();
+                    Toast.makeText(this, "\u2713 " + name + " \u2014 " + frames.length + " frames",
+                            Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+
+    private static int clampInt(int v, int lo, int hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
     }
 
     private void updatePreviewAction(ImageView imgPreview, Spinner spinnerFont, List<Typeface> fontFaces,
@@ -2214,16 +2376,24 @@ public class DialEditorActivity extends AppCompatActivity {
         DialLayer target = pendingStyleTarget;
         pendingStyleTarget = null;
         if (!layers.contains(target)) return false;
+        boolean wasPlaceholder = target.pendingStyle;
+        Bitmap[] previousFrames = target.frames;
         target.frames        = created.frames;
         target.icon          = created.icon;
-        target.scale         = created.scale;
         target.frameCount    = created.frameCount;
         target.isSpriteSheet = created.isSpriteSheet;
+        target.fontConfig    = created.fontConfig;
+        target.batteryConfig = created.batteryConfig;
+        target.weatherConfig = created.weatherConfig;
         target.pendingStyle  = false;
+        // Restyling a layer that already sat on the canvas keeps the size and
+        // position the user gave it; a placeholder has nothing worth keeping.
+        if (wasPlaceholder) target.scale = created.scale;
         layers.remove(created);
         selectedLayerIndex = layers.indexOf(target);
         if (target.timeGroupId != null) {
-            relayoutTimeGroup(findGroup(target.timeGroupId));
+            if (!wasPlaceholder) propagateStyleToGroup(target, previousFrames);
+            relayoutTimeGroup(findGroup(target.timeGroupId), target);
         }
         return true;
     }
@@ -2323,6 +2493,30 @@ public class DialEditorActivity extends AppCompatActivity {
             Bitmap bmp = getPreviewBitmap(part);
             if (bmp == null || bmp.getHeight() <= 0) continue;
             part.scale = targetH / bmp.getHeight();
+        }
+    }
+
+    /**
+     * Copies a part's glyph set onto its siblings. A joined time group shows one
+     * typeface across hours, minutes and seconds, so restyling one part has to
+     * carry over or the group stops looking like a single clock.
+     */
+    private void propagateStyleToGroup(DialLayer source, Bitmap[] previousFrames) {
+        if (source == null || source.timeGroupId == null) return;
+        TimeGroup group = findGroup(source.timeGroupId);
+        if (group == null || group.mode != TimeGroup.Mode.TOGETHER) return;
+        for (DialLayer sibling : group.parts) {
+            if (sibling == source || sibling.isColonSeparator) continue;
+            // Leave alone any part the user deliberately gave a different style
+            if (previousFrames != null && previousFrames.length > 0
+                    && (sibling.frames == null || sibling.frames.length == 0
+                        || sibling.frames[0] != previousFrames[0])) continue;
+            sibling.frames        = source.frames != null ? source.frames.clone() : null;
+            sibling.icon          = source.icon;
+            sibling.frameCount    = source.frameCount;
+            sibling.isSpriteSheet = source.isSpriteSheet;
+            sibling.fontConfig    = source.fontConfig != null ? source.fontConfig.copy() : null;
+            sibling.pendingStyle  = false;
         }
     }
 
@@ -3022,6 +3216,10 @@ public class DialEditorActivity extends AppCompatActivity {
             if (btnCopyStyle != null) {
                 btnCopyStyle.setVisibility(hasOtherStyledLayers(layer) ? View.VISIBLE : View.GONE);
             }
+            if (btnEditLayer != null) {
+                // The background is edited with the fit/fill controls, not a builder
+                btnEditLayer.setVisibility(isBg ? View.GONE : View.VISIBLE);
+            }
         } else {
             selectedLayerControls.setVisibility(View.GONE);
             if (btnLockBg != null) btnLockBg.setVisibility(View.GONE);
@@ -3119,6 +3317,14 @@ public class DialEditorActivity extends AppCompatActivity {
     // ===================== HAND SET BUILDER =====================
 
     private void showHandSetBuilder() {
+        showHandSetBuilder(false);
+    }
+
+    /**
+     * @param editExisting reopens the builder on the configs of the hands already
+     *                     on the canvas, so a set can be tuned without rebuilding it.
+     */
+    private void showHandSetBuilder(boolean editExisting) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_hand_generator, null);
         ImageView imgDialLivePreview = dialogView.findViewById(R.id.imgDialLivePreview);
         TextView txtDims = dialogView.findViewById(R.id.txtHandDimensionsInfo);
@@ -3139,6 +3345,15 @@ public class DialEditorActivity extends AppCompatActivity {
                 HandGenerator.HandConfig.getDefault("minute"),
                 HandGenerator.HandConfig.getDefault("second")
         };
+        if (editExisting) {
+            int[] handTypes = { DialCompiler.TYPE_ARM_HOUR, DialCompiler.TYPE_ARM_MIN, DialCompiler.TYPE_ARM_SEC };
+            for (int i = 0; i < handTypes.length; i++) {
+                DialLayer existing = findLayerOfType(handTypes[i]);
+                if (existing != null && existing.handConfig != null) {
+                    configs[i] = existing.handConfig.copy();
+                }
+            }
+        }
         final int[] currentTab = {0};
 
         final String[] styles = {"sword", "arrow", "baton", "needle", "club", "diamond", "leaf", "lollipop"};
@@ -3278,6 +3493,7 @@ public class DialEditorActivity extends AppCompatActivity {
 
         populateFields.run();
 
+        btnApply.setText(editExisting ? R.string.hand_update_set : R.string.hand_apply_set);
         btnApply.setOnClickListener(v -> {
             dialog.dismiss();
             applyHandSet(configs[0], configs[1], configs[2]);
@@ -3286,48 +3502,61 @@ public class DialEditorActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void applyHandSet(HandGenerator.HandConfig hourCfg, HandGenerator.HandConfig minCfg, HandGenerator.HandConfig secCfg) {
-        for (int i = layers.size() - 1; i >= 0; i--) {
-            int t = layers.get(i).nativeElementType;
-            if (isHandType(t)) {
-                layers.remove(i);
-            }
-        }
-
-        int hW = hourCfg.width + 10;
-        int hH = hourCfg.handLength + hourCfg.tailLength + 10;
-        int hCtx = hourCfg.tailLength + 5;
-        Bitmap hourBmp = HandGenerator.generateHandBitmap(hourCfg, hW, hH);
-        DialLayer hourLayer = new DialLayer(DialLayer.TYPE_ARM, hourBmp, getString(R.string.hand_hour), DialCompiler.TYPE_ARM_HOUR);
-        hourLayer.pivotTail = hCtx;
-        hourLayer.handConfig = hourCfg;
-        layers.add(hourLayer);
-
-        int mW = minCfg.width + 10;
-        int mH = minCfg.handLength + minCfg.tailLength + 10;
-        int mCtx = minCfg.tailLength + 5;
-        Bitmap minBmp = HandGenerator.generateHandBitmap(minCfg, mW, mH);
-        DialLayer minLayer = new DialLayer(DialLayer.TYPE_ARM, minBmp, getString(R.string.hand_minute), DialCompiler.TYPE_ARM_MIN);
-        minLayer.pivotTail = mCtx;
-        minLayer.handConfig = minCfg;
-        layers.add(minLayer);
-
-        int sW = secCfg.width + 10;
-        int sH = secCfg.handLength + secCfg.tailLength + 10;
-        int sCtx = secCfg.tailLength + 5;
-        Bitmap secBmp = HandGenerator.generateHandBitmap(secCfg, sW, sH);
-        DialLayer secLayer = new DialLayer(DialLayer.TYPE_ARM, secBmp, getString(R.string.hand_second), DialCompiler.TYPE_ARM_SEC);
-        secLayer.pivotTail = sCtx;
-        secLayer.handConfig = secCfg;
-        layers.add(secLayer);
+    private void applyHandSet(HandGenerator.HandConfig hourCfg, HandGenerator.HandConfig minCfg,
+                              HandGenerator.HandConfig secCfg) {
+        boolean replaced = applyHand(DialCompiler.TYPE_ARM_HOUR, hourCfg, R.string.hand_hour);
+        replaced |= applyHand(DialCompiler.TYPE_ARM_MIN, minCfg, R.string.hand_minute);
+        replaced |= applyHand(DialCompiler.TYPE_ARM_SEC, secCfg, R.string.hand_second);
 
         refreshAll();
-        Toast.makeText(this, R.string.hand_apply_set, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, replaced ? getString(R.string.element_updated)
+                : getString(R.string.hand_apply_set), Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Regenerates one hand in place when it already exists, so re-running the
+     * builder keeps the layer's scale, rotation and stacking order.
+     *
+     * @return true when an existing hand was updated rather than added.
+     */
+    private boolean applyHand(int handType, HandGenerator.HandConfig cfg, int nameRes) {
+        int w = cfg.width + 10;
+        int h = cfg.handLength + cfg.tailLength + 10;
+        int ctx = cfg.tailLength + 5;
+        Bitmap bmp = HandGenerator.generateHandBitmap(cfg, w, h);
+
+        DialLayer existing = findLayerOfType(handType);
+        DialLayer layer = existing != null ? existing
+                : new DialLayer(DialLayer.TYPE_ARM, bmp, getString(nameRes), handType);
+        layer.icon = bmp;
+        layer.frames = null;
+        layer.frameCount = 1;
+        layer.isSpriteSheet = false;
+        layer.pivotTail = ctx;
+        layer.handConfig = cfg;
+        if (existing == null) {
+            layers.add(layer);
+            return false;
+        }
+        return true;
+    }
+
+    /** First layer of the given native block type, or null. */
+    private DialLayer findLayerOfType(int nativeElementType) {
+        for (DialLayer l : layers) {
+            if (l.nativeElementType == nativeElementType && !l.pendingStyle) return l;
+        }
+        return null;
     }
 
     // ===================== BATTERY GENERATOR =====================
 
     private void showBatteryGenerator() {
+        showBatteryGenerator(null);
+    }
+
+    /** @param editTarget non-null re-opens an existing strip for tweaking in place. */
+    private void showBatteryGenerator(DialLayer editTarget) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_battery_generator, null);
         Spinner spinnerStyle = dialogView.findViewById(R.id.spinnerBatteryStyle);
         RadioGroup rgColorMode = dialogView.findViewById(R.id.rgBatteryColorMode);
@@ -3345,11 +3574,24 @@ public class DialEditorActivity extends AppCompatActivity {
                 dialogView.findViewById(R.id.imgBatteryPreview5)
         };
 
-        BatteryGenerator.BatteryConfig cfg = new BatteryGenerator.BatteryConfig();
+        BatteryGenerator.BatteryConfig cfg =
+                (editTarget != null && editTarget.batteryConfig != null)
+                        ? editTarget.batteryConfig.copy()
+                        : new BatteryGenerator.BatteryConfig();
         String[] styles = {"horizontal_capsule", "vertical_capsule", "circular_ring", "pill_dots"};
         String[] styleNames = {"Horizontal Capsule", "Vertical Capsule", "Circular Ring", "Pill Dots"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, styleNames);
         spinnerStyle.setAdapter(adapter);
+
+        // Reflect the saved config before any listener is attached
+        for (int i = 0; i < styles.length; i++) {
+            if (styles[i].equals(cfg.presetStyle)) { spinnerStyle.setSelection(i); break; }
+        }
+        rgColorMode.check("dynamic".equals(cfg.colorMode) ? R.id.rbColorDynamic : R.id.rbColorSolid);
+        chkLightning.setChecked(cfg.showLightning);
+        edtW.setText(String.valueOf(cfg.frameWidth));
+        edtH.setText(String.valueOf(cfg.frameHeight));
+        btnApply.setText(editTarget != null ? R.string.battery_update : R.string.battery_apply);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -3406,15 +3648,23 @@ public class DialEditorActivity extends AppCompatActivity {
             for (int i = 0; i < cfg.frameCount; i++) {
                 frames[i] = Bitmap.createBitmap(fullSheet, 0, i * fh, cfg.frameWidth, fh);
             }
-            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[frames.length - 1], getBlockLabel(DialCompiler.TYPE_BATT_STRIP), DialCompiler.TYPE_BATT_STRIP);
+            DialLayer layer = editTarget != null ? editTarget
+                    : new DialLayer(DialLayer.TYPE_ELEMENT, frames[frames.length - 1],
+                            getBlockLabel(DialCompiler.TYPE_BATT_STRIP), DialCompiler.TYPE_BATT_STRIP);
+            layer.icon = frames[frames.length - 1];
             layer.frames = frames;
             layer.frameCount = cfg.frameCount;
             layer.isSpriteSheet = true;
             layer.compositeImage = fullSheet;
             layer.batteryConfig = cfg;
-            layers.add(layer);
+            layer.pendingStyle = false;
+            if (editTarget == null) {
+                layers.add(layer);
+                selectedLayerIndex = layers.size() - 1;
+            }
             refreshAll();
-            Toast.makeText(this, R.string.battery_apply, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, editTarget != null ? getString(R.string.element_updated)
+                    : getString(R.string.battery_apply), Toast.LENGTH_SHORT).show();
         });
 
         dialog.show();
@@ -3423,6 +3673,15 @@ public class DialEditorActivity extends AppCompatActivity {
     // ===================== WEATHER GENERATOR =====================
 
     private void showWeatherGenerator() {
+        showWeatherGenerator(null);
+    }
+
+    /**
+     * @param editTarget when non-null the dialog opens on that layer's saved
+     *                   config and replaces its frames in place, keeping the
+     *                   position, scale and stacking order the user already set.
+     */
+    private void showWeatherGenerator(DialLayer editTarget) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_weather_generator, null);
         EditText edtW = dialogView.findViewById(R.id.edtWeatherWidth);
         EditText edtH = dialogView.findViewById(R.id.edtWeatherHeight);
@@ -3443,13 +3702,17 @@ public class DialEditorActivity extends AppCompatActivity {
             previews[i] = dialogView.findViewById(iconIds[i]);
         }
 
-        WeatherGenerator.WeatherConfig cfg = new WeatherGenerator.WeatherConfig();
+        WeatherGenerator.WeatherConfig cfg =
+                (editTarget != null && editTarget.weatherConfig != null)
+                        ? editTarget.weatherConfig.copy()
+                        : new WeatherGenerator.WeatherConfig();
         cfg.frameCount = WeatherGenerator.FRAME_COUNT;
 
         edtW.setText(String.valueOf(cfg.frameWidth));
         edtH.setText(String.valueOf(cfg.frameHeight));
         seekStroke.setProgress(Math.max(1, Math.min(8, cfg.strokeWidth)));
         rgStyle.check(cfg.outline ? R.id.rbWeatherOutline : R.id.rbWeatherFilled);
+        btnApply.setText(editTarget != null ? R.string.weather_update : R.string.weather_apply);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -3511,17 +3774,23 @@ public class DialEditorActivity extends AppCompatActivity {
             for (int i = 0; i < cfg.frameCount; i++) {
                 frames[i] = Bitmap.createBitmap(fullSheet, 0, i * fh, cfg.frameWidth, fh);
             }
-            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0],
-                    getBlockLabel(DialCompiler.TYPE_WEATHER), DialCompiler.TYPE_WEATHER);
+            DialLayer layer = editTarget != null ? editTarget
+                    : new DialLayer(DialLayer.TYPE_ELEMENT, frames[0],
+                            getBlockLabel(DialCompiler.TYPE_WEATHER), DialCompiler.TYPE_WEATHER);
+            layer.icon = frames[0];
             layer.frames = frames;
             layer.frameCount = cfg.frameCount;
             layer.isSpriteSheet = true;
             layer.compositeImage = fullSheet;
             layer.weatherConfig = cfg;
-            layers.add(layer);
-            selectedLayerIndex = layers.size() - 1;
+            layer.pendingStyle = false;
+            if (editTarget == null) {
+                layers.add(layer);
+                selectedLayerIndex = layers.size() - 1;
+            }
             refreshAll();
-            Toast.makeText(this, R.string.weather_apply, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, editTarget != null ? getString(R.string.element_updated)
+                    : getString(R.string.weather_apply), Toast.LENGTH_SHORT).show();
         });
 
         dialog.show();
