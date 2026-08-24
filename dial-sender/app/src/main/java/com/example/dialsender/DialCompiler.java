@@ -257,9 +257,9 @@ public class DialCompiler {
             case TYPE_AMPM:
                 return 2; // AM, PM
             case TYPE_BATTERY:
-                return 5; // battery levels
+                return 10; // digits 0-9 (battery percentage)
             case TYPE_BATT_STRIP:
-                return 5; // battery strip levels
+                return 6; // battery strip levels (0-5%, 6-20, 21-40, 41-60, 61-80, 81-100)
             case TYPE_WEATHER:
                 return WeatherGenerator.FRAME_COUNT; // 12 weather condition icons
             case TYPE_CONNECT:
