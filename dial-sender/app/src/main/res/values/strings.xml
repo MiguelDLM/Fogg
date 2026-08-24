@@ -51,6 +51,13 @@
     <string name="status_syncing">Sincronizando datos de salud y tiempo…</string>
     <string name="status_not_connected_since">Reloj no conectado · Última sincronización: %s</string>
     <string name="status_goal">Meta %d</string>
+    <string name="status_pill_connected">● Conectado</string>
+    <string name="status_pill_disconnected">○ Desconectado</string>
+    <string name="status_progress_completed">%d%% completado hoy</string>
+    <string name="date_format_status">EEEE, d \'de\' MMMM</string>
+    <string name="findphone_notif_title">Tu reloj está buscando el teléfono</string>
+    <string name="findphone_notif_desc">Toca «Detener» para silenciar</string>
+    <string name="find_phone_ringing">Sonando…</string>
 
     <!-- ── Sport ── -->
     <string name="sport_walk">Caminar</string>
@@ -149,8 +156,8 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="disconnected">Desconectado</string>
     <string name="connected">Conectado</string>
     <string name="connecting">Conectando…</string>
-    <string name="scan_connect">🔍  Escanear y conectar</string>
-    <string name="reconnect">🔗  Reconectar</string>
+    <string name="scan_connect">Escanear y conectar</string>
+    <string name="reconnect">Reconectar</string>
     <string name="scanning">⏳  Escaneando…</string>
     <string name="dial_file">Archivo de esfera</string>
     <string name="select_bin">📁  Seleccionar archivo .bin</string>
@@ -198,12 +205,12 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="add_one_layer">Agrega al menos una capa</string>
     <string name="from_gallery">📂  Seleccionar de galería</string>
     <string name="saved_to_library">Guardado en la biblioteca</string>
-    <string name="compile">⚡ Compilar</string>
+    <string name="compile">Compilar</string>
     <string name="compiling">Compilando…</string>
     <string name="layers_title">CAPAS</string>
     <string name="add_layer">Agregar capa</string>
-    <string name="bg_image">📷  Fondo (imagen)</string>
-    <string name="add_animation">🎬  Agregar animación (GIF/video)</string>
+    <string name="bg_image">Fondo (imagen)</string>
+    <string name="add_animation">Agregar animación (GIF/video)</string>
     <string name="enter_dial_name">Nombre de la esfera</string>
     <string name="dial_name_hint">Mi esfera genial</string>
     <string name="cont">Continuar</string>
@@ -219,19 +226,19 @@ Elige una actividad arriba para registrar la primera.</string>
     <!-- ── Log ── -->
     <string name="debug_log">Registro de depuración</string>
     <string name="copy">📋 Copiar</string>
-    <string name="clear">🗑 Limpiar</string>
+    <string name="clear">Limpiar</string>
     <string name="no_logs">Sin registros disponibles</string>
     <string name="log_copied">Registro copiado al portapapeles</string>
     <string name="log_cleared">Registro limpiado</string>
 
     <!-- ── Dial categories ── -->
-    <string name="cat_time">⏰  Hora (digital)</string>
-    <string name="cat_date">📅  Fecha</string>
-    <string name="cat_analog">🕐  Manecillas analógicas</string>
-    <string name="cat_health">💪  Salud</string>
-    <string name="cat_status">🔋  Estado</string>
-    <string name="cat_deco">✨  Decoración</string>
-    <string name="cat_scale">🔘  Anillo de carátula</string>
+    <string name="cat_time">Hora (digital)</string>
+    <string name="cat_date">Fecha</string>
+    <string name="cat_analog">Manecillas analógicas</string>
+    <string name="cat_health">Salud</string>
+    <string name="cat_status">Estado</string>
+    <string name="cat_deco">Decoración</string>
+    <string name="cat_scale">Anillo de carátula</string>
 
     <!-- ── Block types ── -->
     <string name="blk_preview">Vista previa</string>
@@ -269,7 +276,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="blk_scale">Anillo de horas</string>
 
     <!-- ── Font creator ── -->
-    <string name="from_font">🔤  Escribir Texto / Fuente (.ttf)</string>
+    <string name="from_font">Escribir Texto / Fuente (.ttf)</string>
     <string name="font_label">FUENTE</string>
     <string name="digit_size">TAMAÑO</string>
     <string name="font_color">COLOR</string>
@@ -384,7 +391,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="weather_refreshing">Actualizando el tiempo…</string>
     <string name="weather_no_data">\nSin datos del tiempo todavía.\nConéctate al reloj y desliza para actualizar en la pantalla de Estado.</string>
     <string name="weather_hi_lo">Máx %1$d°  Mín %2$d°</string>
-    <string name="weather_humidity">💧  Humedad</string>
+    <string name="weather_humidity">Humedad</string>
     <string name="weather_wind">🌬  Viento</string>
     <string name="weather_uv">☀  Índice UV</string>
     <string name="weather_rain">🌧  Prob. lluvia</string>
@@ -864,7 +871,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="weather_update">Actualizar Iconos de Clima</string>
 
     <!-- Re-editing existing elements -->
-    <string name="edit_element">✏️ Editar</string>
+    <string name="edit_element">Editar</string>
     <string name="edit_element_full">Editar elemento</string>
     <string name="replace_style">Cambiar estilo</string>
     <string name="edit_font_digits">Editar dígitos (fuente)</string>
@@ -879,7 +886,7 @@ Elige una actividad arriba para registrar la primera.</string>
 
     <!-- Progress Generator Dialog -->
     <string name="progress_builder_title">Generador de Barra de Progreso</string>
-    <string name="progress_frames_hint">11 fotogramas: 0 %, 10 % … 100 %. El reloj elige el fotograma según el avance de la métrica.</string>
+    <string name="progress_frames_hint" formatted="false">11 fotogramas: 0 %, 10 % … 100 %. El reloj elige el fotograma según el avance de la métrica.</string>
     <string name="progress_style">ESTILO</string>
     <string name="progress_color_fill">COLOR DE RELLENO</string>
     <string name="progress_color_end">COLOR FINAL (DEGRADADO)</string>
@@ -918,4 +925,43 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="connect_style_bt">Bluetooth</string>
     <string name="connect_style_waves">Ondas de señal</string>
     <string name="connect_style_link">Eslabones</string>
+
+    <!-- ── Themes & Appearance ── -->
+    <string name="settings_section_theme">TEMA Y APARIENCIA</string>
+    <string name="settings_theme_title">Estilo y Tema</string>
+    <string name="settings_theme_subtitle">Cada tema cambia colores, forma, densidad y tipografía</string>
+
+    <!-- Design languages a theme can carry. -->
+    <string name="design_hud">Compacto · HUD</string>
+    <string name="design_organic">Amplio · Redondeado</string>
+    <string name="design_bold">Intenso · Titulares</string>
+    <string name="design_glass">Cristal · Translúcido</string>
+    <string name="design_editorial">Editorial · Sin tarjetas</string>
+    <string name="theme_midnight_name">Midnight Pulse</string>
+    <string name="theme_midnight_desc">Obsidiana &amp; Cyan Eléctrico · Estilo deportivo de alta tecnología</string>
+    <string name="theme_emerald_name">Emerald Vitality</string>
+    <string name="theme_emerald_desc">Menta &amp; Bosque · Vitalidad, naturaleza y salud</string>
+    <string name="theme_solar_name">Solar Flare</string>
+    <string name="theme_solar_desc">Naranja Solar &amp; Coral · Alta energía para entrenamiento</string>
+    <string name="theme_ocean_name">Ocean Cobalt</string>
+    <string name="theme_ocean_desc">Azul Cobalto &amp; Titanio · Elegante y moderno</string>
+    <string name="theme_onyx_name">Onyx Minimal</string>
+    <string name="theme_onyx_desc">AMOLED Puro &amp; Titanio · Máximo contraste y ahorro de batería</string>
+
+    <!-- ── Dashboard & Device UI enhancements ── -->
+    <string name="greeting_morning">¡Buenos días!</string>
+    <string name="greeting_afternoon">¡Buenas tardes!</string>
+    <string name="greeting_evening">¡Buenas noches!</string>
+    <string name="dashboard_summary_title">Tu resumen de hoy</string>
+    <string name="dashboard_activity_overview">Resumen de Actividad</string>
+    <string name="dashboard_live_pulse">Monitoreo continuo activo</string>
+    <string name="dev_section_screen">Carátulas y Pantalla</string>
+    <string name="dev_section_health">Salud y Monitoreo Continuo</string>
+    <string name="dev_section_utils">Notificaciones y Funciones</string>
+    <string name="dev_section_system">Sistema</string>
+    <string name="device_bound_badge">Dispositivo vinculado</string>
+    <string name="fogg_back">Atrás</string>
+    <string name="send">Enviar</string>
+    <string name="layer_lock">Bloquear capa</string>
+    <string name="layer_delete">Eliminar capa</string>
 </resources>

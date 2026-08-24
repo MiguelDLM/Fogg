@@ -1,28 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="80dp"
+    android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="8dp"
-    android:background="@drawable/bg_card"
-    android:layout_marginBottom="8dp"
-    android:layout_marginHorizontal="4dp"
+    android:background="?attr/foggCardBg"
+    android:paddingStart="12dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:layout_marginBottom="?attr/foggCardGap"
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Dial thumbnail -->
     <ImageView
         android:id="@+id/imgDialThumb"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="58dp"
+        android:layout_height="58dp"
         android:scaleType="centerCrop"
-        android:background="@drawable/bg_status"
-        android:layout_marginEnd="12dp"
+        android:background="?attr/foggBadgeBg"
+        android:layout_marginEnd="14dp"
         android:contentDescription="@string/blk_preview"/>
 
-    <!-- Dial Info -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -31,47 +31,41 @@
 
         <TextView
             android:id="@+id/txtDialName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Dial Name"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold"
+            style="@style/Fogg.CardTitle"
             android:maxLines="1"
-            android:ellipsize="end"/>
+            android:ellipsize="end"
+            android:text="Dial"/>
 
         <TextView
             android:id="@+id/txtDialSize"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="12.3 KB"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"/>
+            style="@style/Fogg.Caption"
+            android:layout_marginTop="2dp"
+            android:text="12.3 KB"/>
     </LinearLayout>
 
-    <!-- Source Badge -->
+    <!-- Origin chip: preset vs. user-made -->
     <TextView
         android:id="@+id/txtDialSource"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_status"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="3dp"
+        style="@style/Fogg.Caption"
+        android:background="?attr/foggChipBg"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:layout_marginEnd="6dp"
         android:text="@string/preset"
-        android:textColor="@color/accent_cyan"
-        android:textSize="10sp"
-        android:layout_marginEnd="8dp"/>
+        android:textColor="?attr/foggAccent"/>
 
-    <!-- Send Button -->
     <TextView
         android:id="@+id/btnSendDial"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/send_arrow"
-        android:textColor="@color/accent_secondary"
-        android:textSize="13sp"
-        android:textStyle="bold"
+        style="@style/Fogg.Caption"
+        android:drawableStart="@drawable/ic_send"
+        android:drawablePadding="5dp"
+        android:drawableTint="?attr/foggAccentSecondary"
+        android:gravity="center_vertical"
         android:padding="8dp"
+        android:textColor="?attr/foggAccentSecondary"
         android:clickable="true"
-        android:focusable="true"/>
+        android:focusable="true"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
 </LinearLayout>

@@ -314,7 +314,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         if (sessionReady) {
             statusIndicator.setBackgroundResource(R.drawable.indicator_connected);
             txtStatus.setText(R.string.connected);
-            txtStatus.setTextColor(getResources().getColor(R.color.status_connected));
+            txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).success);
             btnConnect.setText(R.string.reconnect);
 
             android.content.SharedPreferences sp = requireContext()
@@ -322,7 +322,8 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             int batt = sp.getInt("battery_level", 0);
             // Battery shown inline next to device name
             if (txtBattery != null)
-                txtBattery.setText(batt > 0 ? " 🔋" + batt + "%" : "");
+                // The layout already shows a battery vector next to this label.
+                txtBattery.setText(batt > 0 ? batt + "%" : "");
 
             // Firmware version shown in the statsRow chip
             if (statsRow != null)
@@ -334,14 +335,14 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                 txtFirmware.setText(version.isEmpty() ? "—" : version);
         } else if (connected) {
             txtStatus.setText(R.string.connecting);
-            txtStatus.setTextColor(getResources().getColor(R.color.status_scanning));
+            txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
             if (txtBattery != null) txtBattery.setText("");
             if (statsRow != null)
                 statsRow.setVisibility(View.GONE);
         } else {
             statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
             txtStatus.setText(R.string.disconnected);
-            txtStatus.setTextColor(getResources().getColor(R.color.status_disconnected));
+            txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).danger);
             btnConnect.setText(R.string.scan_connect);
             if (txtBattery != null) txtBattery.setText("");
             if (statsRow != null)
@@ -431,22 +432,22 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             if (sessionReady) {
                 statusIndicator.setBackgroundResource(R.drawable.indicator_connected);
                 txtStatus.setText(R.string.connected);
-                txtStatus.setTextColor(getResources().getColor(R.color.status_connected));
+                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).success);
                 btnConnect.setText(R.string.reconnect);
             } else if (connected) {
                 txtStatus.setText(R.string.connecting);
-                txtStatus.setTextColor(getResources().getColor(R.color.status_scanning));
+                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
             } else if (bleManager.isReconnecting()) {
                 // The background retry loop is running: tell the user instead of
                 // showing a flat "Desconectado" that looks like a dead app.
                 statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
                 txtStatus.setText(R.string.connecting);
-                txtStatus.setTextColor(getResources().getColor(R.color.status_scanning));
+                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
                 btnConnect.setText(R.string.reconnect);
             } else {
                 statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
                 txtStatus.setText(R.string.disconnected);
-                txtStatus.setTextColor(getResources().getColor(R.color.status_disconnected));
+                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).danger);
                 btnConnect.setText(R.string.scan_connect);
             }
         });

@@ -51,6 +51,13 @@
     <string name="status_syncing">Syncing health data and weather…</string>
     <string name="status_not_connected_since">Watch not connected · Last sync: %s</string>
     <string name="status_goal">Goal %d</string>
+    <string name="status_pill_connected">● Connected</string>
+    <string name="status_pill_disconnected">○ Disconnected</string>
+    <string name="status_progress_completed">%d%% completed today</string>
+    <string name="date_format_status">EEEE, MMMM d</string>
+    <string name="findphone_notif_title">Your watch is finding the phone</string>
+    <string name="findphone_notif_desc">Tap «Stop» to silence</string>
+    <string name="find_phone_ringing">Ringing…</string>
 
     <!-- ── Sport ── -->
     <string name="sport_walk">Walk</string>
@@ -149,8 +156,8 @@ Pick an activity above to record your first one.</string>
     <string name="disconnected">Disconnected</string>
     <string name="connected">Connected</string>
     <string name="connecting">Connecting…</string>
-    <string name="scan_connect">🔍  Scan &amp; Connect</string>
-    <string name="reconnect">🔗  Reconnect</string>
+    <string name="scan_connect">Scan &amp; Connect</string>
+    <string name="reconnect">Reconnect</string>
     <string name="scanning">⏳  Scanning…</string>
     <string name="dial_file">Dial File</string>
     <string name="select_bin">📁  Select .bin file</string>
@@ -198,12 +205,12 @@ Pick an activity above to record your first one.</string>
     <string name="add_one_layer">Add at least one layer</string>
     <string name="from_gallery">📂  Select from gallery</string>
     <string name="saved_to_library">Saved to Library</string>
-    <string name="compile">⚡ Compile</string>
+    <string name="compile">Compile</string>
     <string name="compiling">Compiling…</string>
     <string name="layers_title">LAYERS</string>
     <string name="add_layer">Add Layer</string>
-    <string name="bg_image">📷  Background (image)</string>
-    <string name="add_animation">🎬  Add Animation (GIF/video)</string>
+    <string name="bg_image">Background (image)</string>
+    <string name="add_animation">Add Animation (GIF/video)</string>
     <string name="enter_dial_name">Dial name</string>
     <string name="dial_name_hint">My awesome dial</string>
     <string name="cont">Continue</string>
@@ -219,19 +226,19 @@ Pick an activity above to record your first one.</string>
     <!-- ── Log ── -->
     <string name="debug_log">Debug Log</string>
     <string name="copy">📋 Copy</string>
-    <string name="clear">🗑 Clear</string>
+    <string name="clear">Clear</string>
     <string name="no_logs">No logs available</string>
     <string name="log_copied">Log copied to clipboard</string>
     <string name="log_cleared">Log cleared</string>
 
     <!-- ── Dial categories ── -->
-    <string name="cat_time">⏰  Time (Digital)</string>
-    <string name="cat_date">📅  Date</string>
-    <string name="cat_analog">🕐  Analog Hands</string>
-    <string name="cat_health">💪  Health</string>
-    <string name="cat_status">🔋  Status</string>
-    <string name="cat_deco">✨  Decoration</string>
-    <string name="cat_scale">🔘  Watch Face Ring</string>
+    <string name="cat_time">Time (Digital)</string>
+    <string name="cat_date">Date</string>
+    <string name="cat_analog">Analog Hands</string>
+    <string name="cat_health">Health</string>
+    <string name="cat_status">Status</string>
+    <string name="cat_deco">Decoration</string>
+    <string name="cat_scale">Watch Face Ring</string>
 
     <!-- ── Block types ── -->
     <string name="blk_preview">Preview</string>
@@ -269,7 +276,7 @@ Pick an activity above to record your first one.</string>
     <string name="blk_scale">Hour Ring (Scale)</string>
 
     <!-- ── Font creator ── -->
-    <string name="from_font">🔤  Text / Font (.ttf)</string>
+    <string name="from_font">Text / Font (.ttf)</string>
     <string name="font_label">FONT</string>
     <string name="digit_size">DIGIT SIZE</string>
     <string name="font_color">COLOR</string>
@@ -384,7 +391,7 @@ Pick an activity above to record your first one.</string>
     <string name="weather_refreshing">Updating weather…</string>
     <string name="weather_no_data">\nNo weather data yet.\nConnect to the watch and pull to refresh on the Status screen.</string>
     <string name="weather_hi_lo">High %1$d°  Low %2$d°</string>
-    <string name="weather_humidity">💧  Humidity</string>
+    <string name="weather_humidity">Humidity</string>
     <string name="weather_wind">🌬  Wind</string>
     <string name="weather_uv">☀  UV Index</string>
     <string name="weather_rain">🌧  Rain chance</string>
@@ -864,7 +871,7 @@ Pick an activity above to record your first one.</string>
     <string name="weather_update">Update Weather Icons</string>
 
     <!-- Re-editing existing elements -->
-    <string name="edit_element">✏️ Edit</string>
+    <string name="edit_element">Edit</string>
     <string name="edit_element_full">Edit element</string>
     <string name="replace_style">Change style</string>
     <string name="edit_font_digits">Edit digits (font)</string>
@@ -879,7 +886,7 @@ Pick an activity above to record your first one.</string>
 
     <!-- Progress Generator Dialog -->
     <string name="progress_builder_title">Progress Bar Generator</string>
-    <string name="progress_frames_hint">11 frames: 0 %, 10 % … 100 %. The watch picks the frame that matches the metric.</string>
+    <string name="progress_frames_hint" formatted="false">11 frames: 0 %, 10 % … 100 %. The watch picks the frame based on the metric progress.</string>
     <string name="progress_style">STYLE</string>
     <string name="progress_color_fill">FILL COLOR</string>
     <string name="progress_color_end">END COLOR (GRADIENT)</string>
@@ -918,4 +925,43 @@ Pick an activity above to record your first one.</string>
     <string name="connect_style_bt">Bluetooth</string>
     <string name="connect_style_waves">Signal waves</string>
     <string name="connect_style_link">Chain links</string>
+
+    <!-- ── Themes & Appearance ── -->
+    <string name="settings_section_theme">THEME &amp; APPEARANCE</string>
+    <string name="settings_theme_title">Style &amp; Theme</string>
+    <string name="settings_theme_subtitle">Each theme changes colours, shape, density and typography</string>
+
+    <!-- Design languages a theme can carry. -->
+    <string name="design_hud">Compact · HUD</string>
+    <string name="design_organic">Airy · Rounded</string>
+    <string name="design_bold">Bold · Headline</string>
+    <string name="design_glass">Glass · Translucent</string>
+    <string name="design_editorial">Editorial · Cardless</string>
+    <string name="theme_midnight_name">Midnight Pulse</string>
+    <string name="theme_midnight_desc">Obsidian &amp; Electric Cyan · High-tech athletic style</string>
+    <string name="theme_emerald_name">Emerald Vitality</string>
+    <string name="theme_emerald_desc">Mint &amp; Forest Slate · Vitality, nature and health</string>
+    <string name="theme_solar_name">Solar Flare</string>
+    <string name="theme_solar_desc">Solar Orange &amp; Coral · High energy workout vibes</string>
+    <string name="theme_ocean_name">Ocean Cobalt</string>
+    <string name="theme_ocean_desc">Cobalt Blue &amp; Titanium · Sleek and sophisticated</string>
+    <string name="theme_onyx_name">Onyx Minimal</string>
+    <string name="theme_onyx_desc">Pure AMOLED &amp; Titanium · Maximum contrast &amp; battery saver</string>
+
+    <!-- ── Dashboard & Device UI enhancements ── -->
+    <string name="greeting_morning">Good morning!</string>
+    <string name="greeting_afternoon">Good afternoon!</string>
+    <string name="greeting_evening">Good evening!</string>
+    <string name="dashboard_summary_title">Today\'s Overview</string>
+    <string name="dashboard_activity_overview">Activity Summary</string>
+    <string name="dashboard_live_pulse">Continuous monitoring active</string>
+    <string name="dev_section_screen">Watchfaces &amp; Display</string>
+    <string name="dev_section_health">Health &amp; Continuous Tracking</string>
+    <string name="dev_section_utils">Notifications &amp; Features</string>
+    <string name="dev_section_system">System</string>
+    <string name="device_bound_badge">Bound Device</string>
+    <string name="fogg_back">Back</string>
+    <string name="send">Send</string>
+    <string name="layer_lock">Lock layer</string>
+    <string name="layer_delete">Delete layer</string>
 </resources>

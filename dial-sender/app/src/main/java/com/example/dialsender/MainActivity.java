@@ -26,8 +26,17 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this)
+                .registerReceiver(new android.content.BroadcastReceiver() {
+                    @Override
+                    public void onReceive(android.content.Context context, Intent intent) {
+                        recreate();
+                    }
+                }, new android.content.IntentFilter(com.example.dialsender.theme.ThemeManager.ACTION_THEME_CHANGED));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(
@@ -93,6 +102,20 @@ public class MainActivity extends AppCompatActivity {
         ble.addListener(autoSyncListener);
 
         bottomNav = findViewById(R.id.bottomNav);
+        com.example.dialsender.theme.ThemeManager.AppTheme currentTheme = com.example.dialsender.theme.ThemeManager.getTheme(this);
+        int[][] navStates = new int[][] {
+            new int[] { android.R.attr.state_checked },
+            new int[] { -android.R.attr.state_checked }
+        };
+        int[] navColors = new int[] {
+            currentTheme.navActive,
+            currentTheme.navInactive
+        };
+        android.content.res.ColorStateList navColorStateList = new android.content.res.ColorStateList(navStates, navColors);
+        bottomNav.setItemIconTintList(navColorStateList);
+        bottomNav.setItemTextColor(navColorStateList);
+        bottomNav.setBackgroundColor(currentTheme.bgSurface);
+
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_status) {

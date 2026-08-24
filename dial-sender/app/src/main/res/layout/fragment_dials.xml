@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
     <!-- Header with title + create button -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="20dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="20dp"
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="?attr/foggScreenPadding"
+        android:paddingTop="?attr/foggScreenPadding"
         android:paddingBottom="12dp">
 
         <LinearLayout
@@ -24,14 +25,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/nav_dials"
-                style="@style/ScreenTitle"/>
+                style="?attr/foggScreenTitleStyle"/>
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                style="@style/Fogg.Caption"
                 android:text="@string/dials_installed_library"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
                 android:layout_marginTop="2dp"/>
         </LinearLayout>
 
@@ -47,10 +45,11 @@
                 android:id="@+id/btnPickFile"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_upload"
+                android:src="@drawable/ic_folder"
                 android:padding="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:layout_marginEnd="8dp"
+                app:tint="?attr/foggTextSecondary"
                 android:contentDescription="@string/dials_select_local"/>
 
             <com.google.android.material.button.MaterialButton
@@ -59,7 +58,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/dials_btn_new"
-                android:textSize="13sp"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"/>
 
@@ -73,8 +72,9 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:clipToPadding="false"/>
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="?attr/foggScreenPadding"
+        android:clipToPadding="false"
+        android:scrollbars="none"/>
 
 </LinearLayout>

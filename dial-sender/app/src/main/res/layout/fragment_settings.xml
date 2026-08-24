@@ -1,48 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  "Me" tab. Rebuilt on the Fogg token system: every row leads with an icon,
+  section headers, dividers and inputs come from the theme, and the appearance
+  section previews whole design languages rather than colour swatches alone.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+    <LinearLayout style="@style/Fogg.ScreenContent">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/nav_yo"
-            android:textColor="@color/text_primary"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
+            style="?attr/foggScreenTitleStyle"
+            android:text="@string/nav_yo"/>
 
-        <!-- Profile header -->
+        <!-- ═══════════ Profile ═══════════ -->
         <LinearLayout
             android:id="@+id/profileCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
+            style="?attr/foggCardStyle"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="16dp"
             android:clickable="true"
-            android:focusable="true"
-            android:layout_marginBottom="20dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            android:focusable="true">
 
             <ImageView
                 android:id="@+id/imgProfile"
                 android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:background="@drawable/bg_chip_inactive"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/foggBadgeBg"
                 android:padding="14dp"
                 android:scaleType="centerCrop"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_nav_me"
-                android:layout_marginEnd="14dp"
-                app:tint="@color/accent_primary"/>
+                app:tint="?attr/foggAccent"/>
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -52,394 +47,246 @@
 
                 <TextView
                     android:id="@+id/txtProfileName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_profile"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"/>
+                    style="@style/Fogg.CardTitle"
+                    android:text="@string/settings_profile"/>
 
                 <TextView
                     android:id="@+id/txtProfileDevice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_no_device"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
-                    android:layout_marginTop="2dp"/>
+                    style="@style/Fogg.Caption"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/settings_no_device"/>
             </LinearLayout>
 
-            <TextView
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_edit"
+                app:tint="?attr/foggAccent"/>
+        </LinearLayout>
+
+        <!-- ═══════════ Appearance ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="2dp"
+            android:text="@string/settings_theme_title"/>
+
+        <TextView
+            style="@style/Fogg.Caption"
+            android:layout_marginBottom="12dp"
+            android:text="@string/settings_theme_subtitle"/>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:layout_marginBottom="?attr/foggSectionGap">
+
+            <LinearLayout
+                android:id="@+id/themeContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="✎"
-                android:textColor="@color/accent_primary"
-                android:textSize="18sp"/>
-        </LinearLayout>
+                android:orientation="horizontal"
+                android:paddingVertical="4dp"/>
+        </HorizontalScrollView>
 
-        <!-- Section: Data -->
+        <!-- ═══════════ Daily goals ═══════════ -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_section_data"
-            android:textColor="@color/accent_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/settings_section_goals"/>
 
-        <LinearLayout
-            android:id="@+id/rowImportData"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_card"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="4dp"
-            android:clickable="true"
-            android:focusable="true">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/settings_import"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="›"
-                android:textColor="@color/accent_primary"
-                android:textSize="22sp"/>
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_steps"
+                    android:contentDescription="@null" app:tint="?attr/foggSteps"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_goal_steps"/>
+                <TextView android:id="@+id/lblStepsUnit" style="@style/Fogg.Row.Value"
+                    android:text="@string/unit_steps_label"/>
+                <EditText
+                    android:id="@+id/etGoalSteps"
+                    style="@style/Fogg.Input.Inline"
+                    android:inputType="number"
+                    android:importantForAutofill="no"
+                    android:hint="@string/settings_goal_steps"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_sleep"
+                    android:contentDescription="@null" app:tint="?attr/foggSleep"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_goal_sleep"/>
+                <TextView android:id="@+id/lblSleepUnit" style="@style/Fogg.Row.Value"
+                    android:text="@string/unit_minutes_label"/>
+                <EditText
+                    android:id="@+id/etGoalSleep"
+                    style="@style/Fogg.Input.Inline"
+                    android:inputType="number"
+                    android:importantForAutofill="no"
+                    android:hint="@string/settings_goal_sleep"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_calories"
+                    android:contentDescription="@null" app:tint="?attr/foggCalories"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_goal_calories"/>
+                <TextView android:id="@+id/lblCalUnit" style="@style/Fogg.Row.Value"
+                    android:text="@string/unit_kcal_label"/>
+                <EditText
+                    android:id="@+id/etGoalCalories"
+                    style="@style/Fogg.Input.Inline"
+                    android:inputType="number"
+                    android:importantForAutofill="no"
+                    android:hint="@string/settings_goal_calories"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_distance"
+                    android:contentDescription="@null" app:tint="?attr/foggDistance"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_goal_distance"/>
+                <TextView android:id="@+id/lblDistanceUnit" style="@style/Fogg.Row.Value"
+                    android:text="@string/unit_km"/>
+                <EditText
+                    android:id="@+id/etGoalDistance"
+                    style="@style/Fogg.Input.Inline"
+                    android:inputType="number"
+                    android:importantForAutofill="no"
+                    android:hint="@string/settings_goal_distance"/>
+            </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/rowExportData"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_card"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp"
-            android:clickable="true"
-            android:focusable="true">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/settings_export"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="›"
-                android:textColor="@color/accent_primary"
-                android:textSize="22sp"/>
-        </LinearLayout>
-
-        <!-- Section: Language -->
+        <!-- ═══════════ Units ═══════════ -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_section_language"
-            android:textColor="@color/accent_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/settings_section_units"/>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
+        <LinearLayout style="?attr/foggGroupStyle">
 
-            <RadioGroup
-                android:id="@+id/radioLanguage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-                <RadioButton
-                    android:id="@+id/radioLangEs"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_lang_es"
-                    android:textColor="@color/text_primary"/>
-                <RadioButton
-                    android:id="@+id/radioLangEn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_lang_en"
-                    android:textColor="@color/text_primary"/>
-            </RadioGroup>
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_units"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_unit_distance"/>
+                <Spinner
+                    android:id="@+id/spinnerDistance"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_goal"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_unit_weight"/>
+                <Spinner
+                    android:id="@+id/spinnerWeight"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"/>
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Section: Gauge style -->
+        <!-- ═══════════ Gauge style ═══════════ -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_section_gauge"
-            android:textColor="@color/accent_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/settings_section_gauge"/>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false"
+                android:paddingBottom="0dp">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_gauge_style"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_section_gauge"/>
+            </LinearLayout>
 
             <RadioGroup
                 android:id="@+id/radioGaugeStyle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:paddingStart="?attr/foggRowPaddingH"
+                android:paddingEnd="?attr/foggRowPaddingH"
+                android:paddingBottom="?attr/foggRowPaddingV">
                 <RadioButton
                     android:id="@+id/radioGaugeA"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_gauge_a"
-                    android:textColor="@color/text_primary"/>
+                    style="@style/Fogg.Radio"
+                    android:text="@string/settings_gauge_a"/>
                 <RadioButton
                     android:id="@+id/radioGaugeB"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_gauge_b"
-                    android:textColor="@color/text_primary"/>
+                    style="@style/Fogg.Radio"
+                    android:text="@string/settings_gauge_b"/>
                 <RadioButton
                     android:id="@+id/radioGaugeC"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_gauge_c"
-                    android:textColor="@color/text_primary"/>
+                    style="@style/Fogg.Radio"
+                    android:text="@string/settings_gauge_c"/>
             </RadioGroup>
         </LinearLayout>
 
-        <!-- Section: Units -->
+        <!-- ═══════════ Language ═══════════ -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_section_units"
-            android:textColor="@color/accent_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/settings_section_language"/>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
+        <LinearLayout style="?attr/foggGroupStyle">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_unit_distance"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <Spinner
-                    android:id="@+id/spinnerDistance"
-                    android:layout_width="120dp"
-                    android:layout_height="36dp"/>
+            <LinearLayout style="?attr/foggRowStyle" android:clickable="false" android:focusable="false"
+                android:paddingBottom="0dp">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_language"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_section_language"/>
             </LinearLayout>
 
-            <LinearLayout
+            <RadioGroup
+                android:id="@+id/radioLanguage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_unit_weight"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <Spinner
-                    android:id="@+id/spinnerWeight"
-                    android:layout_width="120dp"
-                    android:layout_height="36dp"/>
+                android:paddingStart="?attr/foggRowPaddingH"
+                android:paddingEnd="?attr/foggRowPaddingH"
+                android:paddingBottom="?attr/foggRowPaddingV">
+                <RadioButton
+                    android:id="@+id/radioLangEs"
+                    style="@style/Fogg.Radio"
+                    android:text="@string/settings_lang_es"/>
+                <RadioButton
+                    android:id="@+id/radioLangEn"
+                    style="@style/Fogg.Radio"
+                    android:text="@string/settings_lang_en"/>
+            </RadioGroup>
+        </LinearLayout>
+
+        <!-- ═══════════ Data ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/settings_section_data"/>
+
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout android:id="@+id/rowImportData" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_import"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_import"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowExportData" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_export"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/settings_export"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Section: Daily goals -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_section_goals"
-            android:textColor="@color/accent_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_goal_steps"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <TextView
-                    android:id="@+id/lblStepsUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/unit_steps_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <EditText
-                    android:id="@+id/etGoalSteps"
-                    android:layout_width="80dp"
-                    android:layout_height="36dp"
-                    android:inputType="number"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:background="@drawable/bg_input_field"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:gravity="center_vertical|end"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_goal_sleep"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <TextView
-                    android:id="@+id/lblSleepUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/unit_minutes_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <EditText
-                    android:id="@+id/etGoalSleep"
-                    android:layout_width="80dp"
-                    android:layout_height="36dp"
-                    android:inputType="number"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:background="@drawable/bg_input_field"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:gravity="center_vertical|end"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_goal_calories"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <TextView
-                    android:id="@+id/lblCalUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/unit_kcal_label"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <EditText
-                    android:id="@+id/etGoalCalories"
-                    android:layout_width="80dp"
-                    android:layout_height="36dp"
-                    android:inputType="number"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:background="@drawable/bg_input_field"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:gravity="center_vertical|end"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/settings_goal_distance"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"/>
-                <TextView
-                    android:id="@+id/lblDistanceUnit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/unit_km"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"/>
-                <EditText
-                    android:id="@+id/etGoalDistance"
-                    android:layout_width="80dp"
-                    android:layout_height="36dp"
-                    android:inputType="number"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:background="@drawable/bg_input_field"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:gravity="center_vertical|end"/>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Version footer -->
+        <!-- Six taps unlock the developer tools. -->
         <TextView
             android:id="@+id/txtVersion"
+            style="@style/Fogg.Caption"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:gravity="center"
             android:paddingTop="12dp"
             android:paddingBottom="24dp"
-            android:text="@string/settings_version"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"/>
-
+            android:text="@string/settings_version"/>
     </LinearLayout>
 </ScrollView>

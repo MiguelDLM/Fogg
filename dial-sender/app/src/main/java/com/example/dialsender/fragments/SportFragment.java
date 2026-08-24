@@ -60,12 +60,18 @@ public class SportFragment extends Fragment {
     private static final String KEY_SESSIONS = "sport_sessions"; // "start|name|durSec|kcal,..."
     private static final String KEY_HIDDEN = "sport_hidden_starts";
 
-    private static final int BG = 0xFF0E1116;
-    private static final int CARD = 0xFF1A2027;
-    private static final int ACCENT = 0xFF22D3EE;
-    private static final int ACCENT_INK = 0xFF06121A;
-    private static final int MUTED = 0xFF6B7280;
-    private static final int LABEL = 0xFF9AA4B2;
+    /**
+     * Palette and shape come from the active theme. These used to be six fixed
+     * literals, so this tab stayed Midnight-cyan whichever theme was picked.
+     */
+    private com.example.dialsender.theme.ThemeManager.AppTheme cachedTheme;
+
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme() {
+        if (cachedTheme == null) {
+            cachedTheme = com.example.dialsender.theme.ThemeManager.getTheme(requireContext());
+        }
+        return cachedTheme;
+    }
 
     private SharedPreferences prefs;
 
@@ -85,8 +91,9 @@ public class SportFragment extends Fragment {
         dedupeStoredWorkouts();
         migrateWatchSessions();
 
+
         ScrollView scroll = new ScrollView(requireContext());
-        scroll.setBackgroundColor(BG);
+        scroll.setBackgroundColor(theme().bgPrimary);
         scroll.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(requireContext());
@@ -95,15 +102,15 @@ public class SportFragment extends Fragment {
 
         TextView title = new TextView(requireContext());
         title.setText(getString(R.string.nav_deporte));
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        title.setTextColor(theme().textPrimary);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         title.setTypeface(null, Typeface.BOLD);
         root.addView(title);
 
         TextView prompt = new TextView(requireContext());
         prompt.setText(getString(R.string.sport_pick_prompt));
-        prompt.setTextColor(LABEL);
-        prompt.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        prompt.setTextColor(theme().textSecondary);
+        prompt.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         prompt.setPadding(0, dp(4), 0, dp(20));
         root.addView(prompt);
 
@@ -189,7 +196,7 @@ public class SportFragment extends Fragment {
 
         TextView label = new TextView(requireContext());
         label.setText(sport.label(requireContext()));
-        label.setTextColor(Color.WHITE);
+        label.setTextColor(theme().textPrimary);
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         label.setTypeface(null, Typeface.BOLD);
         label.setGravity(Gravity.CENTER);
@@ -233,7 +240,7 @@ public class SportFragment extends Fragment {
 
         TextView label = new TextView(requireContext());
         label.setText(getString(R.string.sport_more));
-        label.setTextColor(Color.WHITE);
+        label.setTextColor(theme().textPrimary);
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         label.setTypeface(null, Typeface.BOLD);
         label.setGravity(Gravity.CENTER);
@@ -242,7 +249,7 @@ public class SportFragment extends Fragment {
 
         TextView go = new TextView(requireContext());
         go.setText(getString(R.string.sport_more_count, Sport.values().length - 5));
-        go.setTextColor(LABEL);
+        go.setTextColor(theme().textSecondary);
         go.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         go.setAllCaps(true);
         go.setLetterSpacing(0.12f);
@@ -255,13 +262,15 @@ public class SportFragment extends Fragment {
     }
 
     private LinearLayout tileShell() {
+        float density = getResources().getDisplayMetrics().density;
         LinearLayout tile = new LinearLayout(requireContext());
         tile.setOrientation(LinearLayout.VERTICAL);
         tile.setGravity(Gravity.CENTER);
         tile.setPadding(dp(10), dp(22), dp(10), dp(20));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(20));
+        bg.setColor(theme().bgCard);
+        bg.setCornerRadius(20 * density);
+        bg.setStroke((int) (1 * density), theme().cardBorder);
         tile.setBackground(bg);
         tile.setClickable(true);
         return tile;
@@ -313,14 +322,14 @@ public class SportFragment extends Fragment {
         header.setLayoutParams(lp);
 
         histCount = new TextView(requireContext());
-        histCount.setTextColor(LABEL);
+        histCount.setTextColor(theme().textSecondary);
         histCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         histCount.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(histCount);
 
         histAction = new TextView(requireContext());
-        histAction.setTextColor(ACCENT);
+        histAction.setTextColor(theme().accentPrimary);
         histAction.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         histAction.setTypeface(null, Typeface.BOLD);
         histAction.setPadding(dp(10), dp(6), dp(4), dp(6));
@@ -458,7 +467,7 @@ public class SportFragment extends Fragment {
         if (sessions.isEmpty()) {
             TextView empty = new TextView(requireContext());
             empty.setText(getString(R.string.sport_no_sessions));
-            empty.setTextColor(MUTED);
+            empty.setTextColor(theme().textMuted);
             empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             empty.setPadding(dp(4), dp(8), dp(4), dp(8));
             historyContainer.addView(empty);
@@ -480,16 +489,20 @@ public class SportFragment extends Fragment {
     private View historyRow(final String rec, String[] p, SimpleDateFormat fmt) {
         final String start = p[0];
         final boolean isSelected = selected.contains(start);
+        float density = getResources().getDisplayMetrics().density;
 
         LinearLayout row = new LinearLayout(requireContext());
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(13), dp(16), dp(13));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(14));
-        if (isSelected)
-            bg.setStroke(dp(2), ACCENT);
+        bg.setColor(theme().bgCard);
+        bg.setCornerRadius(16 * density);
+        if (isSelected) {
+            bg.setStroke((int) (2 * density), theme().accentPrimary);
+        } else {
+            bg.setStroke((int) (1 * density), theme().cardBorder);
+        }
         row.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -500,18 +513,18 @@ public class SportFragment extends Fragment {
         android.widget.FrameLayout badge = new android.widget.FrameLayout(requireContext());
         GradientDrawable badgeBg = new GradientDrawable();
         badgeBg.setShape(GradientDrawable.OVAL);
-        badgeBg.setColor(isSelected ? ACCENT : 0xFF232B34);
+        badgeBg.setColor(isSelected ? theme().accentPrimary : 0x22FFFFFF);
         badge.setBackground(badgeBg);
-        badge.setLayoutParams(new LinearLayout.LayoutParams(dp(40), dp(40)));
+        badge.setLayoutParams(new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         ImageView icon = new ImageView(requireContext());
         android.widget.FrameLayout.LayoutParams iconLp = new android.widget.FrameLayout.LayoutParams(
-                dp(22), dp(22), Gravity.CENTER);
+                dp(24), dp(24), Gravity.CENTER);
         icon.setLayoutParams(iconLp);
         Sport rowSport = Sport.byName(requireContext(), p[1]);
-        int rowAccent = rowSport != null ? rowSport.accent : ACCENT;
+        int rowAccent = rowSport != null ? rowSport.accent : theme().accentPrimary;
         icon.setImageDrawable(tinted(Sport.iconForName(requireContext(), p[1]),
-                isSelected ? ACCENT_INK : rowAccent));
+                isSelected ? 0xFF06121A : rowAccent));
         badge.addView(icon);
         row.addView(badge);
 
@@ -524,8 +537,9 @@ public class SportFragment extends Fragment {
 
         TextView name = new TextView(requireContext());
         name.setText(p[1]);
-        name.setTextColor(Color.WHITE);
+        name.setTextColor(theme().textPrimary);
         name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        name.setTypeface(null, Typeface.BOLD);
         name.setMaxLines(1);
         col.addView(name);
 
@@ -535,7 +549,7 @@ public class SportFragment extends Fragment {
         } catch (Exception e) {
             when.setText("");
         }
-        when.setTextColor(MUTED);
+        when.setTextColor(theme().textSecondary);
         when.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         col.addView(when);
         row.addView(col);
@@ -546,7 +560,7 @@ public class SportFragment extends Fragment {
 
         TextView dur = new TextView(requireContext());
         dur.setText(formatDuration(parseInt(p[2])));
-        dur.setTextColor(ACCENT);
+        dur.setTextColor(theme().accentPrimary);
         dur.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         dur.setTypeface(null, Typeface.BOLD);
         dur.setGravity(Gravity.END);
@@ -554,7 +568,7 @@ public class SportFragment extends Fragment {
 
         TextView kcal = new TextView(requireContext());
         kcal.setText(p[3] + " kcal");
-        kcal.setTextColor(MUTED);
+        kcal.setTextColor(theme().textSecondary);
         kcal.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         kcal.setGravity(Gravity.END);
         stats.addView(kcal);
@@ -579,7 +593,7 @@ public class SportFragment extends Fragment {
     private View deleteBar() {
         TextView btn = new TextView(requireContext());
         btn.setText(getString(R.string.sport_delete_selected, selected.size()));
-        btn.setTextColor(Color.WHITE);
+        btn.setTextColor(theme().textPrimary);
         btn.setTypeface(null, Typeface.BOLD);
         btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         btn.setGravity(Gravity.CENTER);
@@ -878,7 +892,7 @@ public class SportFragment extends Fragment {
     private TextView sectionLabel(String text, int topMargin) {
         TextView tv = new TextView(requireContext());
         tv.setText(text);
-        tv.setTextColor(LABEL);
+        tv.setTextColor(theme().textSecondary);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -917,8 +931,8 @@ public class SportFragment extends Fragment {
         LinearLayout ll = new LinearLayout(requireContext());
         ll.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(CARD);
-        bg.setCornerRadius(dp(18));
+        bg.setColor(theme().bgCard);
+        bg.setCornerRadius(theme().radiusCard);
         ll.setBackground(bg);
         ll.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

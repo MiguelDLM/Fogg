@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
     <!-- Hidden back button for backwards compatibility -->
     <View
@@ -18,9 +18,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="20dp"
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="?attr/foggScreenPadding"
+        android:paddingTop="?attr/foggScreenPadding"
         android:paddingBottom="12dp">
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/nav_estado"
-            style="@style/ScreenTitle"/>
+            style="?attr/foggScreenTitleStyle"/>
 
     </LinearLayout>
 
@@ -48,9 +48,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="16dp"/>
+                android:paddingStart="?attr/foggScreenPadding"
+                android:paddingEnd="?attr/foggScreenPadding"
+                android:paddingBottom="24dp"/>
         </ScrollView>
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -17,6 +17,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.graphics.Typeface;
+import android.util.TypedValue;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -29,6 +31,8 @@ import com.example.dialsender.LocaleHelper;
 import com.example.dialsender.NotificationSettingsActivity;
 import com.example.dialsender.R;
 import com.example.dialsender.ble.BleManager;
+import com.example.dialsender.theme.FoggTheme;
+import com.example.dialsender.theme.ThemeManager;
 import android.widget.RadioButton;
 
 public class SettingsFragment extends Fragment {
@@ -116,6 +120,9 @@ public class SettingsFragment extends Fragment {
             rowExport.setOnClickListener(v ->
                     startActivity(new Intent(requireContext(), com.example.dialsender.ExportDataActivity.class)));
 
+        // Modular Theme Selector
+        setupThemeSelector(view);
+
         // Language selector
         RadioGroup radioLang = view.findViewById(R.id.radioLanguage);
         String currentLang = LocaleHelper.getSavedLanguage(requireContext());
@@ -197,9 +204,179 @@ public class SettingsFragment extends Fragment {
 
         // Distance unit label initial state
         TextView lblDist = view.findViewById(R.id.lblDistanceUnit);
-        lblDist.setText("  " + prefs.getString("unit_distance", "km"));
+        if (lblDist != null) {
+            lblDist.setText("  " + prefs.getString("unit_distance", "km"));
+        }
 
         return view;
+    }
+
+    /**
+     * Theme picker.
+     *
+     * Each card is rendered with its own theme rather than the current one, so
+     * the swatch shows the whole design language — corner radius, frame weight,
+     * density and type — not just the palette. That is the point of the picker:
+     * the difference between Midnight and Onyx is a different shape of card,
+     * not a different shade of the same one.
+     */
+    private void setupThemeSelector(View view) {
+        android.widget.LinearLayout container = view.findViewById(R.id.themeContainer);
+        if (container == null) return;
+        container.removeAllViews();
+
+        java.util.List<ThemeManager.AppTheme> themes = ThemeManager.getAllThemes(requireContext());
+        String currentId = ThemeManager.getThemeId(requireContext());
+        float density = getResources().getDisplayMetrics().density;
+
+        for (ThemeManager.AppTheme t : themes) {
+            container.addView(buildThemeCard(t, t.id.equals(currentId), density));
+        }
+    }
+
+    private View buildThemeCard(ThemeManager.AppTheme t, boolean isSelected, float density) {
+        // Inflate against the candidate theme so its own tokens apply.
+        Context themed = FoggTheme.wrap(requireContext(), t.styleRes);
+
+        android.widget.LinearLayout card = new android.widget.LinearLayout(themed);
+        card.setOrientation(android.widget.LinearLayout.VERTICAL);
+        // Padding is the candidate theme's own, but the outer box is fixed:
+        // otherwise a spacious theme makes a taller swatch than a compact one
+        // and the row looks ragged.
+        int pad = Math.min(t.cardPadding, (int) (18 * density));
+        card.setPadding(pad, pad, pad, pad);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                (int) (186 * density), (int) (212 * density));
+        lp.setMargins(0, 0, (int) (12 * density), 0);
+        card.setLayoutParams(lp);
+
+        // The card paints the theme's own page colour and card treatment, so an
+        // Onyx swatch is flat black with a rule and an Emerald swatch is a soft
+        // 26dp pill.
+        android.graphics.drawable.GradientDrawable page = new android.graphics.drawable.GradientDrawable();
+        page.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        page.setColor(t.bgPrimary);
+        page.setCornerRadius(t.radiusCard);
+        page.setStroke((int) ((isSelected ? 2.5f : 1f) * density),
+                isSelected ? t.accentPrimary : ThemeManager.withAlpha(t.textMuted, 0x66));
+        card.setBackground(page);
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        // Header: name in the theme's own title face, plus a check when active.
+        android.widget.LinearLayout topRow = new android.widget.LinearLayout(themed);
+        topRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        topRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        TextView name = new TextView(themed);
+        name.setTextAppearance(t.textCardTitle);
+        name.setTextColor(t.textPrimary);
+        name.setText(getString(t.nameRes));
+        name.setMaxLines(1);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        name.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        topRow.addView(name);
+
+        if (isSelected) {
+            ImageView check = new ImageView(themed);
+            check.setImageResource(R.drawable.ic_check);
+            check.setColorFilter(t.accentPrimary);
+            check.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    (int) (18 * density), (int) (18 * density)));
+            topRow.addView(check);
+        }
+        card.addView(topRow);
+
+        // Miniature of a real card in this theme: same radius, frame weight and
+        // metric type the dashboard would use.
+        android.widget.LinearLayout preview = new android.widget.LinearLayout(themed);
+        preview.setOrientation(android.widget.LinearLayout.VERTICAL);
+        preview.setBackground(ThemeManager.createCardDrawable(t));
+        int pp = Math.max(t.cardPadding / 2, (int) (8 * density));
+        preview.setPadding(pp, pp, pp, pp);
+        android.widget.LinearLayout.LayoutParams plp = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        plp.setMargins(0, (int) (12 * density), 0, 0);
+        preview.setLayoutParams(plp);
+
+        TextView sampleLabel = new TextView(themed);
+        sampleLabel.setTextAppearance(t.textMetricUnit);
+        sampleLabel.setTextColor(t.textSecondary);
+        sampleLabel.setText(getString(R.string.metric_steps));
+        preview.addView(sampleLabel);
+
+        TextView sampleValue = new TextView(themed);
+        sampleValue.setTextAppearance(t.textMetricValue);
+        sampleValue.setTextColor(t.textPrimary);
+        sampleValue.setText("8 432");
+        sampleValue.setIncludeFontPadding(false);
+        preview.addView(sampleValue);
+
+        // A short accent bar stands in for the progress the real card shows.
+        View bar = new View(themed);
+        android.graphics.drawable.GradientDrawable barBg = new android.graphics.drawable.GradientDrawable();
+        barBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        barBg.setColor(t.accentPrimary);
+        barBg.setCornerRadius(t.radiusChip);
+        bar.setBackground(barBg);
+        android.widget.LinearLayout.LayoutParams blp = new android.widget.LinearLayout.LayoutParams(
+                (int) (58 * density), (int) (5 * density));
+        blp.setMargins(0, (int) (8 * density), 0, 0);
+        bar.setLayoutParams(blp);
+        preview.addView(bar);
+        card.addView(preview);
+
+        // Palette swatches.
+        android.widget.LinearLayout swatches = new android.widget.LinearLayout(themed);
+        swatches.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        swatches.setPadding(0, (int) (12 * density), 0, 0);
+        for (int color : t.previewColors) {
+            View dot = new View(themed);
+            android.graphics.drawable.GradientDrawable dotBg = new android.graphics.drawable.GradientDrawable();
+            dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            dotBg.setColor(color);
+            dotBg.setStroke((int) (1 * density), 0x33FFFFFF);
+            dot.setBackground(dotBg);
+            android.widget.LinearLayout.LayoutParams dotLp = new android.widget.LinearLayout.LayoutParams(
+                    (int) (16 * density), (int) (16 * density));
+            dotLp.setMargins(0, 0, (int) (6 * density), 0);
+            dot.setLayoutParams(dotLp);
+            swatches.addView(dot);
+        }
+        card.addView(swatches);
+
+        // Name of the design language, so the pairing is explicit.
+        TextView family = new TextView(themed);
+        family.setTextAppearance(t.textCaption);
+        family.setTextColor(t.textMuted);
+        family.setText(getString(designNameRes(t.design)));
+        family.setPadding(0, (int) (10 * density), 0, 0);
+        android.widget.LinearLayout.LayoutParams famLp = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        famLp.gravity = android.view.Gravity.BOTTOM;
+        family.setLayoutParams(famLp);
+        family.setGravity(android.view.Gravity.BOTTOM);
+        card.addView(family);
+
+        card.setOnClickListener(v -> {
+            if (!t.id.equals(ThemeManager.getThemeId(requireContext()))) {
+                ThemeManager.setTheme(requireContext(), t.id);
+                requireActivity().recreate();
+            }
+        });
+        return card;
+    }
+
+    private static int designNameRes(ThemeManager.Design design) {
+        switch (design) {
+            case ORGANIC:   return R.string.design_organic;
+            case BOLD:      return R.string.design_bold;
+            case GLASS:     return R.string.design_glass;
+            case EDITORIAL: return R.string.design_editorial;
+            case HUD:
+            default:        return R.string.design_hud;
+        }
     }
 
     /** Load the saved profile photo into the avatar (or keep the default icon). */
@@ -209,7 +386,7 @@ public class SettingsFragment extends Fragment {
         String uriStr = prefs.getString("profile_photo_uri", null);
         if (uriStr == null) {
             imgProfile.setImageResource(R.drawable.ic_nav_me);
-            imgProfile.setColorFilter(getResources().getColor(R.color.accent_primary));
+            imgProfile.setColorFilter(ThemeManager.getTheme(requireContext()).accentPrimary);
             imgProfile.setPadding(dp(14), dp(14), dp(14), dp(14));
             return;
         }
@@ -225,7 +402,7 @@ public class SettingsFragment extends Fragment {
         } catch (Exception ignored) {
         }
         imgProfile.setImageResource(R.drawable.ic_nav_me);
-        imgProfile.setColorFilter(getResources().getColor(R.color.accent_primary));
+        imgProfile.setColorFilter(ThemeManager.getTheme(requireContext()).accentPrimary);
     }
 
     /** Crop a bitmap into a circle so the avatar reads as a profile photo. */

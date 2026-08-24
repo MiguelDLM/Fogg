@@ -3,22 +3,24 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:paddingTop="?attr/foggRowPaddingV"
+    android:paddingBottom="?attr/foggRowPaddingV">
 
+    <!-- Launcher icon, so it keeps its own colours: no theme tint here. -->
     <ImageView
         android:id="@+id/imgAppIcon"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginEnd="12dp"/>
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="14dp"
+        android:contentDescription="@null"/>
 
     <TextView
         android:id="@+id/tvAppName"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:textSize="15sp"
-        android:textColor="@color/text_primary"/>
+        style="@style/Fogg.Row.Label"
+        android:maxLines="1"
+        android:ellipsize="end"/>
 
     <com.google.android.material.switchmaterial.SwitchMaterial
         android:id="@+id/switchEnabled"

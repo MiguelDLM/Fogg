@@ -644,18 +644,21 @@ public class DialsFragment extends Fragment {
                     : entry.size + " bytes";
             holder.txtSize.setText(sizeStr);
             holder.txtSource.setText(entry.isPreset ? getString(R.string.preset) : getString(R.string.custom));
-            holder.txtSource.setTextColor(getResources().getColor(
-                    entry.isPreset ? R.color.accent_cyan : R.color.accent_secondary));
+            com.example.dialsender.theme.ThemeManager.AppTheme theme =
+                    com.example.dialsender.theme.ThemeManager.getTheme(requireContext());
+            holder.txtSource.setTextColor(
+                    entry.isPreset ? theme.accentPrimary : theme.accentSecondary);
 
             if (entry.thumb != null) {
                 holder.imgThumb.setImageBitmap(entry.thumb);
             } else {
-                holder.imgThumb.setImageResource(android.R.color.darker_gray);
+                // Themed placeholder rather than the platform grey.
+                holder.imgThumb.setImageDrawable(null);
             }
 
             // Click -> Send, Long Click -> Context Menu
             holder.itemView.setOnClickListener(v -> sendDial(entry));
-            holder.btnSend.setText(R.string.send_arrow);
+            holder.btnSend.setText(R.string.send);
             holder.btnSend.setOnClickListener(v -> sendDial(entry));
             holder.itemView.setOnLongClickListener(v -> {
                 showDialContextMenu(entry, position);

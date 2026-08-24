@@ -1,47 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Device tab. Every row now leads with an icon and ends with either a value or
+  a real chevron vector; the styles come from the theme, so density, radius and
+  type change with the design language rather than being fixed here.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_primary"
-    android:fillViewport="true">
+    android:background="?attr/foggBgPrimary"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+    <LinearLayout style="@style/Fogg.ScreenContent">
 
-        <!-- Header -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/nav_device"
-            style="@style/ScreenTitle"
-            android:layout_marginBottom="16dp"/>
+            style="?attr/foggScreenTitleStyle"
+            android:text="@string/nav_device"/>
 
-        <!-- Device status card with watch image + info (Co-Fit style) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="12dp">
+        <!-- ═══════════ Hero: bound device, link state, battery ═══════════ -->
+        <LinearLayout style="?attr/foggCardStyle">
 
-            <!-- Device info row: watch image + name/model/mac -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="14dp">
+                android:gravity="center_vertical">
 
-                <!-- Watch image -->
                 <ImageView
                     android:id="@+id/imgWatch"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:layout_marginEnd="14dp"
+                    android:layout_width="86dp"
+                    android:layout_height="86dp"
+                    android:layout_marginEnd="16dp"
+                    android:contentDescription="@null"
                     android:src="@drawable/ic_watch_device"/>
 
                 <LinearLayout
@@ -50,65 +41,63 @@
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <!-- Device name + battery icon inline -->
                     <LinearLayout
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
 
                         <TextView
                             android:id="@+id/txtDeviceName"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/device_default_name"
-                            android:textColor="@color/text_primary"
-                            android:textSize="16sp"
-                            android:textStyle="bold"/>
+                            style="@style/Fogg.CardTitle"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:text="@string/device_default_name"/>
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_marginEnd="3dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_battery"
+                            app:tint="?attr/foggAccent"/>
 
                         <TextView
                             android:id="@+id/txtBattery"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text=""
-                            android:textColor="@color/accent_primary"
-                            android:textSize="12sp"/>
-
+                            style="@style/Fogg.Caption"
+                            android:textColor="?attr/foggAccent"
+                            android:text=""/>
                     </LinearLayout>
 
+                    <!-- Link state: coloured dot + label -->
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
-                        android:layout_marginTop="3dp">
+                        android:layout_marginTop="6dp">
 
                         <View
                             android:id="@+id/statusIndicator"
-                            android:layout_width="9dp"
-                            android:layout_height="9dp"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
                             android:layout_marginEnd="6dp"
                             android:background="@drawable/indicator_disconnected"/>
 
                         <TextView
                             android:id="@+id/txtStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/disconnected"
-                            android:textColor="@color/status_disconnected"
-                            android:textSize="12sp"/>
+                            style="@style/Fogg.Caption"
+                            android:textColor="?attr/foggDanger"
+                            android:text="@string/disconnected"/>
                     </LinearLayout>
 
                     <TextView
                         android:id="@+id/txtDeviceMac"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text=""
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp"
-                        android:layout_marginTop="2dp"/>
+                        style="@style/Fogg.Caption"
+                        android:layout_marginTop="4dp"
+                        android:text=""/>
 
-                    <!-- Firmware version + model chip inline -->
                     <LinearLayout
                         android:id="@+id/statsRow"
                         android:layout_width="wrap_content"
@@ -120,169 +109,214 @@
 
                         <TextView
                             android:id="@+id/txtRssi"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="FW:"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="11sp"/>
+                            style="@style/Fogg.Caption"
+                            android:text="FW:"/>
 
                         <TextView
                             android:id="@+id/txtFirmware"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            style="@style/Fogg.Caption"
                             android:layout_marginStart="4dp"
-                            android:text="—"
-                            android:textColor="@color/accent_primary"
-                            android:textSize="11sp"
-                            android:textStyle="bold"/>
-
+                            android:textColor="?attr/foggAccent"
+                            android:text="—"/>
                     </LinearLayout>
-
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- (battery now shown inline in the device name row above) -->
-
-            <!-- Connect button -->
+            <!-- Stays a Button: DeviceFragment holds it as one. -->
             <Button
                 android:id="@+id/btnConnect"
-                style="@style/ButtonPrimary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                style="?attr/foggButtonPrimaryStyle"
+                android:layout_marginTop="18dp"
                 android:text="@string/scan_connect"/>
-
         </LinearLayout>
 
-        <!-- Device functions / settings list (Co-Fit style) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="4dp"
-            android:layout_marginBottom="12dp">
+        <!-- ═══════════ Screen & watch faces ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/dev_section_screen"/>
 
-            <LinearLayout android:id="@+id/btnWatchFaces" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_watchfaces"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout android:id="@+id/btnWatchFaces" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_watchface"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_watchfaces"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowNotifications" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_notifications"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+            <LinearLayout android:id="@+id/rowBacklight" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_brightness"
+                    android:contentDescription="@null" app:tint="?attr/foggCalories"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/device_backlight_title"/>
+                <TextView android:id="@+id/txtBacklight" style="@style/Fogg.Row.Value" android:text="5s"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowAlarms" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_alarms"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+            <LinearLayout android:id="@+id/rowRaiseToWake" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_raise_to_wake"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/device_raise_to_wake"/>
+                <TextView android:id="@+id/txtRaiseToWake" style="@style/Fogg.Row.Value" android:text="@string/state_off"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+        </LinearLayout>
 
-            <LinearLayout android:id="@+id/rowCallControl" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_call_control"/>
-                <TextView android:id="@+id/txtCallControl" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+        <!-- ═══════════ Continuous health monitoring ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/dev_section_health"/>
+
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout android:id="@+id/rowHrMonitoring" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_heart"
+                    android:contentDescription="@null" app:tint="?attr/foggHeart"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_hr_monitoring"/>
+                    <TextView android:id="@+id/txtHrMonitoring" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowFindWatch" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_ring_watch"/>
-                <TextView android:id="@+id/txtFindWatch" style="@style/DeviceRowValue"
-                    android:text="@string/find_watch_ring"/>
+            <LinearLayout android:id="@+id/rowSpo2Monitoring" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_spo2"
+                    android:contentDescription="@null" app:tint="?attr/foggSpo2"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_spo2_monitoring"/>
+                    <TextView android:id="@+id/txtSpo2Monitoring" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowHrMonitoring" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_hr_monitoring"/>
-                <TextView android:id="@+id/txtHrMonitoring" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/rowSleepMonitoring" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_sleep"
+                    android:contentDescription="@null" app:tint="?attr/foggSleep"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_sleep_monitoring"/>
+                    <TextView android:id="@+id/txtSleepMonitoring" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowSpo2Monitoring" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_spo2_monitoring"/>
-                <TextView android:id="@+id/txtSpo2Monitoring" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/rowSedentary" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_sedentary"
+                    android:contentDescription="@null" app:tint="?attr/foggStress"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_sedentary"/>
+                    <TextView android:id="@+id/txtSedentary" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+        </LinearLayout>
 
-            <LinearLayout android:id="@+id/rowSleepMonitoring" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_sleep_monitoring"/>
-                <TextView android:id="@+id/txtSleepMonitoring" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+        <!-- ═══════════ Notifications & handy features ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/dev_section_utils"/>
+
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout android:id="@+id/rowNotifications" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_notifications"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_notifications"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/btnCamera" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_camera"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+            <LinearLayout android:id="@+id/rowAlarms" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_alarm"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_alarms"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowDnd" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_dnd"/>
-                <TextView android:id="@+id/txtDnd" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/rowCallControl" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_call"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_call_control"/>
+                <TextView android:id="@+id/txtCallControl" style="@style/Fogg.Row.Value" android:text="@string/state_off"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowSedentary" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_sedentary"/>
-                <TextView android:id="@+id/txtSedentary" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/rowFindWatch" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_vibration"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_ring_watch"/>
+                <TextView android:id="@+id/txtFindWatch" style="@style/Fogg.Row.Value" android:text="@string/find_watch_ring"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/rowAntiLost" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_antilost"/>
-                <TextView android:id="@+id/txtAntiLost" style="@style/DeviceRowValue"
-                    android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/btnCamera" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_camera"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_camera"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <!-- Backlight -->
-            <LinearLayout android:id="@+id/rowBacklight" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/device_backlight_title"/>
-                <TextView android:id="@+id/txtBacklight" style="@style/DeviceRowValue" android:text="5s"/>
+            <LinearLayout android:id="@+id/btnShakeCamera" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_shake"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/device_shake_camera"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <!-- Raise to Wake -->
-            <LinearLayout android:id="@+id/rowRaiseToWake" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/device_raise_to_wake"/>
-                <TextView android:id="@+id/txtRaiseToWake" style="@style/DeviceRowValue" android:text="@string/state_off"/>
+            <LinearLayout android:id="@+id/rowDnd" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_dnd"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_dnd"/>
+                <TextView android:id="@+id/txtDnd" style="@style/Fogg.Row.Value" android:text="@string/state_off"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <!-- Shake Camera -->
-            <LinearLayout android:id="@+id/btnShakeCamera" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/device_shake_camera"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+            <LinearLayout android:id="@+id/rowAntiLost" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_bluetooth"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_antilost"/>
+                <TextView android:id="@+id/txtAntiLost" style="@style/Fogg.Row.Value" android:text="@string/state_off"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+        </LinearLayout>
 
-            <!-- Firmware Upgrade -->
-            <LinearLayout android:id="@+id/btnFirmware" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/device_fw_update_title"/>
-                <TextView android:id="@+id/txtFirmwareRowValue" style="@style/DeviceRowValue" android:text="v1.0.0"/>
+        <!-- ═══════════ System & maintenance ═══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/dev_section_system"/>
+
+        <LinearLayout style="?attr/foggGroupStyle">
+
+            <LinearLayout android:id="@+id/btnFirmware" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_system_update"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/device_fw_update_title"/>
+                <TextView android:id="@+id/txtFirmwareRowValue" style="@style/Fogg.Row.Value" android:text="v1.0.0"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/btnAgps" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="@string/dev_agps"/>
-                <TextView style="@style/DeviceRowChevron" android:text="›"/>
+            <LinearLayout android:id="@+id/btnAgps" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_sync"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_agps"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
-            <View style="@style/DeviceRowDivider"/>
+            <View style="?attr/foggDividerStyle"/>
 
-            <LinearLayout android:id="@+id/btnDisconnect" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel"
-                    android:textColor="@color/status_disconnected"
+            <LinearLayout android:id="@+id/btnDisconnect" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_link_off"
+                    android:contentDescription="@null" app:tint="?attr/foggDanger"/>
+                <TextView style="@style/Fogg.Row.Label"
+                    android:textColor="?attr/foggDanger"
                     android:text="@string/dev_disconnect"/>
             </LinearLayout>
-
         </LinearLayout>
-
     </LinearLayout>
 </ScrollView>

@@ -1,17 +1,22 @@
 package com.example.dialsender.fragments;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,10 +24,15 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.example.dialsender.MetricDetailActivity;
 import com.example.dialsender.R;
+import com.example.dialsender.WeatherDetailActivity;
 import com.example.dialsender.ble.BleManager;
 import com.example.dialsender.ble.SleepAnalyzer;
+import com.example.dialsender.ble.WeatherSync;
+import com.example.dialsender.theme.ThemeManager;
 import com.example.dialsender.views.GaugeView;
+import com.example.dialsender.views.SleepTimelineView;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -33,14 +43,20 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Estado tab — health dashboard styled after Co-Fit.
- * Always shows the day view. Pull down to sync health data from the watch.
+ * Health Dashboard Tab (Estado) — Modular themed companion experience.
+ * Displays daily activity hero card, health telemetry, and sleep stages.
  */
 public class StatusFragment extends Fragment {
+
     private static final String PREF_NAME = "dial_sender_prefs";
     private static final String P = "health_";
 
@@ -51,7 +67,7 @@ public class StatusFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_status, container, false);
         prefs = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         healthContainer = view.findViewById(R.id.healthContainer);
@@ -61,44 +77,45 @@ public class StatusFragment extends Fragment {
         if (btnBack != null)
             btnBack.setVisibility(View.GONE);
 
-        // Pull-down gesture replaces the old sync button
-        swipeRefreshHealth.setColorSchemeColors(0xFF22D3EE);
-        swipeRefreshHealth.setProgressBackgroundColorSchemeColor(0xFF1A2027);
+        ThemeManager.AppTheme theme = ThemeManager.getTheme(requireContext());
+        swipeRefreshHealth.setColorSchemeColors(theme.accentPrimary);
+        swipeRefreshHealth.setProgressBackgroundColorSchemeColor(theme.bgCard);
+
         swipeRefreshHealth.setOnRefreshListener(() -> {
             render();
             BleManager ble = BleManager.getInstance(requireContext());
-            // Weather refreshes regardless of the watch connection
-            com.example.dialsender.ble.WeatherSync.syncIfPossible(requireContext(), ble);
+            WeatherSync.syncIfPossible(requireContext(), ble);
             if (ble.isSessionReady()) {
                 ble.syncHealth();
                 toast(getString(R.string.status_syncing));
             } else {
                 long lastSync = prefs.getLong("last_sync_time", 0);
                 if (lastSync > 0) {
-                    String when = new java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.US)
-                            .format(new java.util.Date(lastSync * 1000L));
+                    String when = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                            .format(new Date(lastSync * 1000L));
                     toast(getString(R.string.status_not_connected_since, when));
                 } else {
                     toast(getString(R.string.status_not_connected));
                 }
             }
-            swipeRefreshHealth.postDelayed(() -> swipeRefreshHealth.setRefreshing(false), 1200);
+            swipeRefreshHealth.postDelayed(() -> {
+                if (swipeRefreshHealth != null)
+                    swipeRefreshHealth.setRefreshing(false);
+            }, 1200);
         });
 
         return view;
     }
 
-    private final SharedPreferences.OnSharedPreferenceChangeListener prefListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
-        @Override
-        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-            if (key == null) return;
-            if (key.equals("weather_time") || key.equals("last_sync_time") || key.startsWith("health_")) {
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> render());
+    private final SharedPreferences.OnSharedPreferenceChangeListener prefListener =
+            (sharedPreferences, key) -> {
+                if (key == null) return;
+                if (key.equals("weather_time") || key.equals("last_sync_time") || key.startsWith("health_")) {
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(this::render);
+                    }
                 }
-            }
-        }
-    };
+            };
 
     @Override
     public void onResume() {
@@ -120,239 +137,363 @@ public class StatusFragment extends Fragment {
         renderDay();
     }
 
-    // ===================== Day dashboard =====================
+    // ===================== Day Dashboard =====================
 
     private void renderDay() {
+        ThemeManager.AppTheme theme = ThemeManager.getTheme(requireContext());
+        float density = getResources().getDisplayMetrics().density;
         long todayStart = todayStart();
 
-        // --- Last sync time banner ---
-        long lastSync = prefs.getLong("last_sync_time", 0);
-        TextView syncBanner = new TextView(requireContext());
-        if (lastSync > 0) {
-            String when = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.US)
-                    .format(new java.util.Date(lastSync * 1000L));
-            syncBanner.setText(getString(R.string.status_last_sync, when));
-        } else {
-            syncBanner.setText(getString(R.string.status_no_sync));
-        }
-        syncBanner.setTextColor(0xFF6B7280);
-        syncBanner.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        syncBanner.setGravity(android.view.Gravity.END);
-        LinearLayout.LayoutParams bannerLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bannerLp.setMargins(0, 0, 0, dp(10));
-        syncBanner.setLayoutParams(bannerLp);
-        healthContainer.addView(syncBanner);
+        // 1. Top Greeting & Date Banner
+        healthContainer.addView(buildGreetingHeader(theme, density));
 
-        // --- Steps gauge with weather chip pinned top-right (Co-Fit layout) ---
-        android.widget.FrameLayout gaugeWrap = new android.widget.FrameLayout(requireContext());
-        LinearLayout.LayoutParams gwlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(240));
-        gwlp.setMargins(0, 0, 0, dp(14));
-        gaugeWrap.setLayoutParams(gwlp);
+        // 2. Activity Hero Card (Steps + Gauge + Weather)
+        healthContainer.addView(buildHeroActivityCard(theme, density, todayStart));
 
-        int steps = (int) latest(P + "steps", todayStart);
-        int stepGoal = prefs.getInt("goal_steps", 10000);
-        GaugeView gauge = new GaugeView(requireContext());
-        gauge.setGaugeStyle(prefs.getString("gauge_style", GaugeView.STYLE_B));
-        gauge.setArcColor(0xFFFF9800);
-        gauge.setValue(stepGoal > 0 ? steps / (float) stepGoal : 0f);
-        gauge.setValueText(String.valueOf(steps));
-        gauge.setLabel(getString(R.string.metric_steps));
-        gauge.setSubText(getString(R.string.status_goal, stepGoal));
-        gauge.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        gauge.setClickable(true);
-        gauge.setOnClickListener(v -> openDetail("steps"));
-        gaugeWrap.addView(gauge);
-
-        // Always show the weather chip
-        TextView chip = new TextView(requireContext());
-        long wTime = prefs.getLong("weather_time", 0);
-        if (wTime > 0) {
-            int temp = prefs.getInt("weather_temp", 0);
-            String city = prefs.getString("weather_city", "");
-            chip.setText("🌤️ " + temp + "°C" + (city.isEmpty() ? "" : "  " + city));
-        } else {
-            chip.setText("🌤️ --°C");
-        }
-        chip.setTextColor(0xFFC9D1D9);
-        chip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        android.graphics.drawable.GradientDrawable cbg = new android.graphics.drawable.GradientDrawable();
-        cbg.setColor(0x33FFFFFF);
-        cbg.setCornerRadius(dp(20));
-        chip.setBackground(cbg);
-        chip.setPadding(dp(12), dp(6), dp(12), dp(6));
-        chip.setClickable(true);
-        chip.setForeground(rippleForeground());
-        chip.setOnClickListener(v -> startActivity(new android.content.Intent(
-                requireContext(), com.example.dialsender.WeatherDetailActivity.class)));
-        android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        clp.gravity = Gravity.END | Gravity.TOP;
-        chip.setLayoutParams(clp);
-        gaugeWrap.addView(chip);
-
-        healthContainer.addView(gaugeWrap);
-
-        // --- Calories + Distance row (with sparklines, like Co-Fit) ---
+        // 3. Mini Cards: Calories & Distance
         int cal = (int) latest(P + "calories", todayStart);
         float dist = latest(P + "distance", todayStart);
-        LinearLayout row = new LinearLayout(requireContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setLayoutParams(matchWrapMargin(dp(12)));
-        row.addView(miniCard(getString(R.string.metric_calories), cal > 0 ? String.valueOf(cal) : "—",
-                getString(R.string.unit_kcal), 0xFFE5552E,
-                R.drawable.ic_metric_calories, "calories", series(P + "calories", todayStart), todayStart));
-        row.addView(spacer());
-        row.addView(miniCard(getString(R.string.metric_distance),
-                dist > 0 ? String.format(java.util.Locale.US, "%.2f", dist / 1000f) : "—",
-                getString(R.string.unit_km), 0xFF34C759, R.drawable.ic_metric_distance, "distance",
-                series(P + "distance", todayStart), todayStart));
-        healthContainer.addView(row);
+        LinearLayout calDistRow = new LinearLayout(requireContext());
+        calDistRow.setOrientation(LinearLayout.HORIZONTAL);
+        calDistRow.setLayoutParams(matchWrapMargin(dp(12)));
 
-        // --- Heart rate line chart (only with enough points) ---
+        calDistRow.addView(miniCard(
+                getString(R.string.metric_calories),
+                cal > 0 ? String.valueOf(cal) : "—",
+                getString(R.string.unit_kcal),
+                theme.accentCalories,
+                R.drawable.ic_metric_calories,
+                "calories",
+                series(P + "calories", todayStart),
+                todayStart,
+                theme,
+                density
+        ));
+        calDistRow.addView(spacer(dp(12)));
+        calDistRow.addView(miniCard(
+                getString(R.string.metric_distance),
+                dist > 0 ? String.format(Locale.US, "%.2f", dist / 1000f) : "—",
+                getString(R.string.unit_km),
+                theme.accentDistance,
+                R.drawable.ic_metric_distance,
+                "distance",
+                series(P + "distance", todayStart),
+                todayStart,
+                theme,
+                density
+        ));
+        healthContainer.addView(calDistRow);
+
+        // 4. Heart Rate Card (Line Chart)
         List<float[]> hr = series(P + "heart_rate", todayStart);
         int hrLatest = hr.isEmpty() ? 0 : (int) hr.get(hr.size() - 1)[1];
-        addCard(getString(R.string.metric_heart_rate),
-                hrLatest > 0 ? hrLatest + " " + getString(R.string.unit_bpm) : "—", 0xFFE5552E,
-                R.drawable.ic_metric_heart, "heart_rate", lastTime(hr),
-                hr.size() >= 2 ? lineChart(hr, 0xFFE5552E, todayStart) : null);
+        addCard(
+                getString(R.string.metric_heart_rate),
+                hrLatest > 0 ? hrLatest + " " + getString(R.string.unit_bpm) : "—",
+                theme.accentHeart,
+                R.drawable.ic_metric_heart,
+                "heart_rate",
+                lastTime(hr),
+                hr.size() >= 2 ? lineChart(hr, theme.accentHeart, todayStart, theme) : null,
+                theme,
+                density
+        );
 
-        // --- Blood pressure ---
+        // 5. Blood Pressure Card
         int[] bp = latestBp(todayStart);
-        addCard(getString(R.string.metric_blood_pressure),
+        addCard(
+                getString(R.string.metric_blood_pressure),
                 bp != null ? bp[0] + "/" + bp[1] + " " + getString(R.string.unit_mmhg) : "—",
-                0xFFEF5350, R.drawable.ic_metric_pulse, "blood_pressure", null, null);
+                theme.accentBp,
+                R.drawable.ic_metric_pulse,
+                "blood_pressure",
+                null,
+                null,
+                theme,
+                density
+        );
 
-        // --- SpO2 ---
+        // 6. SpO2 Card
         List<float[]> spo2s = series(P + "blood_oxygen", todayStart);
         int spo2 = spo2s.isEmpty() ? 0 : (int) spo2s.get(spo2s.size() - 1)[1];
-        addCard(getString(R.string.metric_spo2),
-                spo2 > 0 ? spo2 + " " + getString(R.string.unit_pct) : "—", 0xFF42A5F5,
-                R.drawable.ic_metric_spo2, "blood_oxygen", lastTime(spo2s), null);
+        addCard(
+                getString(R.string.metric_spo2),
+                spo2 > 0 ? spo2 + " " + getString(R.string.unit_pct) : "—",
+                theme.accentSpo2,
+                R.drawable.ic_metric_spo2,
+                "blood_oxygen",
+                lastTime(spo2s),
+                null,
+                theme,
+                density
+        );
 
-        // --- HRV ---
+        // 7. HRV Card (if data available)
         List<float[]> hrvSeries = series(P + "hrv", todayStart);
         int hrv = hrvSeries.isEmpty() ? 0 : (int) hrvSeries.get(hrvSeries.size() - 1)[1];
         if (hrv > 0) {
-            addCard(getString(R.string.metric_hrv),
-                    hrv + " " + getString(R.string.unit_ms), 0xFF06B6D4,
-                    R.drawable.ic_metric_heart, "hrv", lastTime(hrvSeries),
-                    hrvSeries.size() >= 2 ? lineChart(hrvSeries, 0xFF06B6D4, todayStart) : null);
+            addCard(
+                    getString(R.string.metric_hrv),
+                    hrv + " " + getString(R.string.unit_ms),
+                    theme.accentPrimary,
+                    R.drawable.ic_metric_heart,
+                    "hrv",
+                    lastTime(hrvSeries),
+                    hrvSeries.size() >= 2 ? lineChart(hrvSeries, theme.accentPrimary, todayStart, theme) : null,
+                    theme,
+                    density
+            );
         }
 
-        // --- Temperature ---
+        // 8. Temperature Card (if data available)
         List<float[]> tempSeries = series(P + "temperature", todayStart);
         if (!tempSeries.isEmpty()) {
             float tempRaw = tempSeries.get(tempSeries.size() - 1)[1];
-            String tempStr = String.format(java.util.Locale.US, "%.1f °C", tempRaw / 10.0f);
-            addCard(getString(R.string.metric_temperature), tempStr, 0xFFFF7043,
-                    R.drawable.ic_metric_heart, "temperature", lastTime(tempSeries), null);
+            String tempStr = String.format(Locale.US, "%.1f °C", tempRaw / 10.0f);
+            addCard(
+                    getString(R.string.metric_temperature),
+                    tempStr,
+                    theme.accentCalories,
+                    R.drawable.ic_metric_heart,
+                    "temperature",
+                    lastTime(tempSeries),
+                    null,
+                    theme,
+                    density
+            );
         }
 
-        // --- Sleep timeline by stages ---
+        // 9. Sleep Timeline Card
         String sleepRaw = prefs.getString(P + "sleep", "");
-        // Only the session(s) you woke up from on this day — analyze() would
-        // return the last session in the whole history and paint a stale night
-        // as if it were today's.
         SleepAnalyzer.SleepResult sr = SleepAnalyzer.analyzeDay(sleepRaw, todayStart);
         if (sr.totalMinutes > 0) {
             LinearLayout sleepContent = new LinearLayout(requireContext());
             sleepContent.setOrientation(LinearLayout.VERTICAL);
-            com.example.dialsender.views.SleepTimelineView tl =
-                    new com.example.dialsender.views.SleepTimelineView(requireContext());
+
+            SleepTimelineView tl = new SleepTimelineView(requireContext());
             tl.setSleepData(sleepRaw, todayStart);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(90));
             tl.setLayoutParams(tlp);
             sleepContent.addView(tl);
-            sleepContent.addView(sleepLegend(sr));
-            addCard(getString(R.string.metric_sleep),
+            sleepContent.addView(sleepLegend(sr, theme, density));
+
+            addCard(
+                    getString(R.string.metric_sleep),
                     getString(R.string.sleep_hours_min, sr.totalMinutes / 60, sr.totalMinutes % 60),
-                    0xFF7E57C2, R.drawable.ic_metric_sleep, "sleep", null, sleepContent);
+                    theme.accentSleep,
+                    R.drawable.ic_metric_sleep,
+                    "sleep",
+                    null,
+                    sleepContent,
+                    theme,
+                    density
+            );
         } else {
-            addCard(getString(R.string.metric_sleep), "—", 0xFF7E57C2,
-                    R.drawable.ic_metric_sleep, "sleep", null, null);
+            addCard(
+                    getString(R.string.metric_sleep),
+                    "—",
+                    theme.accentSleep,
+                    R.drawable.ic_metric_sleep,
+                    "sleep",
+                    null,
+                    null,
+                    theme,
+                    density
+            );
         }
 
-        // --- Stress (hourly bars) ---
+        // 10. Stress Card (Hourly Bars)
         List<float[]> stressSeries = series(P + "stress", todayStart);
         int stress = stressSeries.isEmpty() ? 0 : (int) stressSeries.get(stressSeries.size() - 1)[1];
-        addCard(getString(R.string.metric_stress), stress > 0 ? String.valueOf(stress) : "—",
-                0xFF34C759, R.drawable.ic_metric_pulse, "stress", lastTime(stressSeries),
-                stressSeries.size() >= 2 ? hourlyBars(stressSeries, todayStart, 0xFF34C759) : null);
+        addCard(
+                getString(R.string.metric_stress),
+                stress > 0 ? String.valueOf(stress) : "—",
+                theme.accentStress,
+                R.drawable.ic_metric_pulse,
+                "stress",
+                lastTime(stressSeries),
+                stressSeries.size() >= 2 ? hourlyBars(stressSeries, todayStart, theme.accentStress, theme) : null,
+                theme,
+                density
+        );
     }
 
-    /** Small color-keyed legend with per-stage minutes for the sleep card. */
-    private View sleepLegend(SleepAnalyzer.SleepResult sr) {
-        LinearLayout row = new LinearLayout(requireContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, dp(10), 0, 0);
-        addLegendItem(row, getString(R.string.sleep_deep), 0xFF3F51B5, sr.deepMin);
-        addLegendItem(row, getString(R.string.sleep_light), 0xFF22D3EE, sr.lightMin);
-        addLegendItem(row, getString(R.string.sleep_rem), 0xFF9C27B0, sr.remMin);
-        addLegendItem(row, getString(R.string.sleep_awake), 0xFF6B7280, sr.awakeMin);
-        return row;
+    // ===================== Header & Hero Builders =====================
+
+    private View buildGreetingHeader(ThemeManager.AppTheme theme, float density) {
+        LinearLayout header = new LinearLayout(requireContext());
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, (int) (14 * density));
+        header.setLayoutParams(lp);
+
+        // Greeting and formatted Date
+        LinearLayout titleCol = new LinearLayout(requireContext());
+        titleCol.setOrientation(LinearLayout.VERTICAL);
+        titleCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        String greeting = (hour >= 6 && hour < 12) ? getString(R.string.greeting_morning)
+                : (hour >= 12 && hour < 20) ? getString(R.string.greeting_afternoon)
+                : getString(R.string.greeting_evening);
+
+        TextView txtGreeting = new TextView(requireContext());
+        txtGreeting.setText(greeting);
+        txtGreeting.setTextAppearance(theme.textCaption);
+        txtGreeting.setTextColor(theme.textSecondary);
+        titleCol.addView(txtGreeting);
+
+        TextView txtDate = new TextView(requireContext());
+        String dateFmt = getString(R.string.date_format_status);
+        String dateStr = new SimpleDateFormat(dateFmt, Locale.getDefault()).format(new Date());
+        // Capitalize first letter
+        if (dateStr.length() > 0) {
+            dateStr = Character.toUpperCase(dateStr.charAt(0)) + dateStr.substring(1);
+        }
+        txtDate.setText(dateStr);
+        txtDate.setTextAppearance(theme.textScreenTitle);
+        txtDate.setTextColor(theme.textPrimary);
+        txtDate.setPadding(0, (int) (2 * density), 0, 0);
+        titleCol.addView(txtDate);
+        header.addView(titleCol);
+
+        // Sync & Connection Status Pill
+        long lastSync = prefs.getLong("last_sync_time", 0);
+        BleManager ble = BleManager.getInstance(requireContext());
+        boolean isConnected = ble.isSessionReady();
+
+        TextView syncPill = new TextView(requireContext());
+        syncPill.setTextAppearance(theme.textCaption);
+        if (isConnected) {
+            syncPill.setText(getString(R.string.status_pill_connected));
+            syncPill.setTextColor(theme.success);
+        } else if (lastSync > 0) {
+            String when = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(lastSync * 1000L));
+            syncPill.setText("⏱ " + when);
+            syncPill.setTextColor(theme.textSecondary);
+        } else {
+            syncPill.setText(getString(R.string.status_pill_disconnected));
+            syncPill.setTextColor(theme.textMuted);
+        }
+        syncPill.setPadding((int) (10 * density), (int) (5 * density), (int) (10 * density), (int) (5 * density));
+
+        GradientDrawable pillBg = new GradientDrawable();
+        pillBg.setShape(GradientDrawable.RECTANGLE);
+        pillBg.setColor(ThemeManager.withAlpha(theme.bgCard, 220));
+        pillBg.setCornerRadius(theme.radiusChip);
+        pillBg.setStroke(Math.max(theme.stroke, 1), ThemeManager.withAlpha(theme.accentPrimary, 40));
+        syncPill.setBackground(pillBg);
+
+        header.addView(syncPill);
+        return header;
     }
 
-    private void addLegendItem(LinearLayout row, String name, int color, int minutes) {
-        LinearLayout item = new LinearLayout(requireContext());
-        item.setOrientation(LinearLayout.HORIZONTAL);
-        item.setGravity(Gravity.CENTER_VERTICAL);
-        item.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        View dot = new View(requireContext());
-        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
-        d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        d.setColor(color);
-        dot.setBackground(d);
-        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(dp(8), dp(8));
-        dl.setMargins(0, 0, dp(5), 0);
-        dot.setLayoutParams(dl);
-        item.addView(dot);
-        TextView t = new TextView(requireContext());
-        t.setText(name + "\n" + (minutes / 60) + "h " + (minutes % 60) + "m");
-        t.setTextColor(0xFF9AA4B2);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
-        item.addView(t);
-        row.addView(item);
+    private View buildHeroActivityCard(ThemeManager.AppTheme theme, float density, long todayStart) {
+        FrameLayout heroCard = new FrameLayout(requireContext());
+        heroCard.setLayoutParams(matchWrapMargin(dp(16)));
+
+        // Elevated Gradient Card Background
+        // Surface, radius and frame all follow the active design language, so
+        // Onyx really loses its card here instead of just changing colour.
+        android.graphics.drawable.Drawable bg = ThemeManager.createCardDrawable(theme);
+        heroCard.setBackground(bg);
+        heroCard.setPadding(theme.cardPadding, theme.cardPadding, theme.cardPadding, theme.cardPadding);
+
+        LinearLayout contentCol = new LinearLayout(requireContext());
+        contentCol.setOrientation(LinearLayout.VERTICAL);
+        contentCol.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Gauge Container
+        int steps = (int) latest(P + "steps", todayStart);
+        int stepGoal = prefs.getInt("goal_steps", 10000);
+
+        GaugeView gauge = new GaugeView(requireContext());
+        gauge.setGaugeStyle(prefs.getString("gauge_style", GaugeView.STYLE_B));
+        gauge.setArcColor(theme.accentSteps);
+        gauge.setValue(stepGoal > 0 ? steps / (float) stepGoal : 0f);
+        gauge.setValueText(String.valueOf(steps));
+        gauge.setLabel(getString(R.string.metric_steps));
+        gauge.setSubText(getString(R.string.status_goal, stepGoal));
+        LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (220 * density));
+        gauge.setLayoutParams(glp);
+        gauge.setClickable(true);
+        gauge.setOnClickListener(v -> openDetail("steps"));
+        contentCol.addView(gauge);
+
+        // Progress percentage pill below gauge
+        int pct = stepGoal > 0 ? (int) Math.min(999, (steps * 100f / stepGoal)) : 0;
+        TextView progressPill = new TextView(requireContext());
+        progressPill.setText(getString(R.string.status_progress_completed, pct));
+        progressPill.setTextColor(theme.accentPrimary);
+        progressPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        progressPill.setTypeface(null, Typeface.BOLD);
+        progressPill.setGravity(Gravity.CENTER);
+        progressPill.setPadding(0, (int) (4 * density), 0, (int) (6 * density));
+        contentCol.addView(progressPill);
+
+        heroCard.addView(contentCol);
+
+        // Weather chip pinned top-right
+        TextView weatherChip = new TextView(requireContext());
+        long wTime = prefs.getLong("weather_time", 0);
+        if (wTime > 0) {
+            int temp = prefs.getInt("weather_temp", 0);
+            String city = prefs.getString("weather_city", "");
+            weatherChip.setText(temp + "°C" + (city.isEmpty() ? "" : " · " + city));
+        } else {
+            weatherChip.setText("--°C");
+        }
+        // Was a 🌤️ emoji, which rendered at a different size and colour on
+        // every device font. A tinted vector matches the rest of the chips.
+        android.graphics.drawable.Drawable wIcon = androidx.core.content.ContextCompat
+                .getDrawable(requireContext(), R.drawable.ic_weather_cloud);
+        if (wIcon != null) {
+            wIcon = wIcon.mutate();
+            wIcon.setBounds(0, 0, dp(16), dp(16));
+            androidx.core.graphics.drawable.DrawableCompat.setTint(wIcon, theme.accentPrimary);
+            weatherChip.setCompoundDrawablesRelative(wIcon, null, null, null);
+            weatherChip.setCompoundDrawablePadding(dp(6));
+        }
+        weatherChip.setTextColor(theme.textPrimary);
+        weatherChip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+
+        GradientDrawable cbg = new GradientDrawable();
+        cbg.setColor(ThemeManager.withAlpha(theme.accentPrimary, 30));
+        cbg.setCornerRadius(theme.radiusChip);
+        cbg.setStroke(Math.max(theme.stroke, 1), ThemeManager.withAlpha(theme.accentPrimary, 60));
+        weatherChip.setBackground(cbg);
+        weatherChip.setPadding((int) (12 * density), (int) (6 * density), (int) (12 * density), (int) (6 * density));
+        weatherChip.setClickable(true);
+        weatherChip.setForeground(rippleForeground());
+        weatherChip.setOnClickListener(v -> startActivity(new Intent(requireContext(), WeatherDetailActivity.class)));
+
+        FrameLayout.LayoutParams wlp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wlp.gravity = Gravity.END | Gravity.TOP;
+        weatherChip.setLayoutParams(wlp);
+        heroCard.addView(weatherChip);
+
+        return heroCard;
     }
 
-    private void openDetail(String metricKey) {
-        android.content.Intent i = new android.content.Intent(requireContext(),
-                com.example.dialsender.MetricDetailActivity.class);
-        i.putExtra(com.example.dialsender.MetricDetailActivity.EXTRA_METRIC, metricKey);
-        startActivity(i);
-    }
-
-    private android.graphics.drawable.Drawable rippleForeground() {
-        android.util.TypedValue tv = new android.util.TypedValue();
-        requireContext().getTheme().resolveAttribute(
-                android.R.attr.selectableItemBackground, tv, true);
-        return ContextCompat.getDrawable(requireContext(), tv.resourceId);
-    }
-
-    /** "HH:mm" of the most recent sample, or "" if none. */
-    private String lastTime(List<float[]> s) {
-        if (s == null || s.isEmpty())
-            return "";
-        long ts = (long) s.get(s.size() - 1)[0];
-        return new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
-                .format(new java.util.Date(ts * 1000L));
-    }
-
-    // ===================== Card / chart builders =====================
+    // ===================== Metric Cards =====================
 
     private void addCard(String title, String value, int color, int iconRes, @Nullable String metricKey,
-            @Nullable String subtitle, @Nullable View chart) {
+                         @Nullable String subtitle, @Nullable View chart, ThemeManager.AppTheme theme, float density) {
         LinearLayout card = new LinearLayout(requireContext());
         card.setOrientation(LinearLayout.VERTICAL);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xFF1A2027);
-        bg.setCornerRadius(dp(14));
+
+        android.graphics.drawable.Drawable bg = ThemeManager.createCardDrawable(theme);
         card.setBackground(bg);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setPadding(theme.cardPadding, theme.cardPadding, theme.cardPadding, theme.cardPadding);
         card.setLayoutParams(matchWrapMargin(dp(12)));
+
         if (metricKey != null) {
             card.setClickable(true);
             card.setForeground(rippleForeground());
@@ -363,51 +504,52 @@ public class StatusFragment extends Fragment {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Leading icon on a colored circle (Co-Fit style)
-        android.widget.ImageView icon = new android.widget.ImageView(requireContext());
-        android.graphics.drawable.GradientDrawable iconBg = new android.graphics.drawable.GradientDrawable();
-        iconBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        iconBg.setColor(color);
-        icon.setBackground(iconBg);
-        int pad = dp(6);
+        // Icon inside squircle badge with soft alpha glow
+        ImageView icon = new ImageView(requireContext());
+        icon.setBackground(ThemeManager.createIconBadge(theme, color));
+        int pad = dp(8);
         icon.setPadding(pad, pad, pad, pad);
         if (iconRes != 0)
             icon.setImageResource(iconRes);
-        icon.setColorFilter(Color.WHITE);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(30), dp(30));
-        iconLp.setMargins(0, 0, dp(12), 0);
+        icon.setColorFilter(color);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams((int) (38 * density), (int) (38 * density));
+        iconLp.setMargins(0, 0, (int) (14 * density), 0);
         icon.setLayoutParams(iconLp);
         header.addView(icon);
 
         LinearLayout titleCol = new LinearLayout(requireContext());
         titleCol.setOrientation(LinearLayout.VERTICAL);
         titleCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         TextView t = new TextView(requireContext());
         t.setText(title);
-        t.setTextColor(0xFFC9D1D9);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        t.setTextAppearance(theme.textCardTitle);
+        t.setTextColor(theme.textPrimary);
         titleCol.addView(t);
+
         if (subtitle != null && !subtitle.isEmpty()) {
             TextView st = new TextView(requireContext());
             st.setText(subtitle);
-            st.setTextColor(0xFF6B7280);
-            st.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            st.setTextAppearance(theme.textCaption);
+            st.setTextColor(theme.textSecondary);
+            st.setPadding(0, (int) (2 * density), 0, 0);
             titleCol.addView(st);
         }
         header.addView(titleCol);
 
         TextView v = new TextView(requireContext());
         v.setText(value);
-        v.setTextColor(Color.WHITE);
-        v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
-        v.setTypeface(null, Typeface.BOLD);
+        v.setTextAppearance(theme.textMetricInline);
+        v.setTextColor(theme.textPrimary);
+        v.setMaxLines(1);
         header.addView(v);
+
         card.addView(header);
 
         if (chart != null) {
             LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(160));
-            cp.setMargins(0, dp(8), 0, 0);
+                    ViewGroup.LayoutParams.MATCH_PARENT, (int) (150 * density));
+            cp.setMargins(0, (int) (10 * density), 0, 0);
             chart.setLayoutParams(cp);
             card.addView(chart);
         }
@@ -415,17 +557,17 @@ public class StatusFragment extends Fragment {
     }
 
     private LinearLayout miniCard(String title, String value, String unit, int color,
-            int iconRes, String metricKey, List<float[]> spark, long dayStart) {
+                                  int iconRes, String metricKey, List<float[]> spark, long dayStart,
+                                  ThemeManager.AppTheme theme, float density) {
         LinearLayout c = new LinearLayout(requireContext());
         c.setOrientation(LinearLayout.VERTICAL);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xFF1A2027);
-        bg.setCornerRadius(dp(14));
+
+        android.graphics.drawable.Drawable bg = ThemeManager.createCardDrawable(theme);
         c.setBackground(bg);
-        c.setPadding(dp(16), dp(14), dp(16), dp(12));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        c.setPadding(theme.cardPadding, theme.cardPadding, theme.cardPadding, theme.cardPadding);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         c.setLayoutParams(lp);
+
         if (metricKey != null) {
             c.setClickable(true);
             c.setForeground(rippleForeground());
@@ -435,47 +577,47 @@ public class StatusFragment extends Fragment {
         LinearLayout titleRow = new LinearLayout(requireContext());
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        android.widget.ImageView ic = new android.widget.ImageView(requireContext());
-        android.graphics.drawable.GradientDrawable icBg = new android.graphics.drawable.GradientDrawable();
-        icBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        icBg.setColor(color);
-        ic.setBackground(icBg);
-        int ip = dp(5);
+
+        ImageView ic = new ImageView(requireContext());
+        ic.setBackground(ThemeManager.createIconBadge(theme, color));
+        int ip = dp(6);
         ic.setPadding(ip, ip, ip, ip);
         if (iconRes != 0)
             ic.setImageResource(iconRes);
-        ic.setColorFilter(Color.WHITE);
-        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams(dp(26), dp(26));
-        icLp.setMargins(0, 0, dp(8), 0);
+        ic.setColorFilter(color);
+        LinearLayout.LayoutParams icLp = new LinearLayout.LayoutParams((int) (30 * density), (int) (30 * density));
+        icLp.setMargins(0, 0, (int) (10 * density), 0);
         ic.setLayoutParams(icLp);
         titleRow.addView(ic);
+
         TextView tt = new TextView(requireContext());
         tt.setText(title);
-        tt.setTextColor(0xFF9AA4B2);
-        tt.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tt.setTextAppearance(theme.textCardTitle);
+        tt.setTextColor(theme.textSecondary);
         titleRow.addView(tt);
         c.addView(titleRow);
 
         LinearLayout vrow = new LinearLayout(requireContext());
         vrow.setOrientation(LinearLayout.HORIZONTAL);
         vrow.setGravity(Gravity.BOTTOM);
-        vrow.setPadding(0, dp(4), 0, 0);
+        vrow.setPadding(0, (int) (6 * density), 0, 0);
+
         TextView vv = new TextView(requireContext());
         vv.setText(value);
-        vv.setTextColor(color);
-        vv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        vv.setTypeface(null, Typeface.BOLD);
+        vv.setTextAppearance(theme.textMetricValue);
+        vv.setTextColor(theme.textPrimary);
         vrow.addView(vv);
+
         TextView uu = new TextView(requireContext());
         uu.setText(" " + unit);
-        uu.setTextColor(0xFF6B7280);
-        uu.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        uu.setPadding(0, 0, 0, dp(3));
+        uu.setTextAppearance(theme.textMetricUnit);
+        uu.setTextColor(theme.textSecondary);
+        uu.setPadding(0, 0, 0, (int) (3 * density));
         vrow.addView(uu);
         c.addView(vrow);
 
         if (spark != null && spark.size() >= 2) {
-            LineChart sl = lineChart(spark, color, dayStart);
+            LineChart sl = lineChart(spark, color, dayStart, theme);
             sl.getXAxis().setEnabled(false);
             sl.getAxisLeft().setEnabled(false);
             sl.setViewPortOffsets(0, dp(4), 0, 0);
@@ -488,8 +630,72 @@ public class StatusFragment extends Fragment {
         return c;
     }
 
-    /** Vertical bars per hour of the day for a series (e.g. stress). */
-    private BarChart hourlyBars(List<float[]> data, long dayStart, int color) {
+    private View sleepLegend(SleepAnalyzer.SleepResult sr, ThemeManager.AppTheme theme, float density) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(12), 0, 0);
+        addLegendItem(row, getString(R.string.sleep_deep), 0xFF3F51B5, sr.deepMin, theme, density);
+        addLegendItem(row, getString(R.string.sleep_light), theme.accentPrimary, sr.lightMin, theme, density);
+        addLegendItem(row, getString(R.string.sleep_rem), 0xFF9C27B0, sr.remMin, theme, density);
+        addLegendItem(row, getString(R.string.sleep_awake), theme.textMuted, sr.awakeMin, theme, density);
+        return row;
+    }
+
+    private void addLegendItem(LinearLayout row, String name, int color, int minutes,
+                               ThemeManager.AppTheme theme, float density) {
+        LinearLayout item = new LinearLayout(requireContext());
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        View dot = new View(requireContext());
+        GradientDrawable d = new GradientDrawable();
+        d.setShape(GradientDrawable.OVAL);
+        d.setColor(color);
+        dot.setBackground(d);
+        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams((int) (8 * density), (int) (8 * density));
+        dl.setMargins(0, 0, (int) (6 * density), 0);
+        dot.setLayoutParams(dl);
+        item.addView(dot);
+
+        TextView t = new TextView(requireContext());
+        t.setText(name + "\n" + (minutes / 60) + "h " + (minutes % 60) + "m");
+        t.setTextColor(theme.textSecondary);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+        item.addView(t);
+        row.addView(item);
+    }
+
+    // ===================== Chart Generators =====================
+
+    private LineChart lineChart(List<float[]> data, int color, long dayStart, ThemeManager.AppTheme theme) {
+        LineChart chart = new LineChart(requireContext());
+        List<Entry> entries = new ArrayList<>();
+        for (float[] e : data) {
+            float hour = (e[0] - dayStart) / 3600f;
+            entries.add(new Entry(hour, e[1]));
+        }
+        Collections.sort(entries, (a, b) -> Float.compare(a.getX(), b.getX()));
+        if (entries.isEmpty())
+            entries.add(new Entry(0, 0));
+
+        LineDataSet ds = new LineDataSet(entries, "");
+        ds.setColor(color);
+        ds.setDrawCircles(false);
+        ds.setLineWidth(2.2f);
+        ds.setDrawValues(false);
+        ds.setMode(LineDataSet.Mode.LINEAR);
+        ds.setDrawFilled(true);
+        ds.setFillColor(color);
+        ds.setFillAlpha(45);
+        chart.setData(new LineData(ds));
+        styleChart(chart, theme);
+        chart.getXAxis().setAxisMinimum(0f);
+        chart.getXAxis().setAxisMaximum(24f);
+        return chart;
+    }
+
+    private BarChart hourlyBars(List<float[]> data, long dayStart, int color, ThemeManager.AppTheme theme) {
         float[] buckets = new float[24];
         for (float[] e : data) {
             int hr = (int) ((e[0] - dayStart) / 3600L);
@@ -499,75 +705,63 @@ public class StatusFragment extends Fragment {
         List<BarEntry> entries = new ArrayList<>();
         for (int i = 0; i < 24; i++)
             entries.add(new BarEntry(i, buckets[i]));
+
         BarChart chart = new BarChart(requireContext());
         BarDataSet ds = new BarDataSet(entries, "");
         ds.setColor(color);
         ds.setDrawValues(false);
         BarData bd = new BarData(ds);
-        bd.setBarWidth(0.5f);
+        bd.setBarWidth(0.55f);
         chart.setData(bd);
-        styleChart(chart);
+        styleChart(chart, theme);
         chart.getXAxis().setAxisMinimum(-0.5f);
         chart.getXAxis().setAxisMaximum(23.5f);
         return chart;
     }
 
-    /**
-     * Line chart for a day series.
-     * Entries are sorted by X (hours since midnight) so MPAndroidChart never
-     * draws a line backwards to an earlier timestamp — that was the "crossing"
-     * bug. We also use LINEAR mode (not CUBIC_BEZIER) to avoid overshoot loops.
-     */
-    private LineChart lineChart(List<float[]> data, int color, long dayStart) {
-        LineChart chart = new LineChart(requireContext());
-        List<Entry> entries = new ArrayList<>();
-        for (float[] e : data) {
-            float hour = (e[0] - dayStart) / 3600f;
-            entries.add(new Entry(hour, e[1]));
-        }
-        // Sort by X — critical: MPAndroidChart connects points in list order,
-        // so unsorted data causes the last segment to jump back to an old X.
-        java.util.Collections.sort(entries, (a, b) -> Float.compare(a.getX(), b.getX()));
-        if (entries.isEmpty())
-            entries.add(new Entry(0, 0));
-        LineDataSet ds = new LineDataSet(entries, "");
-        ds.setColor(color);
-        ds.setDrawCircles(false);
-        ds.setLineWidth(2f);
-        ds.setDrawValues(false);
-        // LINEAR avoids the Bezier overshoot that can look like a crossing line
-        ds.setMode(LineDataSet.Mode.LINEAR);
-        ds.setDrawFilled(true);
-        ds.setFillColor(color);
-        ds.setFillAlpha(60);
-        chart.setData(new LineData(ds));
-        styleChart(chart);
-        chart.getXAxis().setAxisMinimum(0f);
-        chart.getXAxis().setAxisMaximum(24f);
-        return chart;
-    }
-
-    private void styleChart(com.github.mikephil.charting.charts.BarLineChartBase<?> chart) {
+    private void styleChart(com.github.mikephil.charting.charts.BarLineChartBase<?> chart, ThemeManager.AppTheme theme) {
         chart.getDescription().setEnabled(false);
         chart.getLegend().setEnabled(false);
         chart.setTouchEnabled(false);
+
         XAxis x = chart.getXAxis();
         x.setPosition(XAxis.XAxisPosition.BOTTOM);
         x.setDrawGridLines(false);
-        x.setTextColor(0xFF6B7280);
+        x.setTextColor(theme.textSecondary);
         x.setTextSize(9f);
-        chart.getAxisLeft().setTextColor(0xFF6B7280);
+
+        chart.getAxisLeft().setTextColor(theme.textSecondary);
         chart.getAxisLeft().setTextSize(9f);
         chart.getAxisLeft().setAxisMinimum(0f);
         chart.getAxisLeft().setDrawGridLines(true);
-        chart.getAxisLeft().setGridColor(0x22FFFFFF);
+        chart.getAxisLeft().setGridColor(0x18FFFFFF);
         chart.getAxisRight().setEnabled(false);
-        chart.animateY(600);
+        chart.animateY(500);
     }
 
-    // ===================== Data parsing =====================
+    // ===================== Navigation & Data Parsing =====================
 
-    /** Parse "ts:val,ts:val" within [start, now+1d] -> list of {ts, val}. */
+    private void openDetail(String metricKey) {
+        Intent i = new Intent(requireContext(), MetricDetailActivity.class);
+        i.putExtra(MetricDetailActivity.EXTRA_METRIC, metricKey);
+        startActivity(i);
+    }
+
+    private android.graphics.drawable.Drawable rippleForeground() {
+        TypedValue tv = new TypedValue();
+        requireContext().getTheme().resolveAttribute(
+                android.R.attr.selectableItemBackground, tv, true);
+        return ContextCompat.getDrawable(requireContext(), tv.resourceId);
+    }
+
+    private String lastTime(List<float[]> s) {
+        if (s == null || s.isEmpty())
+            return "";
+        long ts = (long) s.get(s.size() - 1)[0];
+        return new SimpleDateFormat("HH:mm", Locale.getDefault())
+                .format(new Date(ts * 1000L));
+    }
+
     private List<float[]> series(String key, long start) {
         List<float[]> out = new ArrayList<>();
         String h = prefs.getString(key, "");
@@ -582,7 +776,7 @@ public class StatusFragment extends Fragment {
                 long ts = Long.parseLong(parts[0]);
                 float val = Float.parseFloat(parts[1]);
                 if (ts >= start && ts <= now)
-                    out.add(new float[] { ts, val });
+                    out.add(new float[]{ts, val});
             } catch (Exception ignored) {
             }
         }
@@ -593,8 +787,7 @@ public class StatusFragment extends Fragment {
         List<float[]> s = series(key, start);
         float max = 0;
         for (float[] e : s)
-            max = Math.max(max, e[1]); // step/cal/dist are cumulative -> max = today's total
-        // For non-cumulative metrics the last value is more meaningful:
+            max = Math.max(max, e[1]);
         if (key.endsWith("heart_rate") || key.endsWith("blood_oxygen") || key.endsWith("stress")) {
             return s.isEmpty() ? 0 : s.get(s.size() - 1)[1];
         }
@@ -614,15 +807,13 @@ public class StatusFragment extends Fragment {
                     if (ts < start)
                         continue;
                     String[] sd = parts[1].split("/");
-                    return new int[] { Integer.parseInt(sd[0]), Integer.parseInt(sd[1]) };
+                    return new int[]{Integer.parseInt(sd[0]), Integer.parseInt(sd[1])};
                 } catch (Exception ignored) {
                 }
             }
         }
         return null;
     }
-
-    // ===================== Helpers =====================
 
     private LinearLayout.LayoutParams matchWrapMargin(int bottom) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -631,22 +822,22 @@ public class StatusFragment extends Fragment {
         return lp;
     }
 
-    private View spacer() {
+    private View spacer(int widthDp) {
         View v = new View(requireContext());
-        v.setLayoutParams(new LinearLayout.LayoutParams(dp(12), 1));
+        v.setLayoutParams(new LinearLayout.LayoutParams(widthDp, 1));
         return v;
     }
 
     private void toast(String s) {
-        android.widget.Toast.makeText(requireContext(), s, android.widget.Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
     }
 
     private long todayStart() {
-        java.util.Calendar c = java.util.Calendar.getInstance();
-        c.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        c.set(java.util.Calendar.MINUTE, 0);
-        c.set(java.util.Calendar.SECOND, 0);
-        c.set(java.util.Calendar.MILLISECOND, 0);
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
         return c.getTimeInMillis() / 1000;
     }
 
