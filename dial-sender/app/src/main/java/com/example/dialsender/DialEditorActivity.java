@@ -3286,19 +3286,30 @@ public class DialEditorActivity extends AppCompatActivity {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_weather_generator, null);
         EditText edtW = dialogView.findViewById(R.id.edtWeatherWidth);
         EditText edtH = dialogView.findViewById(R.id.edtWeatherHeight);
+        RadioGroup rgStyle = dialogView.findViewById(R.id.rgWeatherStyle);
+        SeekBar seekStroke = dialogView.findViewById(R.id.seekWeatherStroke);
+        LinearLayout paletteSun = dialogView.findViewById(R.id.paletteWeatherSun);
+        LinearLayout paletteCloud = dialogView.findViewById(R.id.paletteWeatherCloud);
+        LinearLayout paletteRain = dialogView.findViewById(R.id.paletteWeatherRain);
         Button btnApply = dialogView.findViewById(R.id.btnApplyWeather);
 
-        ImageView[] previews = new ImageView[12];
+        ImageView[] previews = new ImageView[WeatherGenerator.FRAME_COUNT];
         int[] iconIds = {
                 R.id.imgWeather0, R.id.imgWeather1, R.id.imgWeather2, R.id.imgWeather3,
                 R.id.imgWeather4, R.id.imgWeather5, R.id.imgWeather6, R.id.imgWeather7,
                 R.id.imgWeather8, R.id.imgWeather9, R.id.imgWeather10, R.id.imgWeather11
         };
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < previews.length; i++) {
             previews[i] = dialogView.findViewById(iconIds[i]);
         }
 
         WeatherGenerator.WeatherConfig cfg = new WeatherGenerator.WeatherConfig();
+        cfg.frameCount = WeatherGenerator.FRAME_COUNT;
+
+        edtW.setText(String.valueOf(cfg.frameWidth));
+        edtH.setText(String.valueOf(cfg.frameHeight));
+        seekStroke.setProgress(Math.max(1, Math.min(8, cfg.strokeWidth)));
+        rgStyle.check(cfg.outline ? R.id.rbWeatherOutline : R.id.rbWeatherFilled);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -3306,11 +3317,35 @@ public class DialEditorActivity extends AppCompatActivity {
                 .create();
 
         Runnable updatePreviews = () -> {
-            for (int i = 0; i < cfg.frameCount; i++) {
+            for (int i = 0; i < previews.length; i++) {
                 Bitmap frame = WeatherGenerator.generateSingleFrame(cfg, i);
                 previews[i].setImageBitmap(frame);
             }
         };
+
+        final int[] sunColors   = { Color.parseColor("#F59E0B"), Color.parseColor("#FFD54F"), Color.WHITE,
+                                    Color.parseColor("#FF7043"), Color.parseColor("#FF4444"), Color.parseColor("#22D3EE") };
+        final int[] cloudColors = { Color.parseColor("#CBD5E1"), Color.WHITE, Color.parseColor("#94A3B8"),
+                                    Color.parseColor("#64748B"), Color.parseColor("#A5B4FC"), Color.parseColor("#F1F5F9") };
+        final int[] rainColors  = { Color.parseColor("#38BDF8"), Color.parseColor("#2563EB"), Color.WHITE,
+                                    Color.parseColor("#22D3EE"), Color.parseColor("#94A3B8"), Color.parseColor("#A78BFA") };
+
+        buildWeatherPalette(paletteSun,   sunColors,   cfg.sunColor,   c -> { cfg.sunColor = c;   updatePreviews.run(); });
+        buildWeatherPalette(paletteCloud, cloudColors, cfg.cloudColor, c -> { cfg.cloudColor = c; updatePreviews.run(); });
+        buildWeatherPalette(paletteRain,  rainColors,  cfg.rainColor,  c -> { cfg.rainColor = c;  updatePreviews.run(); });
+
+        rgStyle.setOnCheckedChangeListener((group, checkedId) -> {
+            cfg.outline = (checkedId == R.id.rbWeatherOutline);
+            updatePreviews.run();
+        });
+
+        seekStroke.setOnSeekBarChangeListener(new SimpleSeekListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                cfg.strokeWidth = Math.max(1, progress);
+                updatePreviews.run();
+            }
+        });
 
         android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -3336,18 +3371,49 @@ public class DialEditorActivity extends AppCompatActivity {
             for (int i = 0; i < cfg.frameCount; i++) {
                 frames[i] = Bitmap.createBitmap(fullSheet, 0, i * fh, cfg.frameWidth, fh);
             }
-            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[1], getBlockLabel(DialCompiler.TYPE_WEATHER), DialCompiler.TYPE_WEATHER);
+            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0],
+                    getBlockLabel(DialCompiler.TYPE_WEATHER), DialCompiler.TYPE_WEATHER);
             layer.frames = frames;
             layer.frameCount = cfg.frameCount;
             layer.isSpriteSheet = true;
             layer.compositeImage = fullSheet;
             layer.weatherConfig = cfg;
             layers.add(layer);
+            selectedLayerIndex = layers.size() - 1;
             refreshAll();
             Toast.makeText(this, R.string.weather_apply, Toast.LENGTH_SHORT).show();
         });
 
         dialog.show();
+    }
+
+    /** Fills a colour row with tappable swatches; the active one gets an accent ring. */
+    private void buildWeatherPalette(LinearLayout row, int[] colors, int selected,
+                                     java.util.function.IntConsumer onPick) {
+        row.removeAllViews();
+        final int[] current = { selected };
+        for (int clr : colors) {
+            View swatch = new View(this);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1);
+            lp.setMargins(3, 3, 3, 3);
+            swatch.setLayoutParams(lp);
+            swatch.setTag(clr);
+            GradientDrawable gd = new GradientDrawable();
+            gd.setColor(clr);
+            gd.setCornerRadius(6);
+            gd.setStroke(3, clr == current[0] ? Color.parseColor("#58A6FF") : Color.TRANSPARENT);
+            swatch.setBackground(gd);
+            swatch.setOnClickListener(v -> {
+                current[0] = clr;
+                for (int i = 0; i < row.getChildCount(); i++) {
+                    View child = row.getChildAt(i);
+                    GradientDrawable bg = (GradientDrawable) child.getBackground();
+                    bg.setStroke(3, ((int) child.getTag() == clr) ? Color.parseColor("#58A6FF") : Color.TRANSPARENT);
+                }
+                onPick.accept(clr);
+            });
+            row.addView(swatch);
+        }
     }
 
     // ===================== COMPILE WITH NAME =====================

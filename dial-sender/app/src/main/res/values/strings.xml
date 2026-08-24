@@ -853,4 +853,12 @@ Elige una actividad arriba para registrar la primera.</string>
     <!-- Weather Generator Dialog -->
     <string name="weather_builder_title">Generador de Clima</string>
     <string name="weather_apply">Aplicar Iconos de Clima (12 estados)</string>
+    <string name="weather_frames_hint">12 fotogramas fijos: soleado · parcial · nubes · cubierto · lluvia débil · lluvia · lluvia fuerte · tormenta · nieve · niebla · granizo · viento</string>
+    <string name="weather_style">ESTILO DE ICONO</string>
+    <string name="weather_style_filled">Relleno</string>
+    <string name="weather_style_outline">Contorno</string>
+    <string name="weather_color_sun">COLOR DEL SOL</string>
+    <string name="weather_color_cloud">COLOR DE LA NUBE</string>
+    <string name="weather_color_rain">COLOR DE LLUVIA / VIENTO</string>
+    <string name="weather_stroke">Grosor</string>
 </resources>

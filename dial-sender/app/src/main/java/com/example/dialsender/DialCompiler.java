@@ -261,7 +261,7 @@ public class DialCompiler {
             case TYPE_BATT_STRIP:
                 return 5; // battery strip levels
             case TYPE_WEATHER:
-                return 7; // weather icons
+                return WeatherGenerator.FRAME_COUNT; // 12 weather condition icons
             case TYPE_CONNECT:
                 return 2; // connected, disconnected
             default:

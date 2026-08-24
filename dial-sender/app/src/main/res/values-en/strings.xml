@@ -853,4 +853,12 @@ Pick an activity above to record your first one.</string>
     <!-- Weather Generator Dialog -->
     <string name="weather_builder_title">Weather Icon Generator</string>
     <string name="weather_apply">Apply Weather Icons (12 frames)</string>
+    <string name="weather_frames_hint">12 fixed frames: sunny · partly · cloudy · overcast · light rain · rain · heavy rain · storm · snow · fog · hail · wind</string>
+    <string name="weather_style">ICON STYLE</string>
+    <string name="weather_style_filled">Filled</string>
+    <string name="weather_style_outline">Outline</string>
+    <string name="weather_color_sun">SUN COLOR</string>
+    <string name="weather_color_cloud">CLOUD COLOR</string>
+    <string name="weather_color_rain">RAIN / WIND COLOR</string>
+    <string name="weather_stroke">Stroke</string>
 </resources>
