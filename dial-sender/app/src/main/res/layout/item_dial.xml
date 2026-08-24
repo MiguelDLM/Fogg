@@ -52,20 +52,8 @@
         android:paddingEnd="10dp"
         android:paddingTop="4dp"
         android:paddingBottom="4dp"
-        android:layout_marginEnd="6dp"
+        android:layout_marginStart="8dp"
         android:text="@string/preset"
         android:textColor="?attr/foggAccent"/>
 
-    <TextView
-        android:id="@+id/btnSendDial"
-        style="@style/Fogg.Caption"
-        android:drawableStart="@drawable/ic_send"
-        android:drawablePadding="5dp"
-        android:drawableTint="?attr/foggAccentSecondary"
-        android:gravity="center_vertical"
-        android:padding="8dp"
-        android:textColor="?attr/foggAccentSecondary"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="?attr/selectableItemBackgroundBorderless"/>
 </LinearLayout>

@@ -1,98 +1,184 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Animation import. The trim section on top lets you pick which slice of the
+  clip becomes the animation; before, extraction always started at t=0 and ran
+  until it hit the frame limit, so there was no way to use a section in the
+  middle.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:id="@+id/tvFramePickerTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/anim_import_title"
-        android:textStyle="bold"
-        android:textAppearance="?attr/foggTextRowLabel"
-        android:layout_marginBottom="8dp"/>
-
-    <TextView
-        android:id="@+id/tvFramePickerInfo"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Duración: — ms · Frames estimados: —"
-        android:layout_marginBottom="12dp"/>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/anim_sample_interval"
-        android:layout_marginBottom="4dp"/>
-
-    <RadioGroup
-        android:id="@+id/rgInterval"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <RadioButton android:id="@+id/rb100ms" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="100ms"/>
-        <RadioButton android:id="@+id/rb200ms" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="200ms" android:checked="true"/>
-        <RadioButton android:id="@+id/rb500ms" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="500ms"/>
-    </RadioGroup>
-
-    <TextView
-        android:id="@+id/tvFrameCount"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="→ 0 frames"
-        android:layout_marginTop="8dp"/>
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:padding="20dp">
 
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/anim_manual_interval"
-            android:textAppearance="?attr/foggTextRowValue"/>
-
-        <EditText
-            android:id="@+id/etManualInterval"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:hint="200"
-            android:textAppearance="?attr/foggTextRowValue"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp"
-        android:gravity="center_vertical">
+            android:id="@+id/tvFramePickerTitle"
+            style="@style/Fogg.CardTitle"
+            android:layout_width="match_parent"
+            android:text="@string/anim_import_title"
+            android:layout_marginBottom="6dp"/>
 
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/anim_max_frames"
-            android:textAppearance="?attr/foggTextRowValue"/>
+            android:id="@+id/tvFramePickerInfo"
+            style="@style/Fogg.Caption"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="16dp"/>
 
-        <EditText
-            android:id="@+id/etMaxFrames"
-            android:layout_width="60dp"
+        <!-- ══════════ Trim ══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:text="@string/anim_trim_section"/>
+
+        <!-- Loops the selected slice, so you see how the animation will run. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:layout_marginBottom="8dp"
+            android:background="?attr/foggBadgeBg">
+
+            <ImageView
+                android:id="@+id/imgTrimPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter"/>
+
+            <ProgressBar
+                android:id="@+id/pbTrimLoading"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"/>
+        </FrameLayout>
+
+        <!--
+          The whole clip as a filmstrip, always fully visible: frames inside the
+          selection stay bright, the ones being cut are dimmed. It deliberately
+          does not scroll — the point is to see at a glance which part of the
+          clip is being discarded, which a scrolled strip hides.
+        -->
+        <LinearLayout
+            android:id="@+id/stripTrimFrames"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal"
+            android:baselineAligned="false"/>
+
+        <TextView
+            android:id="@+id/tvTrimRange"
+            style="@style/Fogg.Body"
+            android:gravity="center"
+            android:layout_marginBottom="10dp"/>
+
+        <TextView
+            style="@style/Fogg.Caption"
+            android:text="@string/anim_trim_start"/>
+
+        <SeekBar
+            android:id="@+id/seekTrimStart"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="number"
-            android:hint="30"
-            android:textAppearance="?attr/foggTextRowValue"/>
+            android:max="1000"
+            android:progress="0"/>
+
+        <TextView
+            style="@style/Fogg.Caption"
+            android:layout_marginTop="4dp"
+            android:text="@string/anim_trim_end"/>
+
+        <SeekBar
+            android:id="@+id/seekTrimEnd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="1000"
+            android:progress="1000"/>
+
+        <!-- ══════════ Sampling ══════════ -->
+        <TextView
+            style="?attr/foggSectionHeaderStyle"
+            android:layout_marginTop="18dp"
+            android:text="@string/anim_sample_interval"/>
+
+        <RadioGroup
+            android:id="@+id/rgInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton android:id="@+id/rb100ms" style="@style/Fogg.Radio"
+                android:layout_width="wrap_content" android:text="100ms"/>
+            <RadioButton android:id="@+id/rb200ms" style="@style/Fogg.Radio"
+                android:layout_width="wrap_content" android:text="200ms" android:checked="true"/>
+            <RadioButton android:id="@+id/rb500ms" style="@style/Fogg.Radio"
+                android:layout_width="wrap_content" android:text="500ms"/>
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/tvFrameCount"
+            style="@style/Fogg.Body"
+            android:textColor="?attr/foggAccent"
+            android:layout_marginTop="8dp"/>
+
+        <!-- What those frames will actually cost in the .bin. -->
+        <TextView
+            android:id="@+id/tvSizeEstimate"
+            style="@style/Fogg.Body"
+            android:layout_marginTop="2dp"/>
+
+        <TextView
+            android:id="@+id/tvSizeHint"
+            style="@style/Fogg.Caption"
+            android:layout_marginTop="2dp"
+            android:text="@string/anim_cost_hint"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="14dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/anim_manual_interval"
+                android:textAppearance="?attr/foggTextRowValue"/>
+
+            <EditText
+                android:id="@+id/etManualInterval"
+                style="@style/Fogg.Input.Inline"
+                android:layout_width="72dp"
+                android:inputType="number"
+                android:importantForAutofill="no"
+                android:hint="200"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/anim_max_frames"
+                android:textAppearance="?attr/foggTextRowValue"/>
+
+            <EditText
+                android:id="@+id/etMaxFrames"
+                style="@style/Fogg.Input.Inline"
+                android:layout_width="72dp"
+                android:inputType="number"
+                android:importantForAutofill="no"
+                android:hint="15"/>
+        </LinearLayout>
     </LinearLayout>
-
-
-</LinearLayout>
+</ScrollView>

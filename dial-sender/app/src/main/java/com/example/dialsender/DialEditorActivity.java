@@ -91,6 +91,36 @@ public class DialEditorActivity extends AppCompatActivity {
     private LayerAdapter layerAdapter;
     private String suggestedDialName;
 
+    /**
+     * Live preview. When running, the composite is drawn the way the watch would
+     * show it right now: animations cycle their frames, hands follow the real
+     * clock and digit blocks show the current time. Editor decorations (the
+     * selection border) are hidden so what you see is the dial, not the editor.
+     */
+    private boolean previewPlaying = false;
+    private long previewStartedAt = 0L;
+    private ImageView btnPlayPreview;
+    private final android.os.Handler previewHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable previewLoop = new Runnable() {
+        @Override
+        public void run() {
+            if (!previewPlaying) return;
+            updatePreview();
+            // 100 ms is enough: frames are picked from elapsed time rather than
+            // counted, so the tick rate only sets the smoothness.
+            previewHandler.postDelayed(this, 100);
+        }
+    };
+
+    /**
+     * Above this the compiled dial gets a confirmation prompt. Not a hard limit
+     * from the protocol — the transfer never negotiates a size — but dials that
+     * work in practice sit two orders of magnitude below a full-face video, and
+     * pushing megabytes over BLE takes minutes before anything can go wrong.
+     */
+    private static final long DIAL_SIZE_WARN_BYTES = 500L * 1024L;
+
     private int canvasWidth = 466;
     private int canvasHeight = 466;
 
@@ -232,6 +262,9 @@ public class DialEditorActivity extends AppCompatActivity {
 
         findViewById(R.id.btnBackEditor).setOnClickListener(v -> finish());
         findViewById(R.id.btnAddElement).setOnClickListener(v -> showAddElementDialog());
+
+        btnPlayPreview = findViewById(R.id.btnPlayPreview);
+        btnPlayPreview.setOnClickListener(v -> setPreviewPlaying(!previewPlaying));
 
         findViewById(R.id.btnMoveUp).setOnClickListener(v -> {
             if (selectedLayerIndex > 0) {
@@ -2745,81 +2778,228 @@ public class DialEditorActivity extends AppCompatActivity {
             }
             final long finalDuration = durationMs;
 
-            // Show dialog to pick interval
+            // Retriever kept open for the whole dialog so the filmstrip can be
+            // sampled without reopening the file. Released on dismiss.
+            final android.media.MediaMetadataRetriever scrubRetriever;
+            if (!isGif) {
+                android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+                try {
+                    r.setDataSource(this, animUri);
+                } catch (Exception e) {
+                    try { r.release(); } catch (Exception ignored) { }
+                    r = null;
+                }
+                scrubRetriever = r;
+            } else {
+                scrubRetriever = null;
+            }
+
             View dialogView = getLayoutInflater().inflate(R.layout.dialog_frame_picker, null);
             RadioGroup rg = dialogView.findViewById(R.id.rgInterval);
             TextView tvInfo = dialogView.findViewById(R.id.tvFramePickerInfo);
             TextView tvCount = dialogView.findViewById(R.id.tvFrameCount);
+            TextView tvSize = dialogView.findViewById(R.id.tvSizeEstimate);
+            TextView tvRange = dialogView.findViewById(R.id.tvTrimRange);
+            ImageView imgTrim = dialogView.findViewById(R.id.imgTrimPreview);
+            View pbTrim = dialogView.findViewById(R.id.pbTrimLoading);
+            LinearLayout strip = dialogView.findViewById(R.id.stripTrimFrames);
+            SeekBar seekStart = dialogView.findViewById(R.id.seekTrimStart);
+            SeekBar seekEnd = dialogView.findViewById(R.id.seekTrimEnd);
+            EditText etInterval = dialogView.findViewById(R.id.etManualInterval);
+            EditText etLimit = dialogView.findViewById(R.id.etMaxFrames);
 
-            rg.setOnCheckedChangeListener((g, id) -> {
-                int ms = id == R.id.rb100ms ? 100 : id == R.id.rb500ms ? 500 : 200;
-                long est = finalDuration > 0 ? Math.min(15, finalDuration / ms) : 1;
-                tvCount.setText(getString(R.string.frames_estimate, (int) est, 15));
-            });
+            // Selected slice of the clip, in ms. Extraction used to always run from
+            // t=0 until it hit the frame limit, so a section in the middle of a
+            // video was simply unreachable.
+            final long[] trim = { 0L, finalDuration };
+
+            // Source frame size, read from the metadata: the cost estimate below
+            // is computed from it.
+            final int[] sourceSize = { 0, 0 };
+            if (isGif && gifMovie != null) {
+                sourceSize[0] = gifMovie.width();
+                sourceSize[1] = gifMovie.height();
+            } else if (scrubRetriever != null) {
+                try {
+                    String vw = scrubRetriever.extractMetadata(
+                            android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+                    String vh = scrubRetriever.extractMetadata(
+                            android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+                    if (vw != null && vh != null) {
+                        sourceSize[0] = Integer.parseInt(vw);
+                        sourceSize[1] = Integer.parseInt(vh);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
             tvInfo.setText(getString(R.string.anim_duration_fmt, (int) finalDuration));
-            long estDefault = finalDuration > 0 ? Math.min(15, finalDuration / 200) : 1;
-            tvCount.setText(getString(R.string.frames_estimate, (int) estDefault, 15));
+
+            // The whole clip is sampled once, up front. Dragging a handle then only
+            // re-lights the strip and restarts the loop — no decoding, so the
+            // controls stay responsive even on a long video.
+            final List<ClipThumb> thumbs = new ArrayList<>();
+            final android.os.Handler loopHandler =
+                    new android.os.Handler(android.os.Looper.getMainLooper());
+            final int[] loopPos = { 0 };
+            final Runnable[] loopTick = { null };
+
+            Runnable refreshStrip = () -> {
+                for (int i = 0; i < strip.getChildCount() && i < thumbs.size(); i++) {
+                    boolean kept = thumbs.get(i).timeMs >= trim[0] && thumbs.get(i).timeMs <= trim[1];
+                    strip.getChildAt(i).setAlpha(kept ? 1f : 0.18f);
+                }
+            };
+
+            Runnable restartLoop = () -> {
+                loopHandler.removeCallbacksAndMessages(null);
+                List<ClipThumb> kept = new ArrayList<>();
+                for (ClipThumb t : thumbs) {
+                    if (t.timeMs >= trim[0] && t.timeMs <= trim[1]) kept.add(t);
+                }
+                if (kept.isEmpty()) return;
+                loopPos[0] = 0;
+                if (kept.size() == 1) {
+                    imgTrim.setImageBitmap(kept.get(0).bitmap);
+                    return;
+                }
+                // Played at the sampling spacing, which is also the rate the
+                // compiled animation runs at, so the motion speed is honest.
+                long step = Math.max(40, kept.get(1).timeMs - kept.get(0).timeMs);
+                loopTick[0] = () -> {
+                    if (kept.isEmpty()) return;
+                    imgTrim.setImageBitmap(kept.get(loopPos[0] % kept.size()).bitmap);
+                    loopPos[0]++;
+                    loopHandler.postDelayed(loopTick[0], step);
+                };
+                loopHandler.post(loopTick[0]);
+            };
+
+            Runnable updateCount = () -> {
+                int ms = currentIntervalMs(rg, etInterval);
+                int limit = currentMaxFrames(etLimit);
+                long span = Math.max(0, trim[1] - trim[0]);
+                int est = span > 0 ? (int) Math.min(limit, Math.max(1, span / Math.max(1, ms))) : 1;
+                tvCount.setText(getString(R.string.frames_estimate, est, limit));
+                tvRange.setText(getString(R.string.anim_trim_range_fmt,
+                        formatClipTime(trim[0]), formatClipTime(trim[1]),
+                        String.format(java.util.Locale.US, "%.1f", span / 1000f)));
+
+                // Cost of those frames once compiled. Shown here because this is
+                // where the frame count is decided, and video does not compress.
+                if (sourceSize[0] > 0 && sourceSize[1] > 0) {
+                    float fit = animFitScale(sourceSize[0], sourceSize[1]);
+                    int w = Math.max(1, Math.round(sourceSize[0] * fit));
+                    int h = Math.max(1, Math.round(sourceSize[1] * fit));
+                    long bytes = DialCompiler.estimateBlockBytes(w, h, est, false);
+                    tvSize.setText(getString(R.string.anim_size_estimate, formatBytes(bytes)));
+                    tvSize.setTextColor(bytes > DIAL_SIZE_WARN_BYTES
+                            ? com.example.dialsender.theme.ThemeManager.getTheme(this).danger
+                            : com.example.dialsender.theme.ThemeManager.getTheme(this).textSecondary);
+                }
+            };
+
+            SimpleSeekListener trimListener = new SimpleSeekListener() {
+                @Override
+                public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                    if (!fromUser || finalDuration <= 0) return;
+                    long at = finalDuration * progress / 1000L;
+                    if (sb.getId() == R.id.seekTrimStart) {
+                        // The handles may not cross.
+                        trim[0] = Math.min(at, Math.max(0, trim[1] - 1));
+                    } else {
+                        trim[1] = Math.max(at, Math.min(finalDuration, trim[0] + 1));
+                    }
+                    refreshStrip.run();
+                    restartLoop.run();
+                    updateCount.run();
+                }
+            };
+            seekStart.setOnSeekBarChangeListener(trimListener);
+            seekEnd.setOnSeekBarChangeListener(trimListener);
+            rg.setOnCheckedChangeListener((g, id) -> updateCount.run());
+            etInterval.addTextChangedListener(new SimpleTextWatcher(updateCount));
+            etLimit.addTextChangedListener(new SimpleTextWatcher(updateCount));
+            updateCount.run();
+
+            final int stripCount = 16;
+            new Thread(() -> {
+                List<ClipThumb> sampled = sampleClipThumbs(isGif, gifMovie, scrubRetriever,
+                        finalDuration, stripCount, 140);
+                runOnUiThread(() -> {
+                    pbTrim.setVisibility(View.GONE);
+                    if (sampled.isEmpty()) return;
+                    thumbs.addAll(sampled);
+                    if (sourceSize[0] <= 0 && sampled.get(0).bitmap != null) {
+                        // Fallback for a source whose metadata did not report a size.
+                        sourceSize[0] = sampled.get(0).bitmap.getWidth();
+                        sourceSize[1] = sampled.get(0).bitmap.getHeight();
+                        updateCount.run();
+                    }
+                    for (ClipThumb t : sampled) {
+                        ImageView iv = new ImageView(this);
+                        iv.setImageBitmap(t.bitmap);
+                        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                        // Weighted so the strip always spans the dialog exactly,
+                        // whatever the clip length or screen width.
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+                        iv.setLayoutParams(lp);
+                        strip.addView(iv);
+                    }
+                    refreshStrip.run();
+                    restartLoop.run();
+                });
+            }).start();
 
             new AlertDialog.Builder(this)
                     .setView(dialogView)
+                    .setOnDismissListener(d -> {
+                        loopHandler.removeCallbacksAndMessages(null);
+                        if (scrubRetriever != null) {
+                            try { scrubRetriever.release(); } catch (Exception ignored) { }
+                        }
+                    })
                     .setPositiveButton(R.string.action_import, (dlg, w) -> {
-                        int checkedId = rg.getCheckedRadioButtonId();
-                        int ms = checkedId == R.id.rb100ms ? 100 : checkedId == R.id.rb500ms ? 500 : 200;
-                        EditText etInterval = dialogView.findViewById(R.id.etManualInterval);
-                        EditText etLimit = dialogView.findViewById(R.id.etMaxFrames);
+                        final int extractionMs = currentIntervalMs(rg, etInterval);
+                        final int extractionLimit = currentMaxFrames(etLimit);
+                        final long fromMs = trim[0];
+                        final long toMs = trim[1] > trim[0] ? trim[1] : finalDuration;
 
-                        int finalMaxFrames = 15;
-                        try {
-                            String s = etLimit.getText().toString().trim();
-                            if (!s.isEmpty())
-                                finalMaxFrames = Integer.parseInt(s);
-                        } catch (Exception ignored) {
+                        if (finalDuration > 0 && toMs - fromMs < extractionMs) {
+                            Toast.makeText(this, R.string.anim_trim_too_short, Toast.LENGTH_SHORT).show();
+                            return;
                         }
-
-                        // Hard limit to 20 frames for stability
-                        if (finalMaxFrames > 20) finalMaxFrames = 20;
-
-                        int finalMs = ms;
-                        try {
-                            String s = etInterval.getText().toString().trim();
-                            if (!s.isEmpty())
-                                finalMs = Integer.parseInt(s);
-                        } catch (Exception ignored) {
-                        }
-
-                        final int extractionMs = finalMs;
-                        final int extractionLimit = finalMaxFrames;
 
                         android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
                         progress.setMessage(getString(R.string.extracting_frames));
                         progress.setCancelable(false);
                         progress.show();
                         new Thread(() -> {
-                            Bitmap[] frames = isGif
-                                    ? extractGifFrames(gifMovie, extractionMs, extractionLimit)
-                                    : extractVideoFrames(animUri, extractionMs, extractionLimit);
+                            final Bitmap[] fitted = fitFramesToFace(isGif
+                                    ? extractGifFrames(gifMovie, extractionMs, extractionLimit, fromMs, toMs)
+                                    : extractVideoFrames(animUri, extractionMs, extractionLimit, fromMs, toMs));
                             runOnUiThread(() -> {
                                 progress.dismiss();
-                                if (frames == null || frames.length == 0) {
+                                if (fitted == null || fitted.length == 0) {
                                     Toast.makeText(this, R.string.frames_extract_error, Toast.LENGTH_SHORT).show();
                                     return;
                                 }
+                                final Bitmap[] frames = fitted;
                                 DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[0],
                                         getBlockLabel(DialCompiler.TYPE_ANIM), DialCompiler.TYPE_ANIM);
                                 layer.frames = frames;
                                 layer.frameCount = frames.length;
                                 layer.isSpriteSheet = true;
                                 layer.animIntervalMs = extractionMs;
-                                // DO NOT scale to cover for animations — keep original size or fit within
-                                // screen
-                                float scale = 1.0f;
-                                if (frames[0].getWidth() > canvasWidth || frames[0].getHeight() > canvasHeight) {
-                                    scale = Math.min((float) canvasWidth / frames[0].getWidth(),
-                                            (float) canvasHeight / frames[0].getHeight());
-                                }
-                                layer.scale = scale;
-                                layer.posX = (canvasWidth - frames[0].getWidth() * scale) / 2f;
-                                layer.posY = (canvasHeight - frames[0].getHeight() * scale) / 2f;
+                                // Frames arrive already at their on-face size, so the
+                                // layer needs no scaling. Keeping the source resolution
+                                // around would only cost memory: the watch draws a block
+                                // at its stored size, so those extra pixels can never be
+                                // shown and would be thrown away at compile time anyway.
+                                layer.scale = 1f;
+                                layer.posX = (canvasWidth - frames[0].getWidth()) / 2f;
+                                layer.posY = (canvasHeight - frames[0].getHeight()) / 2f;
                                 layer.locked = false;
                                 layers.add(0, layer);
                                 selectedLayerIndex = 0;
@@ -2871,8 +3051,13 @@ public class DialEditorActivity extends AppCompatActivity {
         refreshAll();
     }
 
+    /**
+     * Samples a GIF between {@code fromMs} and {@code toMs}. The range used to be
+     * fixed at the whole clip, so only the opening frames were ever reachable.
+     */
     @SuppressWarnings("deprecation")
-    private Bitmap[] extractGifFrames(android.graphics.Movie movie, int intervalMs, int maxFrames) {
+    private Bitmap[] extractGifFrames(android.graphics.Movie movie, int intervalMs, int maxFrames,
+                                      long fromMs, long toMs) {
         try {
             if (movie == null)
                 return null;
@@ -2890,7 +3075,10 @@ public class DialEditorActivity extends AppCompatActivity {
                 return new Bitmap[] { bmp };
             }
 
-            for (int t = 0; t < duration && frames.size() < maxFrames; t += intervalMs) {
+            int start = (int) Math.max(0, Math.min(fromMs, duration - 1));
+            int end = (int) Math.min(duration, toMs > fromMs ? toMs : duration);
+
+            for (int t = start; t < end && frames.size() < maxFrames; t += intervalMs) {
                 Bitmap bmp = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888);
                 Canvas c = new Canvas(bmp);
                 c.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR);
@@ -2916,7 +3104,9 @@ public class DialEditorActivity extends AppCompatActivity {
         return bos.toByteArray();
     }
 
-    private Bitmap[] extractVideoFrames(Uri uri, int intervalMs, int maxFrames) {
+    /** Samples a video between {@code fromMs} and {@code toMs}. */
+    private Bitmap[] extractVideoFrames(Uri uri, int intervalMs, int maxFrames,
+                                        long fromMs, long toMs) {
         android.media.MediaMetadataRetriever retriever = new android.media.MediaMetadataRetriever();
         try {
             retriever.setDataSource(this, uri);
@@ -2925,8 +3115,11 @@ public class DialEditorActivity extends AppCompatActivity {
             if (durationMs == 0)
                 return null;
 
+            long start = Math.max(0, Math.min(fromMs, durationMs - 1));
+            long end = Math.min(durationMs, toMs > fromMs ? toMs : durationMs);
+
             List<Bitmap> frames = new ArrayList<>();
-            for (long t = 0; t < durationMs && frames.size() < maxFrames; t += intervalMs) {
+            for (long t = start; t < end && frames.size() < maxFrames; t += intervalMs) {
                 Bitmap bmp = retriever.getFrameAtTime(t * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST);
                 if (bmp != null)
                     frames.add(bmp);
@@ -2994,6 +3187,46 @@ public class DialEditorActivity extends AppCompatActivity {
      * Instead of always showing digit "0", shows a realistic-looking time like
      * "2:56".
      */
+    /** Two digit frame indices for a 0–99 value, tens first. */
+    private static int[] twoDigits(int value) {
+        int v = Math.max(0, Math.min(99, value));
+        return new int[] { v / 10, v % 10 };
+    }
+
+    /**
+     * Frame index for a single-slot block under live playback: the clock value
+     * instead of the fixed sample {@link #getPreviewFrameIndex} returns. Blocks
+     * with no time meaning fall back to that sample.
+     */
+    private int liveFrameIndex(int elementType, int frameCount) {
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int value;
+        switch (elementType) {
+            case DialCompiler.TYPE_HOUR_HI:
+                value = now.get(java.util.Calendar.HOUR_OF_DAY) / 10;
+                break;
+            case DialCompiler.TYPE_HOUR_LO:
+                value = now.get(java.util.Calendar.HOUR_OF_DAY) % 10;
+                break;
+            case DialCompiler.TYPE_MIN_HI:
+                value = now.get(java.util.Calendar.MINUTE) / 10;
+                break;
+            case DialCompiler.TYPE_MIN_LO:
+                value = now.get(java.util.Calendar.MINUTE) % 10;
+                break;
+            case DialCompiler.TYPE_WEEKDAY:
+                // Frame 0 is Monday; Calendar counts Sunday as 1.
+                value = (now.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7;
+                break;
+            case DialCompiler.TYPE_MONTH:
+                value = now.get(java.util.Calendar.MONTH);
+                break;
+            default:
+                return getPreviewFrameIndex(elementType, frameCount);
+        }
+        return Math.max(0, Math.min(frameCount - 1, value));
+    }
+
     private int getPreviewFrameIndex(int elementType, int frameCount) {
         if (frameCount <= 1)
             return 0;
@@ -3067,6 +3300,21 @@ public class DialEditorActivity extends AppCompatActivity {
      * For other types, returns a single representative frame.
      */
     private Bitmap getPreviewBitmap(DialLayer layer) {
+        return getPreviewBitmap(layer, false);
+    }
+
+    /**
+     * Bitmap to draw for a layer. With {@code live} the frame is chosen from the
+     * clock and from playback time instead of the fixed sample the static editor
+     * preview uses, which is what makes the play button show a running dial.
+     */
+    private Bitmap getPreviewBitmap(DialLayer layer, boolean live) {
+        if (live && layer.nativeElementType == DialCompiler.TYPE_ANIM
+                && layer.frames != null && layer.frames.length > 1) {
+            long elapsed = System.currentTimeMillis() - previewStartedAt;
+            int interval = Math.max(20, layer.animIntervalMs);
+            return layer.frames[(int) ((elapsed / interval) % layer.frames.length)];
+        }
         if (layer.frames == null || layer.frames.length < 10) {
             // Not a digit sprite-sheet, return single frame
             int fi = 0;
@@ -3078,21 +3326,27 @@ public class DialEditorActivity extends AppCompatActivity {
         }
         // Multi-digit combinations
         int[] indices;
+        java.util.Calendar now = java.util.Calendar.getInstance();
         switch (layer.nativeElementType) {
             case DialCompiler.TYPE_DIGITAL_HOUR:
-                indices = new int[] { 1, 2 }; // "12"
+                indices = live ? twoDigits(now.get(java.util.Calendar.HOUR_OF_DAY))
+                               : new int[] { 1, 2 }; // "12"
                 break;
             case DialCompiler.TYPE_DIGITAL_MIN:
-                indices = new int[] { 5, 6 }; // "56"
+                indices = live ? twoDigits(now.get(java.util.Calendar.MINUTE))
+                               : new int[] { 5, 6 }; // "56"
                 break;
             case DialCompiler.TYPE_SECONDS:
-                indices = new int[] { 3, 4 }; // "34"
+                indices = live ? twoDigits(now.get(java.util.Calendar.SECOND))
+                               : new int[] { 3, 4 }; // "34"
                 break;
             case DialCompiler.TYPE_DAY:
-                indices = new int[] { 1, 5 }; // "15"
+                indices = live ? twoDigits(now.get(java.util.Calendar.DAY_OF_MONTH))
+                               : new int[] { 1, 5 }; // "15"
                 break;
             case DialCompiler.TYPE_YEAR:
-                indices = new int[] { 2, 6 }; // "26"
+                indices = live ? twoDigits(now.get(java.util.Calendar.YEAR) % 100)
+                               : new int[] { 2, 6 }; // "26"
                 break;
             case DialCompiler.TYPE_DISTANCE:
                 // Show "12.3" — Frame 10 is usually the dot
@@ -3103,7 +3357,9 @@ public class DialEditorActivity extends AppCompatActivity {
                 }
                 break;
             default:
-                int fi = getPreviewFrameIndex(layer.nativeElementType, layer.frames.length);
+                int fi = live
+                        ? liveFrameIndex(layer.nativeElementType, layer.frames.length)
+                        : getPreviewFrameIndex(layer.nativeElementType, layer.frames.length);
                 return layer.frames[Math.min(fi, layer.frames.length - 1)];
         }
 
@@ -3125,8 +3381,49 @@ public class DialEditorActivity extends AppCompatActivity {
         return combined;
     }
 
+    /** Hand angle for the current time; non-hand types keep their own rotation. */
+    private float liveHandRotation(int elementType, float fallback) {
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int h = now.get(java.util.Calendar.HOUR_OF_DAY) % 12;
+        int m = now.get(java.util.Calendar.MINUTE);
+        int sec = now.get(java.util.Calendar.SECOND);
+        switch (elementType) {
+            case DialCompiler.TYPE_ARM_HOUR:
+                return (h + m / 60f) * 30f;
+            case DialCompiler.TYPE_ARM_MIN:
+                return (m + sec / 60f) * 6f;
+            case DialCompiler.TYPE_ARM_SEC:
+                return sec * 6f;
+            default:
+                return fallback;
+        }
+    }
+
+    private void setPreviewPlaying(boolean playing) {
+        previewPlaying = playing;
+        previewHandler.removeCallbacks(previewLoop);
+        if (playing) {
+            previewStartedAt = System.currentTimeMillis();
+            previewHandler.post(previewLoop);
+        }
+        if (btnPlayPreview != null) {
+            btnPlayPreview.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play);
+            btnPlayPreview.setContentDescription(
+                    getString(playing ? R.string.preview_stop : R.string.preview_play));
+        }
+        updatePreview();
+        updateControls();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Never leave the loop posting against a backgrounded activity.
+        if (previewPlaying) setPreviewPlaying(false);
+    }
+
     private void updatePreview() {
-        Bitmap preview = renderComposite(true);
+        Bitmap preview = renderComposite(!previewPlaying, previewPlaying);
 
         // Use a single ImageView managed by the container
         if (previewImage == null) {
@@ -3148,7 +3445,7 @@ public class DialEditorActivity extends AppCompatActivity {
      * preview); without them it is the clean composite used as the dial's
      * compiled preview image, so both always stay in sync.
      */
-    private Bitmap renderComposite(boolean editorDecorations) {
+    private Bitmap renderComposite(boolean editorDecorations, boolean live) {
         Bitmap preview = Bitmap.createBitmap(canvasWidth, canvasHeight, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(preview);
         canvas.drawColor(Color.BLACK);
@@ -3198,7 +3495,7 @@ public class DialEditorActivity extends AppCompatActivity {
                 continue;
             }
 
-            Bitmap drawBmp = getPreviewBitmap(layer);
+            Bitmap drawBmp = getPreviewBitmap(layer, live);
             if (drawBmp == null)
                 continue;
 
@@ -3226,7 +3523,11 @@ public class DialEditorActivity extends AppCompatActivity {
                 drawY = (canvasHeight / 2f) - pivotY;
 
                 float mockRotation = layer.rotation;
-                if (mockRotation == 0) {
+                if (live) {
+                    // Under playback the hands tell the actual time, so the preview
+                    // reads like the watch rather than a fixed pose.
+                    mockRotation = liveHandRotation(layer.nativeElementType, mockRotation);
+                } else if (mockRotation == 0) {
                     if (layer.nativeElementType == DialCompiler.TYPE_ARM_HOUR) mockRotation = 90; // 3h
                     else if (layer.nativeElementType == DialCompiler.TYPE_ARM_MIN) mockRotation = 0; // 0m
                     else if (layer.nativeElementType == DialCompiler.TYPE_ARM_SEC) mockRotation = 270; // 45s
@@ -3257,8 +3558,17 @@ public class DialEditorActivity extends AppCompatActivity {
             selectedLayerControls.setVisibility(View.VISIBLE);
             DialLayer layer = layers.get(selectedLayerIndex);
             String info = layer.name;
-            if (layer.isSpriteSheet)
+            if (layer.nativeElementType == DialCompiler.TYPE_ANIM
+                    && layer.frames != null && layer.frames.length > 0) {
+                // Animations are the one layer whose cost is worth watching while
+                // it is resized, so the estimate is shown right next to the slider.
+                int w = Math.max(1, Math.round(layer.frames[0].getWidth() * layer.scale));
+                int h = Math.max(1, Math.round(layer.frames[0].getHeight() * layer.scale));
+                info = getString(R.string.layer_anim_cost, layer.frames.length, w, h,
+                        formatBytes(DialCompiler.estimateBlockBytes(w, h, layer.frames.length, false)));
+            } else if (layer.isSpriteSheet) {
                 info += " • " + layer.frameCount + " frames";
+            }
             txtSelectedLayer.setText(info);
             seekScale.setProgress((int) (layer.scale * 100));
             seekRotation.setProgress((int) layer.rotation);
@@ -4242,6 +4552,48 @@ public class DialEditorActivity extends AppCompatActivity {
     }
 
     private void compileAndFinish(String dialName) {
+        // Estimate first: a full-face video animation runs to megabytes, and the
+        // user should find that out here rather than after a multi-minute BLE
+        // transfer. Advisory only — the protocol never states a real limit.
+        long[] worst = { 0L };
+        String[] worstName = { "" };
+        long total = estimateDialBytes(worst, worstName);
+        if (total > DIAL_SIZE_WARN_BYTES) {
+            new AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.dial_too_big_title, formatBytes(total)))
+                    .setMessage(getString(R.string.dial_too_big_msg,
+                            worstName[0], formatBytes(worst[0])))
+                    .setPositiveButton(R.string.compile_anyway, (d, w) -> doCompile(dialName))
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+            return;
+        }
+        doCompile(dialName);
+    }
+
+    /**
+     * Sum of what every layer will occupy, plus the heaviest one so the warning
+     * can point at the actual culprit.
+     */
+    private long estimateDialBytes(long[] worstOut, String[] worstNameOut) {
+        long total = DialCompiler.estimateBlockBytes(280, 280, 1, false); // preview block
+        for (DialLayer layer : layers) {
+            if (layer.pendingStyle || layer.frames == null || layer.frames.length == 0) continue;
+            boolean hasAlpha = layer.nativeElementType != DialCompiler.TYPE_BACKGROUND
+                    && layer.nativeElementType != DialCompiler.TYPE_ANIM;
+            int w = Math.max(1, Math.round(layer.frames[0].getWidth() * layer.scale));
+            int h = Math.max(1, Math.round(layer.frames[0].getHeight() * layer.scale));
+            long bytes = DialCompiler.estimateBlockBytes(w, h, layer.frames.length, hasAlpha);
+            total += bytes;
+            if (worstOut != null && bytes > worstOut[0]) {
+                worstOut[0] = bytes;
+                if (worstNameOut != null) worstNameOut[0] = layer.name != null ? layer.name : "";
+            }
+        }
+        return total;
+    }
+
+    private void doCompile(String dialName) {
         btnUpload.setEnabled(false);
         btnUpload.setText(R.string.compiling);
 
@@ -4251,7 +4603,9 @@ public class DialEditorActivity extends AppCompatActivity {
 
                 // Auto-generate preview from current canvas state using the exact
                 // same renderer as the editor preview (hands centred + rotated)
-                Bitmap previewBmp = renderComposite(false);
+                // Always the static composite: the thumbnail baked into the dial
+                // must not depend on whether playback happened to be running.
+                Bitmap previewBmp = renderComposite(false, false);
 
                 // RESIZE PREVIEW TO 280x280 (Required by chipset)
                 // normalizeForWatch quantizes to RGB565 + flattens alpha
@@ -4527,13 +4881,40 @@ public class DialEditorActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+                final String message = compileErrorMessage(e);
                 runOnUiThread(() -> {
                     btnUpload.setEnabled(true);
                     btnUpload.setText(R.string.compile);
-                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    new AlertDialog.Builder(this)
+                            .setTitle(R.string.compile_failed)
+                            .setMessage(message)
+                            .setPositiveButton(R.string.close, null)
+                            .show();
                 });
             }
         }).start();
+    }
+
+    /**
+     * Turns a compiler failure into something a person can act on.
+     *
+     * A layer left entirely outside the face used to surface as the packer's
+     * "ushort format requires 0 <= number <= 65535", which names neither the
+     * layer nor the problem.
+     */
+    private String compileErrorMessage(Exception e) {
+        String raw = e.getMessage() != null ? e.getMessage() : e.toString();
+        int marker = raw.indexOf(DialCompiler.OFF_CANVAS_PREFIX);
+        if (marker >= 0) {
+            String typeStr = raw.substring(marker + DialCompiler.OFF_CANVAS_PREFIX.length()).trim();
+            try {
+                int type = Integer.parseInt(typeStr);
+                return getString(R.string.compile_layer_off_canvas,
+                        getString(DialCompiler.blockTypeLabelRes(type)));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return raw;
     }
 
     private Bitmap ensureRgb565(Bitmap source) {
@@ -5087,6 +5468,173 @@ public class DialEditorActivity extends AppCompatActivity {
         if (left > right || top > bottom) return bmp;
 
         return Bitmap.createBitmap(bmp, left, top, (right - left) + 1, (bottom - top) + 1);
+    }
+
+    /**
+     * TextWatcher that only cares that something changed. Used by the import
+     * dialog so the frame estimate follows the interval and limit fields.
+     */
+    private static class SimpleTextWatcher implements android.text.TextWatcher {
+        private final Runnable onChanged;
+
+        SimpleTextWatcher(Runnable onChanged) {
+            this.onChanged = onChanged;
+        }
+
+        @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+        @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
+
+        @Override
+        public void afterTextChanged(android.text.Editable e) {
+            onChanged.run();
+        }
+    }
+
+    /** Sampling interval in ms: the manual field wins over the radio preset. */
+    private int currentIntervalMs(RadioGroup rg, EditText manual) {
+        int checked = rg.getCheckedRadioButtonId();
+        int ms = checked == R.id.rb100ms ? 100 : checked == R.id.rb500ms ? 500 : 200;
+        try {
+            String typed = manual.getText().toString().trim();
+            if (!typed.isEmpty()) {
+                ms = Integer.parseInt(typed);
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return Math.max(10, ms);
+    }
+
+    /** Frame cap. Held at 20 for stability regardless of what is typed. */
+    private int currentMaxFrames(EditText field) {
+        int limit = 15;
+        try {
+            String typed = field.getText().toString().trim();
+            if (!typed.isEmpty()) {
+                limit = Integer.parseInt(typed);
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return Math.max(1, Math.min(20, limit));
+    }
+
+    /**
+     * Scales freshly extracted frames down to the largest size that fits the
+     * face. Called off the UI thread, right after extraction, so the oversized
+     * source bitmaps are released early instead of being carried around by the
+     * layer for the rest of the session.
+     */
+    private Bitmap[] fitFramesToFace(Bitmap[] frames) {
+        if (frames == null || frames.length == 0 || frames[0] == null) return frames;
+        float fit = animFitScale(frames[0].getWidth(), frames[0].getHeight());
+        if (fit >= 0.999f) return frames;
+
+        int w = Math.max(1, Math.round(frames[0].getWidth() * fit));
+        int h = Math.max(1, Math.round(frames[0].getHeight() * fit));
+        Bitmap[] out = new Bitmap[frames.length];
+        for (int i = 0; i < frames.length; i++) {
+            if (frames[i] == null) continue;
+            out[i] = Bitmap.createScaledBitmap(frames[i], w, h, true);
+            if (out[i] != frames[i]) frames[i].recycle();
+        }
+        return out;
+    }
+
+    /** Human-readable byte size for the dial budget readouts. */
+    private String formatBytes(long bytes) {
+        if (bytes >= 1024L * 1024L) {
+            return getString(R.string.size_mb_fmt,
+                    String.format(java.util.Locale.US, "%.1f", bytes / (1024f * 1024f)));
+        }
+        if (bytes >= 1024L) {
+            return getString(R.string.size_kb_fmt,
+                    String.format(java.util.Locale.US, "%.0f", bytes / 1024f));
+        }
+        return getString(R.string.size_bytes_fmt, bytes);
+    }
+
+    /**
+     * Pixel size an imported animation gets on the face: as large as fits, never
+     * upscaled. The watch draws a block at its stored size, so this is both the
+     * on-screen size and what decides the block's cost.
+     */
+    private float animFitScale(int frameW, int frameH) {
+        if (frameW <= 0 || frameH <= 0) return 1f;
+        return Math.min(1f, Math.min((float) canvasWidth / frameW, (float) canvasHeight / frameH));
+    }
+
+    /** "1:04.5" — clip position for the trim labels. */
+    private static String formatClipTime(long ms) {
+        long totalTenths = Math.max(0, ms) / 100;
+        long minutes = totalTenths / 600;
+        long seconds = (totalTenths / 10) % 60;
+        long tenths = totalTenths % 10;
+        return String.format(java.util.Locale.US, "%d:%02d.%d", minutes, seconds, tenths);
+    }
+
+    /** A sampled thumbnail together with the clip position it came from. */
+    private static class ClipThumb {
+        final long timeMs;
+        final Bitmap bitmap;
+
+        ClipThumb(long timeMs, Bitmap bitmap) {
+            this.timeMs = timeMs;
+            this.bitmap = bitmap;
+        }
+    }
+
+    /**
+     * Samples the whole clip into evenly spaced thumbnails for the trim filmstrip.
+     *
+     * Done once when the import dialog opens rather than per drag: decoding a
+     * video frame costs tens of milliseconds, and re-decoding while a handle
+     * moves made the controls lag. With the strip in memory, moving a handle is
+     * just a change of alpha.
+     *
+     * Call off the UI thread.
+     */
+    @SuppressWarnings("deprecation")
+    private List<ClipThumb> sampleClipThumbs(boolean isGif, android.graphics.Movie movie,
+                                             android.media.MediaMetadataRetriever retriever,
+                                             long durationMs, int count, int targetW) {
+        List<ClipThumb> out = new ArrayList<>();
+        if (durationMs <= 0 || count <= 0) return out;
+        int n = Math.max(1, count);
+
+        for (int i = 0; i < n; i++) {
+            long at = durationMs * i / n;
+            Bitmap thumb = null;
+            try {
+                if (isGif) {
+                    if (movie == null || movie.width() <= 0) break;
+                    float ratio = targetW / (float) movie.width();
+                    int w = Math.max(1, targetW);
+                    int h = Math.max(1, Math.round(movie.height() * ratio));
+                    thumb = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                    Canvas c = new Canvas(thumb);
+                    c.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR);
+                    // Scale on the canvas: Movie.draw() cannot scale by itself and
+                    // decoding at full size would allocate a frame per thumbnail.
+                    c.scale(ratio, ratio);
+                    movie.setTime((int) Math.min(at, Math.max(0, movie.duration() - 1)));
+                    movie.draw(c, 0, 0);
+                } else if (retriever != null) {
+                    Bitmap full = retriever.getFrameAtTime(at * 1000L,
+                            android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                    if (full != null) {
+                        float ratio = targetW / (float) full.getWidth();
+                        thumb = Bitmap.createScaledBitmap(full, Math.max(1, targetW),
+                                Math.max(1, Math.round(full.getHeight() * ratio)), true);
+                        if (thumb != full) full.recycle();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Clip thumbnail failed at " + at + "ms", e);
+            }
+            if (thumb != null) {
+                out.add(new ClipThumb(at, thumb));
+            }
+        }
+        return out;
     }
 
     private static abstract class SimpleSeekListener implements SeekBar.OnSeekBarChangeListener {

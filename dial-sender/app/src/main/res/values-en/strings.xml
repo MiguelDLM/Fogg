@@ -964,4 +964,25 @@ Pick an activity above to record your first one.</string>
     <string name="send">Send</string>
     <string name="layer_lock">Lock layer</string>
     <string name="layer_delete">Delete layer</string>
+    <string name="compile_layer_off_canvas">The «%1\$s» layer ended up entirely outside the watch face. Move it inside the canvas or scale it down.</string>
+    <string name="anim_trim_section">Trim</string>
+    <string name="anim_trim_start">Start</string>
+    <string name="anim_trim_end">End</string>
+    <string name="anim_trim_range_fmt">%1\$s → %2\$s  ·  %3\$s s</string>
+    <string name="anim_trim_too_short">Select at least one frame</string>
+    <string name="preview_play">Play preview</string>
+    <string name="preview_stop">Stop preview</string>
+    <string name="size_bytes_fmt">%d B</string>
+    <string name="size_kb_fmt">%s KB</string>
+    <string name="size_mb_fmt">%s MB</string>
+    <string name="anim_size_estimate">Estimated size: up to %1\$s</string>
+    <string name="anim_cost_hint">Size follows area: at half the size it takes a quarter of the space.</string>
+    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · up to %4\$s</string>
+    <string name="dial_too_big_title">This dial will weigh %1\$s</string>
+    <string name="dial_too_big_msg">The heaviest block is «%1\$s» (%2\$s).
+
+Real video does not compress: every frame costs width × height × 2 bytes. To bring it down, make the animation smaller on the face (size falls with the square) or use fewer frames.
+
+Compile anyway?</string>
+    <string name="compile_anyway">Compile anyway</string>
 </resources>

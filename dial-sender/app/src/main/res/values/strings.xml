@@ -964,4 +964,25 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="send">Enviar</string>
     <string name="layer_lock">Bloquear capa</string>
     <string name="layer_delete">Eliminar capa</string>
+    <string name="compile_layer_off_canvas">La capa «%1\$s» quedó completamente fuera de la carátula. Muévela dentro del lienzo o reduce su escala.</string>
+    <string name="anim_trim_section">Recorte</string>
+    <string name="anim_trim_start">Inicio</string>
+    <string name="anim_trim_end">Fin</string>
+    <string name="anim_trim_range_fmt">%1\$s → %2\$s  ·  %3\$s s</string>
+    <string name="anim_trim_too_short">Selecciona al menos un fotograma</string>
+    <string name="preview_play">Reproducir vista previa</string>
+    <string name="preview_stop">Detener vista previa</string>
+    <string name="size_bytes_fmt">%d B</string>
+    <string name="size_kb_fmt">%s KB</string>
+    <string name="size_mb_fmt">%s MB</string>
+    <string name="anim_size_estimate">Peso estimado: hasta %1\$s</string>
+    <string name="anim_cost_hint">El peso crece con el área: a la mitad de tamaño ocupa la cuarta parte.</string>
+    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · hasta %4\$s</string>
+    <string name="dial_too_big_title">El dial va a pesar %1\$s</string>
+    <string name="dial_too_big_msg">El bloque más pesado es «%1\$s» (%2\$s).
+
+El vídeo real no se comprime: cada fotograma ocupa ancho × alto × 2 bytes. Para bajarlo, reduce el tamaño de la animación en la carátula (el peso cae al cuadrado) o usa menos fotogramas.
+
+¿Compilar de todos modos?</string>
+    <string name="compile_anyway">Compilar igual</string>
 </resources>

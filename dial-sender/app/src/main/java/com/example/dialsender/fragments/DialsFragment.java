@@ -658,8 +658,6 @@ public class DialsFragment extends Fragment {
 
             // Click -> Send, Long Click -> Context Menu
             holder.itemView.setOnClickListener(v -> sendDial(entry));
-            holder.btnSend.setText(R.string.send);
-            holder.btnSend.setOnClickListener(v -> sendDial(entry));
             holder.itemView.setOnLongClickListener(v -> {
                 showDialContextMenu(entry, position);
                 return true;
@@ -673,7 +671,7 @@ public class DialsFragment extends Fragment {
 
         class VH extends RecyclerView.ViewHolder {
             android.widget.ImageView imgThumb;
-            TextView txtName, txtSize, txtSource, btnSend;
+            TextView txtName, txtSize, txtSource;
 
             VH(View v) {
                 super(v);
@@ -681,7 +679,6 @@ public class DialsFragment extends Fragment {
                 txtName = v.findViewById(R.id.txtDialName);
                 txtSize = v.findViewById(R.id.txtDialSize);
                 txtSource = v.findViewById(R.id.txtDialSource);
-                btnSend = v.findViewById(R.id.btnSendDial);
             }
         }
     }

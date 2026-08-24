@@ -453,12 +453,239 @@ public class DialCompiler {
         blocks.add(block);
     }
 
+    /**
+     * Upper bound, in bytes, for what a block will occupy in the .bin.
+     *
+     * Frames are stored as RGB565 (2 bytes/px) or RGBA5658 (3 bytes/px) with
+     * every row padded to a 4-byte boundary. They are RLE-compressed, but RLE
+     * only helps on flat colour: measured on photographic frames it lands at
+     * about 1.01x raw, i.e. very slightly *worse* than storing them plainly. So
+     * for video — the case that blows a dial up to megabytes — this bound is the
+     * real size, while a poster-style animation will come out far below it.
+     */
+    public static long estimateBlockBytes(int width, int height, int frames, boolean hasAlpha) {
+        int bytesPerPixel = hasAlpha ? 3 : 2;
+        long rowBytes = (long) Math.max(0, width) * bytesPerPixel;
+        long alignedRow = (rowBytes + 3) & ~3L;
+        long perFrame = alignedRow * Math.max(0, height);
+        // +2% for the RLE run headers photographic content adds.
+        return (long) (perFrame * Math.max(0, frames) * 1.02);
+    }
+
+    /**
+     * Makes animation frames compressible.
+     *
+     * The container only knows two codecs, raw and RLE — the firmware would not
+     * understand anything better, so the payload has to be shaped to suit the
+     * RLE it does have. That encoder emits a 3-byte run for three or more
+     * identical RGB565 pixels in a row and 2 bytes per pixel otherwise, so on
+     * photographic frames it saves almost nothing: measured on real footage a
+     * full-width animation lands at 0.84x raw, i.e. megabytes.
+     *
+     * Averaging every {@code binX} pixels horizontally and repeating the result
+     * guarantees every run reaches the 3-pixel threshold. The effect is a step
+     * change rather than a gradual one — measured on a 466x262, 8-frame
+     * animation: 1605 KB untouched, 1376 KB at binX=2, 706 KB at binX=3, since
+     * only at 3 does every group become a run.
+     *
+     * {@code posterizeBits} additionally drops the low bits of each channel.
+     * It compresses further but bands smooth gradients visibly, so it is off by
+     * default and left as an opt-in.
+     *
+     * @param binX          horizontal group width; 1 disables
+     * @param posterizeBits bits kept per channel (1-8); 0 or 8 disables
+     */
+    public static Bitmap compressForAnimation(Bitmap src, int binX, int posterizeBits) {
+        if (src == null) return null;
+        boolean doBin = binX > 1;
+        boolean doPosterize = posterizeBits > 0 && posterizeBits < 8;
+        if (!doBin && !doPosterize) return src;
+
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] px = new int[w * h];
+        src.getPixels(px, 0, w, 0, 0, w, h);
+
+        int mask = doPosterize ? (0xFF << (8 - posterizeBits)) & 0xFF : 0xFF;
+
+        for (int y = 0; y < h; y++) {
+            int row = y * w;
+            for (int x0 = 0; x0 < w; x0 += doBin ? binX : 1) {
+                int n = doBin ? Math.min(binX, w - x0) : 1;
+                int a = 0, r = 0, g = 0, b = 0;
+                for (int k = 0; k < n; k++) {
+                    int c = px[row + x0 + k];
+                    a += (c >>> 24) & 0xFF;
+                    r += (c >>> 16) & 0xFF;
+                    g += (c >>> 8) & 0xFF;
+                    b += c & 0xFF;
+                }
+                a /= n; r /= n; g /= n; b /= n;
+                if (doPosterize) {
+                    r &= mask; g &= mask; b &= mask;
+                }
+                int packed = (a << 24) | (r << 16) | (g << 8) | b;
+                for (int k = 0; k < n; k++) {
+                    px[row + x0 + k] = packed;
+                }
+            }
+        }
+
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        out.setPixels(px, 0, w, 0, 0, w, h);
+        return out;
+    }
+
+    /**
+     * Exact compressed size of one RGB frame, mirroring the RLE encoder in
+     * hkcomposer.py: a run of three or more identical RGB565 pixels costs 3
+     * bytes, anything else costs 1 byte plus 2 per pixel, and runs and literal
+     * blocks both cap at 127 pixels.
+     *
+     * Simulated rather than estimated because the whole point of the size
+     * readout is to tell the user, before a multi-minute transfer, whether the
+     * dial will fit.
+     */
+    public static long rleSizeRgb565(Bitmap frame) {
+        if (frame == null) return 0;
+        int w = frame.getWidth();
+        int h = frame.getHeight();
+        int[] px = new int[w * h];
+        frame.getPixels(px, 0, w, 0, 0, w, h);
+
+        long total = 0;
+        for (int y = 0; y < h; y++) {
+            int row = y * w;
+            int x = 0;
+            while (x < w) {
+                int cur = to565(px[row + x]);
+                int run = 1;
+                int maxRun = Math.min(127, w - x);
+                while (run < maxRun && to565(px[row + x + run]) == cur) run++;
+
+                if (run >= 3) {
+                    total += 3;
+                    x += run;
+                } else {
+                    // Literal block, ended by the next run of 3 or the row edge.
+                    int lit = 0;
+                    int maxLit = Math.min(127, w - x);
+                    while (lit < maxLit) {
+                        int c = to565(px[row + x + lit]);
+                        int ahead = 1;
+                        while (ahead < 3 && x + lit + ahead < w
+                                && to565(px[row + x + lit + ahead]) == c) ahead++;
+                        if (ahead >= 3) break;
+                        lit++;
+                    }
+                    if (lit == 0) lit = 1;
+                    total += 1 + 2L * lit;
+                    x += lit;
+                }
+            }
+        }
+        // Frames are padded to a 4-byte boundary, plus the per-frame header.
+        total = (total + 3) & ~3L;
+        return total + RLE_FRAME_HEADER_BYTES;
+    }
+
+    /** Lookup table plus skip offset the RLE writer prepends to every frame. */
+    private static final int RLE_FRAME_HEADER_BYTES = 4;
+
+    private static int to565(int argb) {
+        int r = (argb >>> 16) & 0xFF, g = (argb >>> 8) & 0xFF, b = argb & 0xFF;
+        return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+
+    /** True for the three analogue hands, which anchor by their pivot. */
+    private static boolean isHandType(int type) {
+        return type == TYPE_ARM_HOUR || type == TYPE_ARM_MIN || type == TYPE_ARM_SEC;
+    }
+
+    /**
+     * Crops every block back inside the watch face.
+     *
+     * A block's position is stored in the binary as an unsigned 16-bit pair, so a
+     * layer dragged past the top or left edge cannot be encoded at all: the
+     * packer rejects the negative value and the whole compile dies with
+     * "ushort format requires 0 <= number <= 65535", which says nothing about
+     * which layer is at fault.
+     *
+     * The editor already previews such a layer clipped to the canvas, so the
+     * compiled dial is made to match that preview: the pixels that fall outside
+     * are cropped away and the origin moves to the edge. Overflow past the right
+     * and bottom edges is cropped too — that never crashed, but it shipped a
+     * block running off the screen.
+     *
+     * Hands are exempt: they anchor by their rotation pivot at the watch centre
+     * and are meant to sweep beyond their nominal box.
+     *
+     * @throws IllegalStateException if a block ends up with nothing left on screen
+     */
+    private void clampBlocksToCanvas() {
+        for (DialBlock block : blocks) {
+            if (block.images == null || block.images.length == 0) continue;
+            if (isHandType(block.type)) continue;
+            if (block.type == TYPE_PREVIEW) continue;
+
+            int cropLeft = block.x < 0 ? -block.x : 0;
+            int cropTop = block.y < 0 ? -block.y : 0;
+            int right = block.x + block.width;
+            int bottom = block.y + block.height;
+            int cropRight = right > deviceWidth ? right - deviceWidth : 0;
+            int cropBottom = bottom > deviceHeight ? bottom - deviceHeight : 0;
+
+            if (cropLeft == 0 && cropTop == 0 && cropRight == 0 && cropBottom == 0) {
+                continue;
+            }
+
+            int newW = block.width - cropLeft - cropRight;
+            int newH = block.height - cropTop - cropBottom;
+            if (newW <= 0 || newH <= 0) {
+                throw new IllegalStateException(OFF_CANVAS_PREFIX + block.type);
+            }
+
+            // Every frame is cropped with the same rect so a sprite sheet stays aligned.
+            Bitmap[] cropped = new Bitmap[block.images.length];
+            for (int i = 0; i < block.images.length; i++) {
+                Bitmap src = block.images[i];
+                if (src == null) {
+                    cropped[i] = null;
+                    continue;
+                }
+                int w = Math.min(newW, src.getWidth() - cropLeft);
+                int h = Math.min(newH, src.getHeight() - cropTop);
+                if (w <= 0 || h <= 0) {
+                    throw new IllegalStateException(OFF_CANVAS_PREFIX + block.type);
+                }
+                cropped[i] = Bitmap.createBitmap(src, cropLeft, cropTop, w, h);
+            }
+
+            Log.d(TAG, "Cropped " + blockTypeToString(block.type)
+                    + " from " + block.width + "x" + block.height + "@(" + block.x + "," + block.y + ")"
+                    + " to " + newW + "x" + newH + "@(" + Math.max(0, block.x) + "," + Math.max(0, block.y) + ")");
+
+            block.images = cropped;
+            block.width = newW;
+            block.height = newH;
+            block.x = Math.max(0, block.x);
+            block.y = Math.max(0, block.y);
+        }
+    }
+
+    /** Marker + block type, which the editor turns into a localised message. */
+    public static final String OFF_CANVAS_PREFIX = "FOGG_OFF_CANVAS:";
+
     public File compile(File outputDir, String filename) throws Exception {
         Log.d(TAG, "Starting compilation...");
 
         if (!Python.isStarted()) {
             throw new RuntimeException("Python not started. Initialize in Application or Activity.");
         }
+
+        // Bring every block inside the face before anything is serialised: the
+        // format cannot represent a negative position.
+        clampBlocksToCanvas();
 
         File tempDir = new File(outputDir, "temp_compile_" + System.currentTimeMillis());
         if (!tempDir.exists() && !tempDir.mkdirs()) {
