@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
     <!-- Toolbar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="12dp"
-        android:background="@color/bg_surface"
+        android:background="?attr/foggBgSurface"
         android:gravity="center_vertical"
         android:elevation="0dp">
 
@@ -29,9 +30,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/dial_designer"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"/>
+            android:textColor="?attr/foggTextPrimary"
+            android:textAppearance="?attr/foggTextScreenTitle"/>
 
         <Button
             android:id="@+id/btnUpload"
@@ -39,7 +39,10 @@
             android:layout_height="40dp"
             style="@style/ButtonSuccess"
             android:text="@string/compile"
-            android:textSize="13sp"
+            android:textAppearance="?attr/foggTextRowValue"
+            app:icon="@drawable/ic_compile"
+            app:iconSize="16dp"
+            app:iconTint="?attr/foggOnAccent"
             android:paddingHorizontal="16dp"/>
     </LinearLayout>
 
@@ -55,14 +58,14 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="@color/bg_primary">
+            android:background="?attr/foggBgPrimary">
 
             <FrameLayout
                 android:id="@+id/previewContainer"
                 android:layout_width="240dp"
                 android:layout_height="240dp"
                 android:layout_gravity="center"
-                android:background="@color/bg_card"/>
+                android:background="?attr/foggBgCard"/>
 
             <!-- Center crosshair guide (dashed lines) -->
             <View
@@ -95,14 +98,14 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:background="@color/bg_surface"
+            android:background="?attr/foggBgSurface"
             android:padding="0dp">
 
             <!-- Layer Panel Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                android:background="@color/bg_elevated"
+                android:background="?attr/foggBgElevated"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="12dp">
 
@@ -111,8 +114,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/layers_title"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
+                    android:textColor="?attr/foggTextSecondary"
+                    android:textAppearance="?attr/foggTextRowValue"
                     android:textStyle="bold"
                     android:letterSpacing="0.1"/>
 
@@ -121,21 +124,21 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="0"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp"
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextRowValue"
                     android:layout_marginEnd="12dp"/>
 
-                <TextView
+                <ImageView
                     android:id="@+id/btnAddElement"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:gravity="center"
-                    android:text="＋"
-                    android:textColor="@color/accent_primary"
-                    android:textSize="22sp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_add"
+                    android:contentDescription="@string/add_layer"
                     android:clickable="true"
                     android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless"/>
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="?attr/foggAccent"/>
             </LinearLayout>
 
             <!-- Layer List -->
@@ -153,7 +156,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/bg_elevated"
+                android:background="?attr/foggBgElevated"
                 android:padding="10dp"
                 android:visibility="gone">
 
@@ -170,8 +173,8 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text=""
-                        android:textColor="@color/accent_primary"
-                        android:textSize="12sp"
+                        android:textColor="?attr/foggAccent"
+                        android:textAppearance="?attr/foggTextRowValue"
                         android:textStyle="bold"/>
 
                     <Button
@@ -180,7 +183,10 @@
                         android:layout_width="wrap_content"
                         android:layout_height="30dp"
                         android:text="@string/edit_element"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
+                        app:icon="@drawable/ic_edit"
+                        app:iconSize="14dp"
+                        app:iconTint="?attr/foggAccent"
                         android:paddingHorizontal="8dp"
                         android:layout_marginEnd="4dp"/>
 
@@ -190,7 +196,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="30dp"
                         android:text="@string/copy_style_from"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:paddingHorizontal="8dp"
                         android:visibility="gone"/>
                 </LinearLayout>
@@ -207,8 +213,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="X:"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp"
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:layout_marginEnd="4dp"/>
                     <EditText
                         android:id="@+id/edtLayerPosX"
@@ -216,18 +222,18 @@
                         android:layout_height="32dp"
                         android:layout_weight="1"
                         android:inputType="numberSigned"
-                        android:textColor="@color/text_primary"
-                        android:background="@color/bg_surface"
+                        android:textColor="?attr/foggTextPrimary"
+                        android:background="?attr/foggBgSurface"
                         android:padding="4dp"
-                        android:textSize="11sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:fontFamily="monospace"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Y:"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp"
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="4dp"/>
                     <EditText
@@ -236,10 +242,10 @@
                         android:layout_height="32dp"
                         android:layout_weight="1"
                         android:inputType="numberSigned"
-                        android:textColor="@color/text_primary"
-                        android:background="@color/bg_surface"
+                        android:textColor="?attr/foggTextPrimary"
+                        android:background="?attr/foggBgSurface"
                         android:padding="4dp"
-                        android:textSize="11sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:fontFamily="monospace"/>
                 </LinearLayout>
 
@@ -258,7 +264,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/center_x"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"
                         android:layout_marginEnd="3dp"/>
 
@@ -269,7 +275,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/center_y"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"
                         android:layout_marginEnd="3dp"/>
 
@@ -280,7 +286,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/center_all"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"/>
                 </LinearLayout>
 
@@ -300,7 +306,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/bg_fit"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"
                         android:layout_marginEnd="3dp"/>
 
@@ -311,7 +317,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/bg_fill"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"
                         android:layout_marginEnd="3dp"/>
 
@@ -322,7 +328,7 @@
                         android:layout_weight="1"
                         android:layout_height="32dp"
                         android:text="@string/bg_reset"
-                        android:textSize="10sp"
+                        android:textAppearance="?attr/foggTextCaption"
                         android:padding="0dp"/>
                 </LinearLayout>
 
@@ -336,8 +342,8 @@
                         android:layout_width="60dp"
                         android:layout_height="wrap_content"
                         android:text="@string/scale"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <SeekBar
                         android:id="@+id/seekScale"
                         android:layout_width="0dp"
@@ -345,8 +351,8 @@
                         android:layout_weight="1"
                         android:max="200"
                         android:progress="100"
-                        android:progressTint="@color/accent_primary"
-                        android:thumbTint="@color/accent_primary"/>
+                        android:progressTint="?attr/foggAccent"
+                        android:thumbTint="?attr/foggAccent"/>
                 </LinearLayout>
 
                 <!-- Rotation -->
@@ -359,8 +365,8 @@
                         android:layout_width="60dp"
                         android:layout_height="wrap_content"
                         android:text="@string/rotation"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp"/>
+                        android:textColor="?attr/foggTextSecondary"
+                        android:textAppearance="?attr/foggTextCaption"/>
                     <SeekBar
                         android:id="@+id/seekRotation"
                         android:layout_width="0dp"
@@ -368,8 +374,8 @@
                         android:layout_weight="1"
                         android:max="360"
                         android:progress="0"
-                        android:progressTint="@color/accent_purple"
-                        android:thumbTint="@color/accent_purple"/>
+                        android:progressTint="?attr/foggSleep"
+                        android:thumbTint="?attr/foggSleep"/>
                 </LinearLayout>
 
                 <!-- Move buttons -->
@@ -385,7 +391,7 @@
                         android:layout_height="34dp"
                         style="@style/ButtonSecondary"
                         android:text="▲"
-                        android:textSize="14sp"
+                        android:textAppearance="?attr/foggTextRowLabel"
                         android:layout_marginEnd="4dp"/>
                     <Button
                         android:id="@+id/btnMoveDown"
@@ -394,7 +400,7 @@
                         android:layout_height="34dp"
                         style="@style/ButtonSecondary"
                         android:text="▼"
-                        android:textSize="14sp"/>
+                        android:textAppearance="?attr/foggTextRowLabel"/>
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton

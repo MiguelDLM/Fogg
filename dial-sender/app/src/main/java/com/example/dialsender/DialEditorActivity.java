@@ -142,11 +142,22 @@ public class DialEditorActivity extends AppCompatActivity {
         };
     }
 
+    /** Icons for {@link #getCategoryNames()}, in the same order. */
+    private static final int[] CATEGORY_ICONS = {
+            R.drawable.ic_alarm,        // digital time
+            R.drawable.ic_calendar,     // date
+            R.drawable.ic_watchface,    // analogue hands
+            R.drawable.ic_metric_heart, // health
+            R.drawable.ic_battery,      // status
+            R.drawable.ic_layers        // decoration
+    };
+
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(LocaleHelper.wrap(base));
     }
 
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
 
         if (!Python.isStarted()) {
@@ -611,11 +622,13 @@ public class DialEditorActivity extends AppCompatActivity {
 
             boolean isSelected = (layerIdx == selectedLayerIndex);
             holder.itemView.setAlpha(isSelected ? 1.0f : (layer.locked ? 0.5f : 0.7f));
-            holder.itemView.setBackgroundColor(getResources().getColor(
-                    isSelected ? R.color.bg_elevated : R.color.bg_card));
+            holder.itemView.setBackgroundColor(com.example.dialsender.theme.FoggTheme.color(
+                    DialEditorActivity.this,
+                    isSelected ? R.attr.foggBgElevated : R.attr.foggBgCard));
 
             // Lock toggle
-            holder.btnLock.setText(layer.locked ? "🔒" : "🔓");
+            holder.btnLock.setImageResource(
+                    layer.locked ? R.drawable.ic_lock : R.drawable.ic_lock_open);
             holder.btnLock.setOnClickListener(v -> {
                 layer.locked = !layer.locked;
                 refreshAll();
@@ -651,7 +664,8 @@ public class DialEditorActivity extends AppCompatActivity {
 
         class VH extends RecyclerView.ViewHolder {
             ImageView imgThumb;
-            TextView txtName, txtType, txtFrameBadge, btnDelete, btnLock;
+            TextView txtName, txtType, txtFrameBadge;
+            android.widget.ImageView btnDelete, btnLock;
 
             VH(View v) {
                 super(v);
@@ -681,9 +695,19 @@ public class DialEditorActivity extends AppCompatActivity {
         topLevel[2] = getString(R.string.cat_scale);
         System.arraycopy(catNames, 0, topLevel, 3, catNames.length);
 
+        // Background, animated background and the hour ring sit above the
+        // element categories, so their icons prefix the category icon list.
+        int[] topLevelIcons = new int[topLevel.length];
+        topLevelIcons[0] = R.drawable.ic_image;
+        topLevelIcons[1] = R.drawable.ic_play;
+        topLevelIcons[2] = R.drawable.ic_units;
+        System.arraycopy(CATEGORY_ICONS, 0, topLevelIcons, 3,
+                Math.min(CATEGORY_ICONS.length, topLevelIcons.length - 3));
+
         new AlertDialog.Builder(this)
                 .setTitle(R.string.add_layer)
-                .setItems(topLevel, (dialog, which) -> {
+                .setAdapter(new com.example.dialsender.views.FoggChoiceAdapter(
+                        this, topLevel, topLevelIcons), (dialog, which) -> {
                     if (which == 0) {
                         pendingElementType = DialCompiler.TYPE_BACKGROUND;
                         pickImageFromGallery();

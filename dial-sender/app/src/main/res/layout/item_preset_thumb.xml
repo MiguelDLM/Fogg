@@ -5,7 +5,7 @@
     android:orientation="vertical"
     android:gravity="center"
     android:padding="8dp"
-    android:background="@color/bg_card"
+    android:background="?attr/foggBgCard"
     android:layout_margin="4dp"
     android:clickable="true"
     android:focusable="true"
@@ -17,14 +17,14 @@
         android:layout_height="64dp"
         android:scaleType="fitCenter"
         android:layout_marginBottom="4dp"
-        android:background="#111111"/>
+        android:background="?attr/foggBgPrimary"/>
 
     <TextView
         android:id="@+id/txtPresetName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/text_secondary"
-        android:textSize="11sp"
+        android:textColor="?attr/foggTextSecondary"
+        android:textAppearance="?attr/foggTextCaption"
         android:maxLines="1"
         android:ellipsize="end"/>
 
