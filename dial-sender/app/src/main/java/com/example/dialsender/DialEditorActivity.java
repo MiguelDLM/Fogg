@@ -589,7 +589,13 @@ public class DialEditorActivity extends AppCompatActivity {
             holder.txtName.setText(layer.name);
             holder.txtType.setText(DialCompiler.blockTypeToString(layer.nativeElementType));
 
-            Bitmap thumb = (layer.frames != null && layer.frames.length > 0) ? layer.frames[0] : layer.icon;
+            // Same representative frame the canvas draws, so the row and the
+            // preview agree (connected bluetooth, 70 % gauge, sunny weather…)
+            Bitmap thumb = layer.icon;
+            if (layer.frames != null && layer.frames.length > 0) {
+                int fi = getPreviewFrameIndex(layer.nativeElementType, layer.frames.length);
+                thumb = layer.frames[Math.min(fi, layer.frames.length - 1)];
+            }
             if (thumb != null) {
                 holder.imgThumb.setImageBitmap(thumb);
             } else {
@@ -984,7 +990,8 @@ public class DialEditorActivity extends AppCompatActivity {
     /** True when the layer still carries the settings that generated it. */
     private boolean hasBuilderConfig(DialLayer layer) {
         return layer.fontConfig != null || layer.handConfig != null
-                || layer.batteryConfig != null || layer.weatherConfig != null;
+                || layer.batteryConfig != null || layer.weatherConfig != null
+                || layer.progressConfig != null || layer.connectConfig != null;
     }
 
     /** Menu label of the builder that can re-edit this layer, or null if it has none. */
@@ -998,7 +1005,15 @@ public class DialEditorActivity extends AppCompatActivity {
             return getString(R.string.edit_battery);
         if (layer.weatherConfig != null || layer.nativeElementType == DialCompiler.TYPE_WEATHER)
             return getString(R.string.edit_weather);
+        if (layer.progressConfig != null || isProgressType(layer.nativeElementType))
+            return getString(R.string.edit_progress);
+        if (layer.connectConfig != null || layer.nativeElementType == DialCompiler.TYPE_CONNECT)
+            return getString(R.string.edit_connect);
         return null;
+    }
+
+    private boolean isProgressType(int type) {
+        return type == DialCompiler.TYPE_PROGRESS1 || type == DialCompiler.TYPE_PROGRESS2;
     }
 
     /** @return true when a builder was opened for this layer. */
@@ -1018,6 +1033,14 @@ public class DialEditorActivity extends AppCompatActivity {
         }
         if (layer.weatherConfig != null || layer.nativeElementType == DialCompiler.TYPE_WEATHER) {
             showWeatherGenerator(layer);
+            return true;
+        }
+        if (layer.progressConfig != null || isProgressType(layer.nativeElementType)) {
+            showProgressGenerator(layer, layer.nativeElementType);
+            return true;
+        }
+        if (layer.connectConfig != null || layer.nativeElementType == DialCompiler.TYPE_CONNECT) {
+            showConnectionGenerator(layer);
             return true;
         }
         return false;
@@ -1235,6 +1258,16 @@ public class DialEditorActivity extends AppCompatActivity {
             items.add(new Object[] { getString(R.string.from_weather_builder), "__WEATHER_BUILDER__", null });
         }
 
+        // Progress Builder option for the two arc/bar gauges
+        if (elementType == DialCompiler.TYPE_PROGRESS1 || elementType == DialCompiler.TYPE_PROGRESS2) {
+            items.add(new Object[] { getString(R.string.from_progress_builder), "__PROGRESS_BUILDER__", null });
+        }
+
+        // Connection Builder option for the bluetooth state icon
+        if (elementType == DialCompiler.TYPE_CONNECT) {
+            items.add(new Object[] { getString(R.string.from_connect_builder), "__CONNECT_BUILDER__", null });
+        }
+
         items.add(new Object[] { getString(R.string.from_gallery), null, null });
 
         // Font creator option for digit types
@@ -1279,7 +1312,8 @@ public class DialEditorActivity extends AppCompatActivity {
                 if (thumb != null) {
                     h.imgThumb.setImageBitmap(thumb);
                 } else if ("__HAND_BUILDER__".equals(item[1]) || "__BATTERY_BUILDER__".equals(item[1])
-                        || "__WEATHER_BUILDER__".equals(item[1]) || "__FONT__".equals(item[1])) {
+                        || "__WEATHER_BUILDER__".equals(item[1]) || "__PROGRESS_BUILDER__".equals(item[1])
+                        || "__CONNECT_BUILDER__".equals(item[1]) || "__FONT__".equals(item[1])) {
                     h.imgThumb.setImageResource(android.R.drawable.ic_menu_edit);
                 } else if (item[1] == null) {
                     h.imgThumb.setImageResource(android.R.drawable.ic_menu_gallery);
@@ -1303,6 +1337,14 @@ public class DialEditorActivity extends AppCompatActivity {
                         DialLayer target = pendingStyleTarget;
                         pendingStyleTarget = null;
                         showWeatherGenerator(target);
+                    } else if ("__PROGRESS_BUILDER__".equals(path)) {
+                        DialLayer target = pendingStyleTarget;
+                        pendingStyleTarget = null;
+                        showProgressGenerator(target, elementType);
+                    } else if ("__CONNECT_BUILDER__".equals(path)) {
+                        DialLayer target = pendingStyleTarget;
+                        pendingStyleTarget = null;
+                        showConnectionGenerator(target);
                     } else if ("__FONT__".equals(path)) {
                         showFontCreator(elementType);
                     } else if ("__SVG__".equals(path)) {
@@ -2385,6 +2427,8 @@ public class DialEditorActivity extends AppCompatActivity {
         target.fontConfig    = created.fontConfig;
         target.batteryConfig = created.batteryConfig;
         target.weatherConfig = created.weatherConfig;
+        target.progressConfig = created.progressConfig;
+        target.connectConfig = created.connectConfig;
         target.pendingStyle  = false;
         // Restyling a layer that already sat on the canvas keeps the size and
         // position the user gave it; a placeholder has nothing worth keeping.
@@ -2981,8 +3025,12 @@ public class DialEditorActivity extends AppCompatActivity {
                 idx = 0;
                 break;
             case DialCompiler.TYPE_CONNECT:
-                idx = 0;
-                break;
+                idx = 1;
+                break; // connected — the state a dial is usually designed around
+            case DialCompiler.TYPE_PROGRESS1:
+            case DialCompiler.TYPE_PROGRESS2:
+                idx = 7;
+                break; // 70 %, so the gauge shows both track and fill
             default:
                 idx = 0;
                 break;
@@ -3733,9 +3781,9 @@ public class DialEditorActivity extends AppCompatActivity {
         final int[] rainColors  = { Color.parseColor("#38BDF8"), Color.parseColor("#2563EB"), Color.WHITE,
                                     Color.parseColor("#22D3EE"), Color.parseColor("#94A3B8"), Color.parseColor("#A78BFA") };
 
-        buildWeatherPalette(paletteSun,   sunColors,   cfg.sunColor,   c -> { cfg.sunColor = c;   updatePreviews.run(); });
-        buildWeatherPalette(paletteCloud, cloudColors, cfg.cloudColor, c -> { cfg.cloudColor = c; updatePreviews.run(); });
-        buildWeatherPalette(paletteRain,  rainColors,  cfg.rainColor,  c -> { cfg.rainColor = c;  updatePreviews.run(); });
+        buildColorPalette(paletteSun,   sunColors,   cfg.sunColor,   c -> { cfg.sunColor = c;   updatePreviews.run(); });
+        buildColorPalette(paletteCloud, cloudColors, cfg.cloudColor, c -> { cfg.cloudColor = c; updatePreviews.run(); });
+        buildColorPalette(paletteRain,  rainColors,  cfg.rainColor,  c -> { cfg.rainColor = c;  updatePreviews.run(); });
 
         rgStyle.setOnCheckedChangeListener((group, checkedId) -> {
             cfg.outline = (checkedId == R.id.rbWeatherOutline);
@@ -3797,7 +3845,7 @@ public class DialEditorActivity extends AppCompatActivity {
     }
 
     /** Fills a colour row with tappable swatches; the active one gets an accent ring. */
-    private void buildWeatherPalette(LinearLayout row, int[] colors, int selected,
+    private void buildColorPalette(LinearLayout row, int[] colors, int selected,
                                      java.util.function.IntConsumer onPick) {
         row.removeAllViews();
         final int[] current = { selected };
@@ -3823,6 +3871,307 @@ public class DialEditorActivity extends AppCompatActivity {
             });
             row.addView(swatch);
         }
+    }
+
+    // ===================== PROGRESS GENERATOR =====================
+
+    /**
+     * @param editTarget non-null re-opens an existing gauge for tweaking in place.
+     * @param elementType which of the two progress blocks the new layer becomes.
+     */
+    private void showProgressGenerator(DialLayer editTarget, int elementType) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_progress_generator, null);
+        Spinner spinnerStyle = dialogView.findViewById(R.id.spinnerProgressStyle);
+        SeekBar seekThickness = dialogView.findViewById(R.id.seekProgressThickness);
+        SeekBar seekSweep = dialogView.findViewById(R.id.seekProgressSweep);
+        SeekBar seekStart = dialogView.findViewById(R.id.seekProgressStart);
+        SeekBar seekSegments = dialogView.findViewById(R.id.seekProgressSegments);
+        CheckBox chkGradient = dialogView.findViewById(R.id.chkProgressGradient);
+        CheckBox chkTrack = dialogView.findViewById(R.id.chkProgressTrack);
+        CheckBox chkRounded = dialogView.findViewById(R.id.chkProgressRounded);
+        EditText edtW = dialogView.findViewById(R.id.edtProgressWidth);
+        EditText edtH = dialogView.findViewById(R.id.edtProgressHeight);
+        View rowSweep = dialogView.findViewById(R.id.rowProgressSweep);
+        View rowStart = dialogView.findViewById(R.id.rowProgressStart);
+        View rowSegments = dialogView.findViewById(R.id.rowProgressSegments);
+        LinearLayout paletteFill = dialogView.findViewById(R.id.paletteProgressFill);
+        LinearLayout paletteEnd = dialogView.findViewById(R.id.paletteProgressEnd);
+        LinearLayout paletteTrack = dialogView.findViewById(R.id.paletteProgressTrack);
+        Button btnApply = dialogView.findViewById(R.id.btnApplyProgress);
+
+        ImageView[] previews = {
+                dialogView.findViewById(R.id.imgProgress0), dialogView.findViewById(R.id.imgProgress1),
+                dialogView.findViewById(R.id.imgProgress2), dialogView.findViewById(R.id.imgProgress3),
+                dialogView.findViewById(R.id.imgProgress4), dialogView.findViewById(R.id.imgProgress5)
+        };
+
+        ProgressGenerator.ProgressConfig cfg =
+                (editTarget != null && editTarget.progressConfig != null)
+                        ? editTarget.progressConfig.copy()
+                        : new ProgressGenerator.ProgressConfig();
+        cfg.frameCount = ProgressGenerator.FRAME_COUNT;
+
+        final String[] styles = { "arc", "ring", "bar", "segments", "dots" };
+        String[] styleNames = {
+                getString(R.string.progress_style_arc), getString(R.string.progress_style_ring),
+                getString(R.string.progress_style_bar), getString(R.string.progress_style_segments),
+                getString(R.string.progress_style_dots)
+        };
+        spinnerStyle.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, styleNames));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        Runnable syncRows = () -> {
+            boolean radial = !"bar".equals(cfg.presetStyle) && !"dots".equals(cfg.presetStyle);
+            boolean segmented = "segments".equals(cfg.presetStyle) || "dots".equals(cfg.presetStyle);
+            rowSweep.setVisibility(radial ? View.VISIBLE : View.GONE);
+            rowStart.setVisibility(radial ? View.VISIBLE : View.GONE);
+            rowSegments.setVisibility(segmented ? View.VISIBLE : View.GONE);
+        };
+
+        Runnable updatePreviews = () -> {
+            // Sample the 11-frame strip evenly: 0 %, 20 % … 100 %
+            for (int i = 0; i < previews.length; i++) {
+                int frameIndex = Math.round(i * (cfg.frameCount - 1) / (float) (previews.length - 1));
+                previews[i].setImageBitmap(
+                        ProgressGenerator.generateSingleFrame(cfg, frameIndex, cfg.frameCount));
+            }
+        };
+
+        // Restore the saved config before listeners are wired up
+        for (int i = 0; i < styles.length; i++) {
+            if (styles[i].equals(cfg.presetStyle)) { spinnerStyle.setSelection(i); break; }
+        }
+        seekThickness.setProgress(cfg.thickness);
+        seekSweep.setProgress(Math.abs(cfg.sweepAngle));
+        seekStart.setProgress((cfg.startAngle % 360 + 360) % 360);
+        seekSegments.setProgress(cfg.segmentCount);
+        chkGradient.setChecked("gradient".equals(cfg.colorMode));
+        chkTrack.setChecked(cfg.showTrack);
+        chkRounded.setChecked(cfg.rounded);
+        edtW.setText(String.valueOf(cfg.frameWidth));
+        edtH.setText(String.valueOf(cfg.frameHeight));
+        btnApply.setText(editTarget != null ? R.string.progress_update : R.string.progress_apply);
+
+        final int[] fillColors  = { Color.parseColor("#38BDF8"), Color.parseColor("#2ECC71"), Color.parseColor("#FFC83B"),
+                                    Color.parseColor("#FF4D4D"), Color.parseColor("#A855F7"), Color.WHITE };
+        final int[] endColors   = { Color.parseColor("#A855F7"), Color.parseColor("#38BDF8"), Color.parseColor("#2ECC71"),
+                                    Color.parseColor("#FF7043"), Color.parseColor("#FFC83B"), Color.WHITE };
+        final int[] trackColors = { Color.parseColor("#2A3340"), Color.parseColor("#3F3F46"), Color.parseColor("#1E293B"),
+                                    Color.parseColor("#4B5563"), Color.parseColor("#111827"), Color.parseColor("#94A3B8") };
+
+        buildColorPalette(paletteFill,  fillColors,  cfg.fillColor,  c -> { cfg.fillColor = c;  updatePreviews.run(); });
+        buildColorPalette(paletteEnd,   endColors,   cfg.endColor,   c -> { cfg.endColor = c;   updatePreviews.run(); });
+        buildColorPalette(paletteTrack, trackColors, cfg.trackColor, c -> { cfg.trackColor = c; updatePreviews.run(); });
+
+        spinnerStyle.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View v, int position, long id) {
+                cfg.presetStyle = styles[position];
+                syncRows.run();
+                updatePreviews.run();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        SimpleSeekListener seekListener = new SimpleSeekListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                if (sb == seekThickness)      cfg.thickness = Math.max(1, progress);
+                else if (sb == seekSweep)     cfg.sweepAngle = Math.max(10, progress);
+                else if (sb == seekStart)     cfg.startAngle = progress;
+                else if (sb == seekSegments)  cfg.segmentCount = Math.max(3, progress);
+                updatePreviews.run();
+            }
+        };
+        seekThickness.setOnSeekBarChangeListener(seekListener);
+        seekSweep.setOnSeekBarChangeListener(seekListener);
+        seekStart.setOnSeekBarChangeListener(seekListener);
+        seekSegments.setOnSeekBarChangeListener(seekListener);
+
+        chkGradient.setOnCheckedChangeListener((b, checked) -> {
+            cfg.colorMode = checked ? "gradient" : "solid";
+            updatePreviews.run();
+        });
+        chkTrack.setOnCheckedChangeListener((b, checked) -> { cfg.showTrack = checked; updatePreviews.run(); });
+        chkRounded.setOnCheckedChangeListener((b, checked) -> { cfg.rounded = checked; updatePreviews.run(); });
+
+        android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try {
+                    cfg.frameWidth = Math.max(16, Integer.parseInt(edtW.getText().toString()));
+                    cfg.frameHeight = Math.max(16, Integer.parseInt(edtH.getText().toString()));
+                    updatePreviews.run();
+                } catch (Exception ignored) {}
+            }
+        };
+        edtW.addTextChangedListener(dimWatcher);
+        edtH.addTextChangedListener(dimWatcher);
+
+        syncRows.run();
+        updatePreviews.run();
+
+        btnApply.setOnClickListener(v -> {
+            dialog.dismiss();
+            Bitmap fullSheet = ProgressGenerator.generateVerticalSpriteSheet(cfg);
+            Bitmap[] frames = new Bitmap[cfg.frameCount];
+            for (int i = 0; i < cfg.frameCount; i++) {
+                frames[i] = Bitmap.createBitmap(fullSheet, 0, i * cfg.frameHeight, cfg.frameWidth, cfg.frameHeight);
+            }
+            int type = editTarget != null ? editTarget.nativeElementType : elementType;
+            DialLayer layer = editTarget != null ? editTarget
+                    : new DialLayer(DialLayer.TYPE_ELEMENT, frames[frames.length - 1], getBlockLabel(type), type);
+            layer.icon = frames[frames.length - 1];
+            layer.frames = frames;
+            layer.frameCount = cfg.frameCount;
+            layer.isSpriteSheet = true;
+            layer.compositeImage = fullSheet;
+            layer.progressConfig = cfg;
+            layer.pendingStyle = false;
+            if (editTarget == null) {
+                layer.posX = (canvasWidth - cfg.frameWidth) / 2f;
+                layer.posY = (canvasHeight - cfg.frameHeight) / 2f;
+                layers.add(layer);
+                selectedLayerIndex = layers.size() - 1;
+            }
+            refreshAll();
+            Toast.makeText(this, editTarget != null ? getString(R.string.element_updated)
+                    : getString(R.string.progress_apply), Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.show();
+    }
+
+    // ===================== CONNECTION GENERATOR =====================
+
+    /** @param editTarget non-null re-opens an existing connection icon in place. */
+    private void showConnectionGenerator(DialLayer editTarget) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_connect_generator, null);
+        Spinner spinnerStyle = dialogView.findViewById(R.id.spinnerConnectStyle);
+        SeekBar seekStroke = dialogView.findViewById(R.id.seekConnectStroke);
+        CheckBox chkSlash = dialogView.findViewById(R.id.chkConnectSlash);
+        CheckBox chkBadge = dialogView.findViewById(R.id.chkConnectBadge);
+        EditText edtW = dialogView.findViewById(R.id.edtConnectWidth);
+        EditText edtH = dialogView.findViewById(R.id.edtConnectHeight);
+        LinearLayout paletteOn = dialogView.findViewById(R.id.paletteConnectOn);
+        LinearLayout paletteOff = dialogView.findViewById(R.id.paletteConnectOff);
+        Button btnApply = dialogView.findViewById(R.id.btnApplyConnect);
+        ImageView[] previews = {
+                dialogView.findViewById(R.id.imgConnect0),
+                dialogView.findViewById(R.id.imgConnect1)
+        };
+
+        ConnectionGenerator.ConnectConfig cfg =
+                (editTarget != null && editTarget.connectConfig != null)
+                        ? editTarget.connectConfig.copy()
+                        : new ConnectionGenerator.ConnectConfig();
+        cfg.frameCount = ConnectionGenerator.FRAME_COUNT;
+
+        final String[] styles = { "bluetooth", "waves", "link" };
+        String[] styleNames = {
+                getString(R.string.connect_style_bt), getString(R.string.connect_style_waves),
+                getString(R.string.connect_style_link)
+        };
+        spinnerStyle.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, styleNames));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        Runnable updatePreviews = () -> {
+            for (int i = 0; i < previews.length; i++) {
+                previews[i].setImageBitmap(ConnectionGenerator.generateSingleFrame(cfg, i));
+            }
+        };
+
+        for (int i = 0; i < styles.length; i++) {
+            if (styles[i].equals(cfg.presetStyle)) { spinnerStyle.setSelection(i); break; }
+        }
+        seekStroke.setProgress(cfg.strokeWidth);
+        chkSlash.setChecked(cfg.slashWhenOff);
+        chkBadge.setChecked(cfg.badge);
+        edtW.setText(String.valueOf(cfg.frameWidth));
+        edtH.setText(String.valueOf(cfg.frameHeight));
+        btnApply.setText(editTarget != null ? R.string.connect_update : R.string.connect_apply);
+
+        final int[] onColors  = { Color.parseColor("#38BDF8"), Color.parseColor("#2ECC71"), Color.WHITE,
+                                  Color.parseColor("#FFC83B"), Color.parseColor("#A855F7"), Color.parseColor("#22D3EE") };
+        final int[] offColors = { Color.parseColor("#64748B"), Color.parseColor("#FF4D4D"), Color.parseColor("#475569"),
+                                  Color.parseColor("#94A3B8"), Color.parseColor("#3F3F46"), Color.WHITE };
+
+        buildColorPalette(paletteOn,  onColors,  cfg.connectedColor,    c -> { cfg.connectedColor = c;    updatePreviews.run(); });
+        buildColorPalette(paletteOff, offColors, cfg.disconnectedColor, c -> { cfg.disconnectedColor = c; updatePreviews.run(); });
+
+        spinnerStyle.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View v, int position, long id) {
+                cfg.presetStyle = styles[position];
+                updatePreviews.run();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        seekStroke.setOnSeekBarChangeListener(new SimpleSeekListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                cfg.strokeWidth = Math.max(1, progress);
+                updatePreviews.run();
+            }
+        });
+        chkSlash.setOnCheckedChangeListener((b, checked) -> { cfg.slashWhenOff = checked; updatePreviews.run(); });
+        chkBadge.setOnCheckedChangeListener((b, checked) -> { cfg.badge = checked; updatePreviews.run(); });
+
+        android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try {
+                    cfg.frameWidth = Math.max(16, Integer.parseInt(edtW.getText().toString()));
+                    cfg.frameHeight = Math.max(16, Integer.parseInt(edtH.getText().toString()));
+                    updatePreviews.run();
+                } catch (Exception ignored) {}
+            }
+        };
+        edtW.addTextChangedListener(dimWatcher);
+        edtH.addTextChangedListener(dimWatcher);
+
+        updatePreviews.run();
+
+        btnApply.setOnClickListener(v -> {
+            dialog.dismiss();
+            Bitmap fullSheet = ConnectionGenerator.generateVerticalSpriteSheet(cfg);
+            Bitmap[] frames = new Bitmap[cfg.frameCount];
+            for (int i = 0; i < cfg.frameCount; i++) {
+                frames[i] = Bitmap.createBitmap(fullSheet, 0, i * cfg.frameHeight, cfg.frameWidth, cfg.frameHeight);
+            }
+            DialLayer layer = editTarget != null ? editTarget
+                    : new DialLayer(DialLayer.TYPE_ELEMENT, frames[ConnectionGenerator.CONNECTED],
+                            getBlockLabel(DialCompiler.TYPE_CONNECT), DialCompiler.TYPE_CONNECT);
+            layer.icon = frames[ConnectionGenerator.CONNECTED];
+            layer.frames = frames;
+            layer.frameCount = cfg.frameCount;
+            layer.isSpriteSheet = true;
+            layer.compositeImage = fullSheet;
+            layer.connectConfig = cfg;
+            layer.pendingStyle = false;
+            if (editTarget == null) {
+                layers.add(layer);
+                selectedLayerIndex = layers.size() - 1;
+            }
+            refreshAll();
+            Toast.makeText(this, editTarget != null ? getString(R.string.element_updated)
+                    : getString(R.string.connect_apply), Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.show();
     }
 
     // ===================== COMPILE WITH NAME =====================

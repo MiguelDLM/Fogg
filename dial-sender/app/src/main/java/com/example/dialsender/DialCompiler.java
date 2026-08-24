@@ -263,7 +263,10 @@ public class DialCompiler {
             case TYPE_WEATHER:
                 return WeatherGenerator.FRAME_COUNT; // 12 weather condition icons
             case TYPE_CONNECT:
-                return 2; // connected, disconnected
+                return ConnectionGenerator.FRAME_COUNT; // 0 = disconnected, 1 = connected
+            case TYPE_PROGRESS1:
+            case TYPE_PROGRESS2:
+                return ProgressGenerator.FRAME_COUNT; // 0 %, 10 % ... 100 %
             default:
                 return 1; // single image
         }

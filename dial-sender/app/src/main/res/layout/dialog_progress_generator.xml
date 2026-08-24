@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg_surface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_builder_title"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_frames_hint"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Live preview: 0 %, 20 %, 40 %, 60 %, 80 %, 100 % -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@color/bg_elevated"
+            android:padding="10dp"
+            android:layout_marginBottom="12dp">
+
+            <ImageView android:id="@+id/imgProgress0" android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="3dp"/>
+            <ImageView android:id="@+id/imgProgress1" android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="3dp"/>
+            <ImageView android:id="@+id/imgProgress2" android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="3dp"/>
+            <ImageView android:id="@+id/imgProgress3" android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="3dp"/>
+            <ImageView android:id="@+id/imgProgress4" android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="3dp"/>
+            <ImageView android:id="@+id/imgProgress5" android:layout_width="52dp" android:layout_height="52dp"/>
+        </LinearLayout>
+
+        <!-- Style -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_style"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+        <Spinner
+            android:id="@+id/spinnerProgressStyle"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Fill colour -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_color_fill"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/paletteProgressFill"
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Gradient end colour -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_color_end"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/paletteProgressEnd"
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Track colour -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/progress_color_track"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/paletteProgressTrack"
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Toggles -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <CheckBox
+                android:id="@+id/chkProgressGradient"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_gradient"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <CheckBox
+                android:id="@+id/chkProgressTrack"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/progress_show_track"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/chkProgressRounded"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/progress_rounded"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp"
+            android:layout_marginBottom="6dp" />
+
+        <!-- Thickness -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="76dp"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_thickness"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+            <SeekBar
+                android:id="@+id/seekProgressThickness"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="40"
+                android:progress="10"
+                android:progressTint="@color/accent_primary"
+                android:thumbTint="@color/accent_primary" />
+        </LinearLayout>
+
+        <!-- Sweep -->
+        <LinearLayout
+            android:id="@+id/rowProgressSweep"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="76dp"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_sweep"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+            <SeekBar
+                android:id="@+id/seekProgressSweep"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="360"
+                android:progress="270"
+                android:progressTint="@color/accent_purple"
+                android:thumbTint="@color/accent_purple" />
+        </LinearLayout>
+
+        <!-- Start angle -->
+        <LinearLayout
+            android:id="@+id/rowProgressStart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:layout_width="76dp"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_start"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+            <SeekBar
+                android:id="@+id/seekProgressStart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="360"
+                android:progress="135"
+                android:progressTint="@color/accent_cyan"
+                android:thumbTint="@color/accent_cyan" />
+        </LinearLayout>
+
+        <!-- Segments -->
+        <LinearLayout
+            android:id="@+id/rowProgressSegments"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+            <TextView
+                android:layout_width="76dp"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_segments"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+            <SeekBar
+                android:id="@+id/seekProgressSegments"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="30"
+                android:progress="12"
+                android:progressTint="@color/accent_primary"
+                android:thumbTint="@color/accent_primary" />
+        </LinearLayout>
+
+        <!-- Dimensions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/width"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtProgressWidth"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="120"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/height"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtProgressHeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="120"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnApplyProgress"
+            style="@style/ButtonSuccess"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/progress_apply"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+</ScrollView>

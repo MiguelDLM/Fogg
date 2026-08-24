@@ -876,4 +876,46 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="battery_update">Actualizar Tira de Batería</string>
     <string name="hand_update_set">Actualizar Set de Manecillas</string>
     <string name="update_digits">Actualizar dígitos</string>
+
+    <!-- Progress Generator Dialog -->
+    <string name="progress_builder_title">Generador de Barra de Progreso</string>
+    <string name="progress_frames_hint">11 fotogramas: 0 %, 10 % … 100 %. El reloj elige el fotograma según el avance de la métrica.</string>
+    <string name="progress_style">ESTILO</string>
+    <string name="progress_color_fill">COLOR DE RELLENO</string>
+    <string name="progress_color_end">COLOR FINAL (DEGRADADO)</string>
+    <string name="progress_color_track">COLOR DE FONDO</string>
+    <string name="progress_gradient">Degradado</string>
+    <string name="progress_show_track">Mostrar fondo</string>
+    <string name="progress_rounded">Puntas redondeadas</string>
+    <string name="progress_thickness">Grosor</string>
+    <string name="progress_sweep">Barrido</string>
+    <string name="progress_start">Inicio</string>
+    <string name="progress_segments">Segmentos</string>
+    <string name="progress_apply">Aplicar Progreso (11 fotogramas)</string>
+    <string name="progress_update">Actualizar Progreso</string>
+    <string name="from_progress_builder">Generador de progreso</string>
+    <string name="edit_progress">Editar generador de progreso</string>
+
+    <!-- Connection Generator Dialog -->
+    <string name="connect_builder_title">Generador de Icono de Conexión</string>
+    <string name="connect_frames_hint">2 fotogramas: 0 = desconectado, 1 = conectado.</string>
+    <string name="connect_style">ESTILO</string>
+    <string name="connect_color_on">COLOR CONECTADO</string>
+    <string name="connect_color_off">COLOR DESCONECTADO</string>
+    <string name="connect_slash">Tachar cuando está desconectado</string>
+    <string name="connect_badge">Fondo redondeado</string>
+    <string name="connect_state_on">Conectado</string>
+    <string name="connect_state_off">Desconectado</string>
+    <string name="connect_apply">Aplicar Icono de Conexión (2 fotogramas)</string>
+    <string name="connect_update">Actualizar Icono de Conexión</string>
+    <string name="from_connect_builder">Generador de conexión</string>
+    <string name="edit_connect">Editar generador de conexión</string>
+    <string name="progress_style_arc">Arco</string>
+    <string name="progress_style_ring">Anillo completo</string>
+    <string name="progress_style_bar">Barra horizontal</string>
+    <string name="progress_style_segments">Segmentos</string>
+    <string name="progress_style_dots">Puntos</string>
+    <string name="connect_style_bt">Bluetooth</string>
+    <string name="connect_style_waves">Ondas de señal</string>
+    <string name="connect_style_link">Eslabones</string>
 </resources>

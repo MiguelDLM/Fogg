@@ -876,4 +876,46 @@ Pick an activity above to record your first one.</string>
     <string name="battery_update">Update Battery Strip</string>
     <string name="hand_update_set">Update Hand Set</string>
     <string name="update_digits">Update digits</string>
+
+    <!-- Progress Generator Dialog -->
+    <string name="progress_builder_title">Progress Bar Generator</string>
+    <string name="progress_frames_hint">11 frames: 0 %, 10 % … 100 %. The watch picks the frame that matches the metric.</string>
+    <string name="progress_style">STYLE</string>
+    <string name="progress_color_fill">FILL COLOR</string>
+    <string name="progress_color_end">END COLOR (GRADIENT)</string>
+    <string name="progress_color_track">TRACK COLOR</string>
+    <string name="progress_gradient">Gradient</string>
+    <string name="progress_show_track">Show track</string>
+    <string name="progress_rounded">Rounded caps</string>
+    <string name="progress_thickness">Thickness</string>
+    <string name="progress_sweep">Sweep</string>
+    <string name="progress_start">Start</string>
+    <string name="progress_segments">Segments</string>
+    <string name="progress_apply">Apply Progress (11 frames)</string>
+    <string name="progress_update">Update Progress</string>
+    <string name="from_progress_builder">Progress generator</string>
+    <string name="edit_progress">Edit progress generator</string>
+
+    <!-- Connection Generator Dialog -->
+    <string name="connect_builder_title">Connection Icon Generator</string>
+    <string name="connect_frames_hint">2 frames: 0 = disconnected, 1 = connected.</string>
+    <string name="connect_style">STYLE</string>
+    <string name="connect_color_on">CONNECTED COLOR</string>
+    <string name="connect_color_off">DISCONNECTED COLOR</string>
+    <string name="connect_slash">Cross out when disconnected</string>
+    <string name="connect_badge">Rounded badge</string>
+    <string name="connect_state_on">Connected</string>
+    <string name="connect_state_off">Disconnected</string>
+    <string name="connect_apply">Apply Connection Icon (2 frames)</string>
+    <string name="connect_update">Update Connection Icon</string>
+    <string name="from_connect_builder">Connection generator</string>
+    <string name="edit_connect">Edit connection generator</string>
+    <string name="progress_style_arc">Arc</string>
+    <string name="progress_style_ring">Full ring</string>
+    <string name="progress_style_bar">Horizontal bar</string>
+    <string name="progress_style_segments">Segments</string>
+    <string name="progress_style_dots">Dots</string>
+    <string name="connect_style_bt">Bluetooth</string>
+    <string name="connect_style_waves">Signal waves</string>
+    <string name="connect_style_link">Chain links</string>
 </resources>

@@ -57,6 +57,8 @@ public class DialLayer {
     public HandGenerator.HandConfig handConfig;
     public BatteryGenerator.BatteryConfig batteryConfig;
     public WeatherGenerator.WeatherConfig weatherConfig;
+    public ProgressGenerator.ProgressConfig progressConfig;
+    public ConnectionGenerator.ConnectConfig connectConfig;
 
     public DialLayer(int layerType, Bitmap icon, String name) {
         this.layerType = layerType;
