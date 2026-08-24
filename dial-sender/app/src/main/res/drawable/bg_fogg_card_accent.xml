@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Metric card: the theme supplies the hue and the corner radius. -->
+<!-- Card that carries the accent: used for hero/primary blocks. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
-        android:startColor="?attr/foggBgCard"
+        android:startColor="?attr/foggAccentGlow"
         android:endColor="?attr/foggBgCardEnd"
         android:angle="315"/>
-    <stroke android:width="?attr/foggStroke" android:color="?attr/foggCalories"/>
+    <stroke android:width="?attr/foggStroke" android:color="?attr/foggCardBorder"/>
     <corners android:radius="?attr/foggRadiusCard"/>
 </shape>

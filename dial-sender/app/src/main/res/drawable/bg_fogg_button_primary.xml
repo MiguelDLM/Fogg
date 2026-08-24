@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#44FFFFFF">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="?attr/foggAccent"
+                android:endColor="?attr/foggAccentDark"
+                android:angle="0"/>
+            <corners android:radius="?attr/foggRadiusButton"/>
+        </shape>
+    </item>
+</ripple>

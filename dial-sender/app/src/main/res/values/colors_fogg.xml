@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Per-theme palettes. These are the single source of truth for colour: the
+  themes in themes_fogg.xml bind them to the fogg* attributes, and
+  ThemeManager mirrors them for the screens that build views in Java.
+-->
+<resources>
+
+    <!-- ══════ Midnight Pulse — obsidian & electric cyan (HUD) ══════ -->
+    <color name="mid_bg">#080D1A</color>
+    <color name="mid_surface">#0F172A</color>
+    <color name="mid_card">#141F36</color>
+    <color name="mid_dialog">#141F36</color>
+    <color name="mid_card_end">#0D1527</color>
+    <color name="mid_elevated">#1E293B</color>
+    <color name="mid_accent">#00E5FF</color>
+    <color name="mid_accent_dark">#00B4D8</color>
+    <color name="mid_accent_secondary">#10B981</color>
+    <color name="mid_accent_glow">#3300E5FF</color>
+    <color name="mid_on_accent">#04121A</color>
+    <color name="mid_text">#F8FAFC</color>
+    <color name="mid_text_secondary">#94A3B8</color>
+    <color name="mid_text_muted">#475569</color>
+    <color name="mid_divider">#1E293B</color>
+    <color name="mid_border">#3300E5FF</color>
+    <color name="mid_track">#1E293B</color>
+    <color name="mid_ripple">#3300E5FF</color>
+    <color name="mid_nav_inactive">#475569</color>
+    <color name="mid_steps">#00E5FF</color>
+    <color name="mid_heart">#FF4757</color>
+    <color name="mid_calories">#FFA502</color>
+    <color name="mid_sleep">#818CF8</color>
+    <color name="mid_distance">#10B981</color>
+    <color name="mid_spo2">#38BDF8</color>
+    <color name="mid_stress">#34D399</color>
+    <color name="mid_bp">#FF6B81</color>
+    <color name="mid_sleep_deep">#4C5BD4</color>
+    <color name="mid_sleep_light">#00E5FF</color>
+    <color name="mid_sleep_rem">#A855F7</color>
+    <color name="mid_sleep_awake">#475569</color>
+
+    <!-- ══════ Emerald Vitality — mint & forest (organic) ══════ -->
+    <color name="eme_bg">#06130E</color>
+    <color name="eme_surface">#0B1F17</color>
+    <color name="eme_card">#112E23</color>
+    <color name="eme_dialog">#112E23</color>
+    <color name="eme_card_end">#0A1C15</color>
+    <color name="eme_elevated">#183F30</color>
+    <color name="eme_accent">#00E676</color>
+    <color name="eme_accent_dark">#00C853</color>
+    <color name="eme_accent_secondary">#26A69A</color>
+    <color name="eme_accent_glow">#3300E676</color>
+    <color name="eme_on_accent">#04140C</color>
+    <color name="eme_text">#F0FDF4</color>
+    <color name="eme_text_secondary">#86EFAC</color>
+    <color name="eme_text_muted">#3B6B58</color>
+    <color name="eme_divider">#183F30</color>
+    <color name="eme_border">#00000000</color>
+    <color name="eme_track">#183F30</color>
+    <color name="eme_ripple">#3300E676</color>
+    <color name="eme_nav_inactive">#3B6B58</color>
+    <color name="eme_steps">#00E676</color>
+    <color name="eme_heart">#FF5252</color>
+    <color name="eme_calories">#FFB300</color>
+    <color name="eme_sleep">#9FA8DA</color>
+    <color name="eme_distance">#00E676</color>
+    <color name="eme_spo2">#29B6F6</color>
+    <color name="eme_stress">#69F0AE</color>
+    <color name="eme_bp">#FF5252</color>
+    <color name="eme_sleep_deep">#1DB9A0</color>
+    <color name="eme_sleep_light">#00E676</color>
+    <color name="eme_sleep_rem">#9FA8DA</color>
+    <color name="eme_sleep_awake">#3B6B58</color>
+
+    <!-- ══════ Solar Flare — sunset orange & amber (bold) ══════ -->
+    <color name="sol_bg">#140D12</color>
+    <color name="sol_surface">#1C131A</color>
+    <color name="sol_card">#271A24</color>
+    <color name="sol_dialog">#271A24</color>
+    <color name="sol_card_end">#1A1018</color>
+    <color name="sol_elevated">#382434</color>
+    <color name="sol_accent">#FF5722</color>
+    <color name="sol_accent_dark">#E64A19</color>
+    <color name="sol_accent_secondary">#FFC107</color>
+    <color name="sol_accent_glow">#33FF5722</color>
+    <color name="sol_on_accent">#1A0800</color>
+    <color name="sol_text">#FFF1F2</color>
+    <color name="sol_text_secondary">#FDA4AF</color>
+    <color name="sol_text_muted">#713F5E</color>
+    <color name="sol_divider">#382434</color>
+    <color name="sol_border">#55FF5722</color>
+    <color name="sol_track">#382434</color>
+    <color name="sol_ripple">#33FF5722</color>
+    <color name="sol_nav_inactive">#713F5E</color>
+    <color name="sol_steps">#FF5722</color>
+    <color name="sol_heart">#FF1744</color>
+    <color name="sol_calories">#FF9100</color>
+    <color name="sol_sleep">#E040FB</color>
+    <color name="sol_distance">#FFD600</color>
+    <color name="sol_spo2">#00E5FF</color>
+    <color name="sol_stress">#00E676</color>
+    <color name="sol_bp">#FF1744</color>
+    <color name="sol_sleep_deep">#A855F7</color>
+    <color name="sol_sleep_light">#FF9100</color>
+    <color name="sol_sleep_rem">#E040FB</color>
+    <color name="sol_sleep_awake">#713F5E</color>
+
+    <!-- ══════ Ocean Cobalt — deep navy & cobalt (glass) ══════ -->
+    <color name="oce_bg">#070E1C</color>
+    <color name="oce_surface">#0E1A33</color>
+    <color name="oce_card">#CC142447</color>
+    <color name="oce_dialog">#142447</color>
+    <color name="oce_card_end">#990B152B</color>
+    <color name="oce_elevated">#1D3466</color>
+    <color name="oce_accent">#3A86FF</color>
+    <color name="oce_accent_dark">#2563EB</color>
+    <color name="oce_accent_secondary">#00F5D4</color>
+    <color name="oce_accent_glow">#333A86FF</color>
+    <color name="oce_on_accent">#F0F6FF</color>
+    <color name="oce_text">#F0F6FF</color>
+    <color name="oce_text_secondary">#93C5FD</color>
+    <color name="oce_text_muted">#3B5998</color>
+    <color name="oce_divider">#1D3466</color>
+    <color name="oce_border">#33A9C7FF</color>
+    <color name="oce_track">#1D3466</color>
+    <color name="oce_ripple">#333A86FF</color>
+    <color name="oce_nav_inactive">#3B5998</color>
+    <color name="oce_steps">#3A86FF</color>
+    <color name="oce_heart">#FF4D6D</color>
+    <color name="oce_calories">#FFB703</color>
+    <color name="oce_sleep">#A06CD5</color>
+    <color name="oce_distance">#06D6A0</color>
+    <color name="oce_spo2">#4CC9F0</color>
+    <color name="oce_stress">#00F5D4</color>
+    <color name="oce_bp">#FF4D6D</color>
+    <color name="oce_sleep_deep">#4C5BD4</color>
+    <color name="oce_sleep_light">#4CC9F0</color>
+    <color name="oce_sleep_rem">#A06CD5</color>
+    <color name="oce_sleep_awake">#3B5998</color>
+
+    <!-- ══════ Onyx Minimal — pure OLED & titanium (editorial) ══════ -->
+    <color name="ony_bg">#000000</color>
+    <color name="ony_surface">#000000</color>
+    <!-- Cards are not drawn on Onyx: the hairline divider does the grouping. -->
+    <color name="ony_card">#00000000</color>
+    <color name="ony_dialog">#161616</color>
+    <color name="ony_card_end">#00000000</color>
+    <color name="ony_elevated">#161616</color>
+    <color name="ony_accent">#F8FAFC</color>
+    <color name="ony_accent_dark">#E2E8F0</color>
+    <color name="ony_accent_secondary">#94A3B8</color>
+    <color name="ony_accent_glow">#22FFFFFF</color>
+    <color name="ony_on_accent">#000000</color>
+    <color name="ony_text">#FFFFFF</color>
+    <color name="ony_text_secondary">#A1A1AA</color>
+    <color name="ony_text_muted">#52525B</color>
+    <color name="ony_divider">#27272A</color>
+    <color name="ony_border">#00000000</color>
+    <color name="ony_track">#27272A</color>
+    <color name="ony_ripple">#22FFFFFF</color>
+    <color name="ony_nav_inactive">#52525B</color>
+    <color name="ony_steps">#FFFFFF</color>
+    <color name="ony_heart">#EF4444</color>
+    <color name="ony_calories">#F59E0B</color>
+    <color name="ony_sleep">#8B5CF6</color>
+    <color name="ony_distance">#10B981</color>
+    <color name="ony_spo2">#38BDF8</color>
+    <color name="ony_stress">#10B981</color>
+    <color name="ony_bp">#EF4444</color>
+    <color name="ony_sleep_deep">#6366F1</color>
+    <color name="ony_sleep_light">#38BDF8</color>
+    <color name="ony_sleep_rem">#8B5CF6</color>
+    <color name="ony_sleep_awake">#52525B</color>
+
+    <!-- ══════ Shared semantic states ══════ -->
+    <color name="fogg_success">#34D399</color>
+    <color name="fogg_warning">#F0883E</color>
+    <color name="fogg_danger">#F85149</color>
+</resources>

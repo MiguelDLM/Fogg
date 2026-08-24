@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fogg component styles. Every value here is an indirection into the theme
+  tokens, so a single definition renders correctly under all five design
+  families. Where a family needs a genuinely different component (Onyx rows
+  drop the coloured icon badge), the theme rebinds the fogg*Style attribute to
+  one of the family variants at the bottom of this file.
+-->
+<resources>
+
+    <!-- Base style roots for dot-notation inheritance -->
+    <style name="Fogg" />
+    <style name="Fogg.Button" />
+
+    <!--
+      Note on naming: a style called "A.B" implicitly inherits from "A" when a
+      style named "A" exists. Every dotted style below either wants that
+      inheritance or opts out with parent="" — do not drop those.
+    -->
+
+    <!-- ═══════════════ Containers ═══════════════ -->
+    <style name="Fogg.Screen">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:background">?attr/foggBgPrimary</item>
+    </style>
+
+    <style name="Fogg.ScreenContent">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">?attr/foggScreenPadding</item>
+        <item name="android:paddingEnd">?attr/foggScreenPadding</item>
+        <item name="android:paddingTop">?attr/foggScreenPadding</item>
+        <item name="android:paddingBottom">32dp</item>
+    </style>
+
+    <style name="Fogg.Card">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">?attr/foggCardBg</item>
+        <item name="android:padding">?attr/foggCardPadding</item>
+        <item name="android:layout_marginBottom">?attr/foggCardGap</item>
+    </style>
+
+    <style name="Fogg.Card.Accent" parent="Fogg.Card">
+        <item name="android:background">?attr/foggCardBgAccent</item>
+    </style>
+
+    <!-- Groups a run of rows; rows supply their own padding. -->
+    <style name="Fogg.Group">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">?attr/foggGroupBg</item>
+        <item name="android:layout_marginBottom">?attr/foggSectionGap</item>
+    </style>
+
+    <!-- ═══════════════ List rows ═══════════════ -->
+    <style name="Fogg.Row">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">?attr/foggRowPaddingH</item>
+        <item name="android:paddingEnd">?attr/foggRowPaddingH</item>
+        <item name="android:paddingTop">?attr/foggRowPaddingV</item>
+        <item name="android:paddingBottom">?attr/foggRowPaddingV</item>
+        <item name="android:background">?attr/foggRowBg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <!-- Leading icon inside its tinted badge. -->
+    <style name="Fogg.Row.Icon" parent="">
+        <item name="android:layout_width">?attr/foggBadgeSize</item>
+        <item name="android:layout_height">?attr/foggBadgeSize</item>
+        <item name="android:layout_marginEnd">14dp</item>
+        <item name="android:background">?attr/foggBadgeBg</item>
+        <item name="android:padding">7dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="tint">?attr/foggAccent</item>
+    </style>
+
+    <!-- Editorial variant: bare glyph, no badge, muted — used by Onyx. -->
+    <style name="Fogg.Row.Icon.Bare">
+        <item name="android:layout_width">?attr/foggIconSize</item>
+        <item name="android:layout_height">?attr/foggIconSize</item>
+        <item name="android:background">@null</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:layout_marginEnd">16dp</item>
+        <item name="tint">?attr/foggTextSecondary</item>
+    </style>
+
+    <style name="Fogg.Row.Label" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textAppearance">?attr/foggTextRowLabel</item>
+    </style>
+
+    <style name="Fogg.Row.Value" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:textAppearance">?attr/foggTextRowValue</item>
+    </style>
+
+    <style name="Fogg.Row.Chevron" parent="">
+        <item name="android:layout_width">18dp</item>
+        <item name="android:layout_height">18dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:src">@drawable/ic_chevron_right</item>
+        <item name="tint">?attr/foggTextMuted</item>
+    </style>
+
+    <!-- Title inside a stacked row (title over subtitle), where the weight
+         lives on the wrapping column instead of the label itself. -->
+    <style name="Fogg.Row.Title" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextRowLabel</item>
+    </style>
+
+    <style name="Fogg.Row.Column" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="Fogg.Row.Subtitle" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textAppearance">?attr/foggTextCaption</item>
+    </style>
+
+    <style name="Fogg.Divider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:layout_marginStart">?attr/foggRowPaddingH</item>
+        <item name="android:background">?attr/foggDivider</item>
+    </style>
+
+    <!-- Full-bleed rule, no inset — Onyx uses this so the hairline runs edge to
+         edge like a printed rule. -->
+    <style name="Fogg.Divider.Full" parent="Fogg.Divider">
+        <item name="android:layout_marginStart">0dp</item>
+    </style>
+
+    <!-- ═══════════════ Text roles ═══════════════ -->
+    <style name="Fogg.ScreenTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextScreenTitle</item>
+        <item name="android:layout_marginBottom">?attr/foggCardGap</item>
+    </style>
+
+    <style name="Fogg.SectionHeader">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextSectionHeader</item>
+        <item name="android:layout_marginBottom">10dp</item>
+    </style>
+
+    <!-- Onyx indents its section headers to the text column instead of tinting
+         them with the accent. -->
+    <style name="Fogg.SectionHeader.Editorial" parent="Fogg.SectionHeader">
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:layout_marginBottom">14dp</item>
+    </style>
+
+    <style name="Fogg.CardTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextCardTitle</item>
+    </style>
+
+    <style name="Fogg.MetricValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextMetricValue</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="Fogg.MetricUnit">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextMetricUnit</item>
+    </style>
+
+    <style name="Fogg.Body">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextBody</item>
+    </style>
+
+    <style name="Fogg.Caption">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextCaption</item>
+    </style>
+
+    <!-- ═══════════════ Controls ═══════════════ -->
+    <style name="Fogg.Button.Primary">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?attr/foggButtonPrimaryBg</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
+        <item name="android:textColor">?attr/foggOnAccent</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="Fogg.Button.Ghost" parent="Fogg.Button.Primary">
+        <item name="android:background">@drawable/bg_fogg_button_ghost</item>
+        <item name="android:textColor">?attr/foggAccent</item>
+    </style>
+
+    <style name="Fogg.Button.Danger" parent="Fogg.Button.Primary">
+        <item name="android:background">@drawable/bg_fogg_button_danger</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <style name="Fogg.Input">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?attr/foggInputBg</item>
+        <item name="android:textAppearance">?attr/foggTextRowLabel</item>
+        <item name="android:textColorHint">?attr/foggTextMuted</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <!-- Narrow field that sits at the end of a settings row. -->
+    <style name="Fogg.Input.Inline" parent="Fogg.Input">
+        <item name="android:layout_width">92dp</item>
+        <item name="android:layout_height">42dp</item>
+        <item name="android:layout_marginStart">10dp</item>
+        <item name="android:gravity">center_vertical|end</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:textAppearance">?attr/foggTextRowValue</item>
+        <item name="android:textColor">?attr/foggTextPrimary</item>
+    </style>
+
+    <style name="Fogg.Radio" parent="Widget.MaterialComponents.CompoundButton.RadioButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:textAppearance">?attr/foggTextRowLabel</item>
+        <item name="android:textColor">?attr/foggTextPrimary</item>
+        <item name="buttonTint">?attr/foggAccent</item>
+    </style>
+
+    <style name="Fogg.Switch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/foggTextRowLabel</item>
+        <item name="android:textColor">?attr/foggTextPrimary</item>
+    </style>
+
+    <!-- ═══════════════ Toolbar ═══════════════ -->
+    <style name="Fogg.Toolbar">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:background">?attr/foggToolbarBg</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+
+    <style name="Fogg.Toolbar.Back" parent="">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:padding">9dp</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:src">@drawable/ic_back</item>
+        <item name="tint">?attr/foggTextPrimary</item>
+    </style>
+
+    <style name="Fogg.Toolbar.Title" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textAppearance">?attr/foggTextScreenTitle</item>
+    </style>
+
+    <style name="Fogg.Toolbar.Action" parent="">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:padding">9dp</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="tint">?attr/foggAccent</item>
+    </style>
+
+    <!-- ═══════════════ Dialogs ═══════════════ -->
+    <!--
+      Without this the AlertDialogs the app shows everywhere kept the stock
+      Material surface, so picking a theme changed the screens but not the
+      dialogs on top of them.
+    -->
+    <!--
+      The app builds every dialog with androidx.appcompat.app.AlertDialog, so
+      this AppCompat overlay is the one that actually takes effect. The Material
+      variant below is bound too, for any MaterialAlertDialogBuilder added later.
+    -->
+    <style name="Fogg.Dialog" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_fogg_dialog</item>
+        <item name="colorAccent">?attr/foggAccent</item>
+        <item name="colorPrimary">?attr/foggAccent</item>
+        <item name="colorControlActivated">?attr/foggAccent</item>
+        <item name="colorControlNormal">?attr/foggTextSecondary</item>
+        <item name="android:textColorPrimary">?attr/foggTextPrimary</item>
+        <item name="android:textColorSecondary">?attr/foggTextSecondary</item>
+        <item name="android:textColorAlertDialogListItem">?attr/foggTextPrimary</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Fogg.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Fogg.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Fogg.Dialog.Button</item>
+    </style>
+
+    <style name="Fogg.Dialog.Material" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">?attr/foggDialogSurface</item>
+        <item name="android:colorBackground">?attr/foggDialogSurface</item>
+        <item name="colorPrimary">?attr/foggAccent</item>
+        <item name="colorAccent">?attr/foggAccent</item>
+        <item name="colorControlActivated">?attr/foggAccent</item>
+        <item name="android:textColorPrimary">?attr/foggTextPrimary</item>
+        <item name="android:textColorSecondary">?attr/foggTextSecondary</item>
+        <item name="shapeAppearanceOverlay">@style/Fogg.Dialog.Shape</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Fogg.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Fogg.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Fogg.Dialog.Button</item>
+    </style>
+
+    <style name="Fogg.Dialog.Shape" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">?attr/foggRadiusCard</item>
+    </style>
+
+    <style name="Fogg.Dialog.Button" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">?attr/foggAccent</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
+    </style>
+
+    <!-- ═══════════════ Empty state ═══════════════ -->
+    <style name="Fogg.EmptyState">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center_horizontal</item>
+        <item name="android:paddingTop">48dp</item>
+        <item name="android:paddingBottom">48dp</item>
+    </style>
+
+    <style name="Fogg.EmptyState.Icon" parent="">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:layout_marginBottom">16dp</item>
+        <item name="android:alpha">0.35</item>
+        <item name="tint">?attr/foggTextMuted</item>
+    </style>
+</resources>

@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Type scale, one set per design family. This is a large part of what makes the
+  themes feel structurally different rather than merely recoloured: the HUD
+  family is condensed and wide-tracked, Organic is round and calm, Bold is
+  heavy and oversized, Glass is medium-weight, and Editorial is light with
+  display-sized numerals.
+-->
+<resources>
+
+    <!-- ═════════════════════ Shared base ═════════════════════ -->
+    <style name="FoggText" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">?attr/foggTextPrimary</item>
+    </style>
+
+    <!-- ═════════════════════ HUD — Midnight ═════════════════════ -->
+    <style name="FoggText.Hud.ScreenTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+    <style name="FoggText.Hud.SectionHeader" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:textColor">?attr/foggAccent</item>
+    </style>
+    <style name="FoggText.Hud.CardTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+    <style name="FoggText.Hud.MetricValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">30sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="FoggText.Hud.MetricInline" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="FoggText.Hud.MetricUnit" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Hud.Body" parent="FoggText">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Hud.RowLabel" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+    <style name="FoggText.Hud.RowValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Hud.Caption" parent="FoggText">
+        <item name="android:textSize">11sp</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Hud.Button" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <!-- ═════════════════════ Organic — Emerald ═════════════════════ -->
+    <style name="FoggText.Organic.ScreenTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="FoggText.Organic.SectionHeader" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Organic.CardTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="FoggText.Organic.MetricValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">34sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="FoggText.Organic.MetricInline" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="FoggText.Organic.MetricUnit" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Organic.Body" parent="FoggText">
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Organic.RowLabel" parent="FoggText">
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="FoggText.Organic.RowValue" parent="FoggText">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Organic.Caption" parent="FoggText">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Organic.Button" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <!-- ═════════════════════ Bold — Solar ═════════════════════ -->
+    <style name="FoggText.Bold.ScreenTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="FoggText.Bold.SectionHeader" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textColor">?attr/foggAccent</item>
+    </style>
+    <style name="FoggText.Bold.CardTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="FoggText.Bold.MetricValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">38sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+    <style name="FoggText.Bold.MetricInline" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">23sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="FoggText.Bold.MetricUnit" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Bold.Body" parent="FoggText">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Bold.RowLabel" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="FoggText.Bold.RowValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Bold.Caption" parent="FoggText">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Bold.Button" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+
+    <!-- ═════════════════════ Glass — Ocean ═════════════════════ -->
+    <style name="FoggText.Glass.ScreenTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+    <style name="FoggText.Glass.SectionHeader" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Glass.CardTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+    <style name="FoggText.Glass.MetricValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="FoggText.Glass.MetricInline" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">21sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="FoggText.Glass.MetricUnit" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Glass.Body" parent="FoggText">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingMultiplier">1.15</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Glass.RowLabel" parent="FoggText">
+        <item name="android:textSize">15sp</item>
+    </style>
+    <style name="FoggText.Glass.RowValue" parent="FoggText">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Glass.Caption" parent="FoggText">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Glass.Button" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <!-- ═════════════════════ Editorial — Onyx ═════════════════════ -->
+    <style name="FoggText.Editorial.ScreenTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">30sp</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+    <style name="FoggText.Editorial.SectionHeader" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Editorial.CardTitle" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+    <style name="FoggText.Editorial.MetricValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">40sp</item>
+        <item name="android:letterSpacing">-0.04</item>
+    </style>
+    <style name="FoggText.Editorial.MetricInline" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="FoggText.Editorial.MetricUnit" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Editorial.Body" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingMultiplier">1.25</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Editorial.RowLabel" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="FoggText.Editorial.RowValue" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">?attr/foggTextSecondary</item>
+    </style>
+    <style name="FoggText.Editorial.Caption" parent="FoggText">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:textColor">?attr/foggTextMuted</item>
+    </style>
+    <style name="FoggText.Editorial.Button" parent="FoggText">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+</resources>

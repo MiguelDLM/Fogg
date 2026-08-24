@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Metric card: the theme supplies the hue and the corner radius. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient android:startColor="@color/card_steps_start"
-              android:endColor="@color/card_steps_end"
-              android:angle="135"/>
-    <corners android:radius="12dp"/>
+    <gradient
+        android:startColor="?attr/foggBgCard"
+        android:endColor="?attr/foggBgCardEnd"
+        android:angle="315"/>
+    <stroke android:width="?attr/foggStroke" android:color="?attr/foggSteps"/>
+    <corners android:radius="?attr/foggRadiusCard"/>
 </shape>

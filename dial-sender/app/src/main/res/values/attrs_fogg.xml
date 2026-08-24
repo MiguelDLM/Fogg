@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fogg Design System — token declarations.
+
+  Every screen reads its colours, shapes, spacing and type through these
+  attributes instead of hardcoding @color/… or literal dp values. Each theme in
+  themes_fogg.xml binds the whole set, so switching theme changes the palette
+  *and* the design language (corner radius, density, card treatment, type
+  scale), not just the hues.
+-->
+<resources>
+
+    <!-- ══════════════ Surfaces ══════════════ -->
+    <attr name="foggBgPrimary"      format="color"/>
+    <attr name="foggBgSurface"      format="color"/>
+    <attr name="foggBgCard"         format="color"/>
+    <attr name="foggBgCardEnd"      format="color"/>
+    <attr name="foggBgElevated"     format="color"/>
+    <!-- Opaque surface for dialogs. Separate from foggBgCard because
+         Editorial draws no cards (transparent) and Glass tints its card
+         translucent — a dialog has to cover what is behind it. -->
+    <attr name="foggDialogSurface"  format="color"/>
+
+    <!-- ══════════════ Accents ══════════════ -->
+    <attr name="foggAccent"          format="color"/>
+    <attr name="foggAccentDark"      format="color"/>
+    <attr name="foggAccentSecondary" format="color"/>
+    <attr name="foggAccentGlow"      format="color"/>
+    <!-- Legible foreground on top of a solid foggAccent fill. -->
+    <attr name="foggOnAccent"        format="color"/>
+
+    <!-- ══════════════ Text ══════════════ -->
+    <attr name="foggTextPrimary"    format="color"/>
+    <attr name="foggTextSecondary"  format="color"/>
+    <attr name="foggTextMuted"      format="color"/>
+
+    <!-- ══════════════ Lines & tracks ══════════════ -->
+    <attr name="foggDivider"        format="color"/>
+    <attr name="foggCardBorder"     format="color"/>
+    <attr name="foggGaugeTrack"     format="color"/>
+    <attr name="foggRipple"         format="color"/>
+
+    <!-- ══════════════ Navigation ══════════════ -->
+    <attr name="foggNavActive"      format="color"/>
+    <attr name="foggNavInactive"    format="color"/>
+
+    <!-- ══════════════ Per-metric accents ══════════════ -->
+    <attr name="foggSteps"          format="color"/>
+    <attr name="foggHeart"          format="color"/>
+    <attr name="foggCalories"       format="color"/>
+    <attr name="foggSleep"          format="color"/>
+    <attr name="foggDistance"       format="color"/>
+    <attr name="foggSpo2"           format="color"/>
+    <attr name="foggStress"         format="color"/>
+    <attr name="foggBp"             format="color"/>
+
+    <!-- Sleep stages. Previously hardcoded three different ways (the timeline
+         view, the dashboard legend and the metric detail all disagreed). -->
+    <attr name="foggSleepDeep"      format="color"/>
+    <attr name="foggSleepLight"     format="color"/>
+    <attr name="foggSleepRem"       format="color"/>
+    <attr name="foggSleepAwake"     format="color"/>
+
+    <!-- ══════════════ Semantic states ══════════════ -->
+    <attr name="foggSuccess"        format="color"/>
+    <attr name="foggWarning"        format="color"/>
+    <attr name="foggDanger"         format="color"/>
+
+    <!-- ══════════════ Shape scale ══════════════ -->
+    <attr name="foggRadiusCard"     format="dimension"/>
+    <attr name="foggRadiusSmall"    format="dimension"/>
+    <attr name="foggRadiusChip"     format="dimension"/>
+    <attr name="foggRadiusButton"   format="dimension"/>
+    <attr name="foggRadiusBadge"    format="dimension"/>
+    <!-- 0dp on themes whose cards are borderless. -->
+    <attr name="foggStroke"         format="dimension"/>
+
+    <!-- ══════════════ Density scale ══════════════ -->
+    <attr name="foggScreenPadding"  format="dimension"/>
+    <attr name="foggCardPadding"    format="dimension"/>
+    <attr name="foggCardGap"        format="dimension"/>
+    <attr name="foggSectionGap"     format="dimension"/>
+    <attr name="foggRowPaddingV"    format="dimension"/>
+    <attr name="foggRowPaddingH"    format="dimension"/>
+    <attr name="foggIconSize"       format="dimension"/>
+    <attr name="foggBadgeSize"      format="dimension"/>
+
+    <!-- ══════════════ Component backgrounds ══════════════ -->
+    <attr name="foggCardBg"         format="reference"/>
+    <attr name="foggCardBgAccent"   format="reference"/>
+    <attr name="foggGroupBg"        format="reference"/>
+    <attr name="foggRowBg"          format="reference"/>
+    <attr name="foggChipBg"         format="reference"/>
+    <attr name="foggChipBgActive"   format="reference"/>
+    <attr name="foggInputBg"        format="reference"/>
+    <attr name="foggBadgeBg"        format="reference"/>
+    <attr name="foggButtonPrimaryBg" format="reference"/>
+    <attr name="foggBottomNavBg"    format="reference"/>
+    <attr name="foggProgressBg"     format="reference"/>
+    <attr name="foggToolbarBg"      format="reference"/>
+
+    <!-- ══════════════ Type scale ══════════════ -->
+    <attr name="foggTextScreenTitle"   format="reference"/>
+    <attr name="foggTextSectionHeader" format="reference"/>
+    <attr name="foggTextCardTitle"     format="reference"/>
+    <attr name="foggTextMetricValue"   format="reference"/>
+    <attr name="foggTextMetricUnit"    format="reference"/>
+    <!-- Metric value that shares a row with a title, so it cannot use the
+         full display size without crowding it out. -->
+    <attr name="foggTextMetricInline"  format="reference"/>
+    <attr name="foggTextBody"          format="reference"/>
+    <attr name="foggTextRowLabel"      format="reference"/>
+    <attr name="foggTextRowValue"      format="reference"/>
+    <attr name="foggTextCaption"       format="reference"/>
+    <attr name="foggTextButton"        format="reference"/>
+
+    <!-- ══════════════ Component styles ══════════════ -->
+    <attr name="foggCardStyle"          format="reference"/>
+    <attr name="foggGroupStyle"         format="reference"/>
+    <attr name="foggRowStyle"           format="reference"/>
+    <attr name="foggRowIconStyle"       format="reference"/>
+    <attr name="foggDividerStyle"       format="reference"/>
+    <attr name="foggSectionHeaderStyle" format="reference"/>
+    <attr name="foggScreenTitleStyle"   format="reference"/>
+    <attr name="foggToolbarStyle"       format="reference"/>
+    <attr name="foggButtonPrimaryStyle" format="reference"/>
+    <attr name="foggButtonGhostStyle"   format="reference"/>
+
+    <!--
+      Design family — read by the programmatic screens (StatusFragment,
+      SportFragment…) so views built in Java pick the same treatment the XML
+      screens get from the attributes above.
+    -->
+    <attr name="foggDesignFamily" format="enum">
+        <enum name="hud"       value="0"/>
+        <enum name="organic"   value="1"/>
+        <enum name="bold"      value="2"/>
+        <enum name="glass"     value="3"/>
+        <enum name="editorial" value="4"/>
+    </attr>
+</resources>

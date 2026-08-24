@@ -1,121 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/accent_primary</item>
-        <item name="colorPrimaryDark">@color/bg_primary</item>
-        <item name="colorAccent">@color/accent_primary</item>
-        <item name="android:windowBackground">@color/bg_primary</item>
-        <item name="android:statusBarColor">@color/bg_surface</item>
-        <item name="android:navigationBarColor">@color/bg_surface</item>
-        <item name="android:textColorPrimary">@color/text_primary</item>
-        <item name="android:textColorSecondary">@color/text_secondary</item>
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
-    </style>
+    <!--
+         Manifest-level fallback. Real theming happens at runtime through
+         ThemeManager.applyTheme(); inheriting from a concrete Fogg theme keeps
+         every fogg* attribute resolvable for anything that starts before that.
+    -->
+    <style name="AppTheme" parent="Theme.Fogg.Midnight"/>
 
-    <style name="CardStyle">
-        <item name="android:background">@drawable/bg_card</item>
-        <item name="android:padding">16dp</item>
-    </style>
+
+
+
+
+
+
+    <!--
+         ══════════════════════════════════════════════════════════════════
+         Legacy style names, re-pointed at the Fogg token system.
+
+         Screens still written against these names inherit the active theme's
+         colours, radii, density and type without being rewritten. New screens
+         should use the Fogg.* styles in styles_fogg.xml directly.
+         ══════════════════════════════════════════════════════════════════
+    -->
+    <style name="CardStyle" parent="Fogg.Card"/>
+    <style name="ScreenTitle" parent="Fogg.ScreenTitle"/>
+    <style name="ToolbarStyle" parent="Fogg.Toolbar"/>
+
+    <style name="DeviceRow" parent="Fogg.Row"/>
+    <style name="DeviceRowLabel" parent="Fogg.Row.Label"/>
+    <style name="DeviceRowValue" parent="Fogg.Row.Value"/>
+    <style name="DeviceRowDivider" parent="Fogg.Divider"/>
+    <!-- Was a "›" TextView; now a real vector chevron. -->
+    <style name="DeviceRowChevron" parent="Fogg.Row.Chevron"/>
+
+    <style name="MetricValue" parent="Fogg.MetricValue"/>
+    <style name="MetricLabel" parent="Fogg.MetricUnit"/>
 
     <style name="ButtonPrimary" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/accent_primary</item>
-        <item name="android:textColor">#060810</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textSize">15sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">?attr/foggAccent</item>
+        <item name="android:textColor">?attr/foggOnAccent</item>
+        <item name="cornerRadius">?attr/foggRadiusButton</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
         <item name="android:paddingTop">14dp</item>
         <item name="android:paddingBottom">14dp</item>
     </style>
 
     <style name="ButtonSecondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
-        <item name="strokeColor">@color/accent_primary</item>
-        <item name="android:textColor">@color/accent_primary</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:textAllCaps">false</item>
+        <item name="strokeColor">?attr/foggAccent</item>
+        <item name="android:textColor">?attr/foggAccent</item>
+        <item name="cornerRadius">?attr/foggRadiusButton</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
     </style>
 
     <style name="ButtonDanger" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/accent_danger</item>
+        <item name="backgroundTint">?attr/foggDanger</item>
         <item name="android:textColor">#FFFFFF</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textAllCaps">false</item>
-    </style>
-
-    <style name="ScreenTitle">
-        <item name="android:textSize">20sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/text_primary</item>
-    </style>
-
-    <style name="MetricValue">
-        <item name="android:textSize">22sp</item>
-        <item name="android:textColor">#FFFFFF</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
-    <style name="MetricLabel">
-        <item name="android:textSize">9sp</item>
-        <item name="android:textColor">#99FFFFFF</item>
-        <item name="android:textAllCaps">true</item>
-        <item name="android:letterSpacing">0.08</item>
+        <item name="cornerRadius">?attr/foggRadiusButton</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
     </style>
 
     <style name="ButtonSuccess" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/accent_health</item>
-        <item name="android:textColor">#060810</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textAllCaps">false</item>
-    </style>
-
-    <style name="ToolbarStyle">
-        <item name="android:background">@color/bg_surface</item>
-        <item name="android:padding">16dp</item>
-        <item name="android:elevation">0dp</item>
-    </style>
-
-    <!-- Device settings list rows (Co-Fit style) -->
-    <style name="DeviceRow">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:orientation">horizontal</item>
-        <item name="android:gravity">center_vertical</item>
-        <item name="android:paddingStart">16dp</item>
-        <item name="android:paddingEnd">16dp</item>
-        <item name="android:paddingTop">16dp</item>
-        <item name="android:paddingBottom">16dp</item>
-        <item name="android:background">?attr/selectableItemBackground</item>
-        <item name="android:clickable">true</item>
-        <item name="android:focusable">true</item>
-    </style>
-
-    <style name="DeviceRowLabel">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">15sp</item>
-    </style>
-
-    <style name="DeviceRowChevron">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">20sp</item>
-    </style>
-
-    <style name="DeviceRowValue">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">13sp</item>
-    </style>
-
-    <style name="DeviceRowDivider">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">1dp</item>
-        <item name="android:layout_marginStart">16dp</item>
-        <item name="android:background">#1A2A36</item>
+        <item name="backgroundTint">?attr/foggSuccess</item>
+        <item name="android:textColor">?attr/foggOnAccent</item>
+        <item name="cornerRadius">?attr/foggRadiusButton</item>
+        <item name="android:textAppearance">?attr/foggTextButton</item>
     </style>
 </resources>

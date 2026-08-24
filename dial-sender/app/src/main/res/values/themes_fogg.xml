@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Themes are assembled in three layers, which is what keeps the system modular:
+
+    Theme.Fogg.Base      — component-style bindings shared by every theme
+      └ Theme.Fogg.Family.*  — the *design language*: shape scale, density
+                               scale, type scale, component variants
+          └ Theme.Fogg.<name> — the *palette* only
+
+  A new colour scheme is ~28 lines and inherits a full design language; a new
+  design language is one Family style and every palette can adopt it.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ════════════════════════ Layer 1: shared ════════════════════════ -->
+    <style name="Theme.Fogg.Base" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+
+        <!-- Semantic states are palette-independent. -->
+        <item name="foggSuccess">@color/fogg_success</item>
+        <item name="foggWarning">@color/fogg_warning</item>
+        <item name="foggDanger">@color/fogg_danger</item>
+
+        <!-- Component backgrounds. Families override the ones they change. -->
+        <item name="foggCardBg">@drawable/bg_fogg_card</item>
+        <item name="foggCardBgAccent">@drawable/bg_fogg_card_accent</item>
+        <item name="foggGroupBg">@drawable/bg_fogg_group</item>
+        <item name="foggRowBg">@drawable/bg_fogg_row</item>
+        <item name="foggChipBg">@drawable/bg_fogg_chip</item>
+        <item name="foggChipBgActive">@drawable/bg_fogg_chip_active</item>
+        <item name="foggInputBg">@drawable/bg_fogg_input</item>
+        <item name="foggBadgeBg">@drawable/bg_fogg_badge</item>
+        <item name="foggButtonPrimaryBg">@drawable/bg_fogg_button_primary</item>
+        <item name="foggBottomNavBg">@drawable/bg_fogg_bottom_nav</item>
+        <item name="foggProgressBg">@drawable/bg_fogg_progress</item>
+        <item name="foggToolbarBg">@drawable/bg_fogg_toolbar</item>
+
+        <!-- Component styles. -->
+        <item name="foggCardStyle">@style/Fogg.Card</item>
+        <item name="foggGroupStyle">@style/Fogg.Group</item>
+        <item name="foggRowStyle">@style/Fogg.Row</item>
+        <item name="foggRowIconStyle">@style/Fogg.Row.Icon</item>
+        <item name="foggDividerStyle">@style/Fogg.Divider</item>
+        <item name="foggSectionHeaderStyle">@style/Fogg.SectionHeader</item>
+        <item name="foggScreenTitleStyle">@style/Fogg.ScreenTitle</item>
+        <item name="foggToolbarStyle">@style/Fogg.Toolbar</item>
+        <item name="foggButtonPrimaryStyle">@style/Fogg.Button.Primary</item>
+        <item name="foggButtonGhostStyle">@style/Fogg.Button.Ghost</item>
+
+        <!-- Alert dialogs inherit the palette and the corner radius. -->
+        <item name="materialAlertDialogTheme">@style/Fogg.Dialog.Material</item>
+        <item name="alertDialogTheme">@style/Fogg.Dialog</item>
+    </style>
+
+    <!-- ═════════════════ Layer 2: design languages ═════════════════ -->
+
+    <!-- HUD — compact, angular, condensed type, neon hairline frames. -->
+    <style name="Theme.Fogg.Family.Hud" parent="Theme.Fogg.Base">
+        <item name="foggDesignFamily">hud</item>
+
+        <item name="foggRadiusCard">12dp</item>
+        <item name="foggRadiusSmall">8dp</item>
+        <item name="foggRadiusChip">8dp</item>
+        <item name="foggRadiusButton">10dp</item>
+        <item name="foggRadiusBadge">8dp</item>
+        <item name="foggStroke">1dp</item>
+
+        <item name="foggScreenPadding">16dp</item>
+        <item name="foggCardPadding">16dp</item>
+        <item name="foggCardGap">10dp</item>
+        <item name="foggSectionGap">20dp</item>
+        <item name="foggRowPaddingV">12dp</item>
+        <item name="foggRowPaddingH">14dp</item>
+        <item name="foggIconSize">20dp</item>
+        <item name="foggBadgeSize">34dp</item>
+
+        <item name="foggTextScreenTitle">@style/FoggText.Hud.ScreenTitle</item>
+        <item name="foggTextSectionHeader">@style/FoggText.Hud.SectionHeader</item>
+        <item name="foggTextCardTitle">@style/FoggText.Hud.CardTitle</item>
+        <item name="foggTextMetricValue">@style/FoggText.Hud.MetricValue</item>
+        <item name="foggTextMetricUnit">@style/FoggText.Hud.MetricUnit</item>
+        <item name="foggTextMetricInline">@style/FoggText.Hud.MetricInline</item>
+        <item name="foggTextBody">@style/FoggText.Hud.Body</item>
+        <item name="foggTextRowLabel">@style/FoggText.Hud.RowLabel</item>
+        <item name="foggTextRowValue">@style/FoggText.Hud.RowValue</item>
+        <item name="foggTextCaption">@style/FoggText.Hud.Caption</item>
+        <item name="foggTextButton">@style/FoggText.Hud.Button</item>
+    </style>
+
+    <!-- Organic — pill-round, airy, calm sentence-case type, no frames. -->
+    <style name="Theme.Fogg.Family.Organic" parent="Theme.Fogg.Base">
+        <item name="foggDesignFamily">organic</item>
+
+        <item name="foggRadiusCard">26dp</item>
+        <item name="foggRadiusSmall">16dp</item>
+        <item name="foggRadiusChip">24dp</item>
+        <item name="foggRadiusButton">24dp</item>
+        <item name="foggRadiusBadge">22dp</item>
+        <item name="foggStroke">0dp</item>
+
+        <item name="foggScreenPadding">22dp</item>
+        <item name="foggCardPadding">22dp</item>
+        <item name="foggCardGap">16dp</item>
+        <item name="foggSectionGap">30dp</item>
+        <item name="foggRowPaddingV">18dp</item>
+        <item name="foggRowPaddingH">20dp</item>
+        <item name="foggIconSize">22dp</item>
+        <item name="foggBadgeSize">44dp</item>
+
+        <item name="foggTextScreenTitle">@style/FoggText.Organic.ScreenTitle</item>
+        <item name="foggTextSectionHeader">@style/FoggText.Organic.SectionHeader</item>
+        <item name="foggTextCardTitle">@style/FoggText.Organic.CardTitle</item>
+        <item name="foggTextMetricValue">@style/FoggText.Organic.MetricValue</item>
+        <item name="foggTextMetricUnit">@style/FoggText.Organic.MetricUnit</item>
+        <item name="foggTextMetricInline">@style/FoggText.Organic.MetricInline</item>
+        <item name="foggTextBody">@style/FoggText.Organic.Body</item>
+        <item name="foggTextRowLabel">@style/FoggText.Organic.RowLabel</item>
+        <item name="foggTextRowValue">@style/FoggText.Organic.RowValue</item>
+        <item name="foggTextCaption">@style/FoggText.Organic.Caption</item>
+        <item name="foggTextButton">@style/FoggText.Organic.Button</item>
+    </style>
+
+    <!-- Bold — heavy weights, oversized numerals, 2dp accent frames. -->
+    <style name="Theme.Fogg.Family.Bold" parent="Theme.Fogg.Base">
+        <item name="foggDesignFamily">bold</item>
+
+        <item name="foggRadiusCard">18dp</item>
+        <item name="foggRadiusSmall">12dp</item>
+        <item name="foggRadiusChip">14dp</item>
+        <item name="foggRadiusButton">14dp</item>
+        <item name="foggRadiusBadge">14dp</item>
+        <item name="foggStroke">2dp</item>
+
+        <item name="foggScreenPadding">18dp</item>
+        <item name="foggCardPadding">18dp</item>
+        <item name="foggCardGap">14dp</item>
+        <item name="foggSectionGap">26dp</item>
+        <item name="foggRowPaddingV">16dp</item>
+        <item name="foggRowPaddingH">18dp</item>
+        <item name="foggIconSize">22dp</item>
+        <item name="foggBadgeSize">42dp</item>
+
+        <item name="foggTextScreenTitle">@style/FoggText.Bold.ScreenTitle</item>
+        <item name="foggTextSectionHeader">@style/FoggText.Bold.SectionHeader</item>
+        <item name="foggTextCardTitle">@style/FoggText.Bold.CardTitle</item>
+        <item name="foggTextMetricValue">@style/FoggText.Bold.MetricValue</item>
+        <item name="foggTextMetricUnit">@style/FoggText.Bold.MetricUnit</item>
+        <item name="foggTextMetricInline">@style/FoggText.Bold.MetricInline</item>
+        <item name="foggTextBody">@style/FoggText.Bold.Body</item>
+        <item name="foggTextRowLabel">@style/FoggText.Bold.RowLabel</item>
+        <item name="foggTextRowValue">@style/FoggText.Bold.RowValue</item>
+        <item name="foggTextCaption">@style/FoggText.Bold.Caption</item>
+        <item name="foggTextButton">@style/FoggText.Bold.Button</item>
+    </style>
+
+    <!-- Glass — translucent surfaces, light frames, medium-weight type. -->
+    <style name="Theme.Fogg.Family.Glass" parent="Theme.Fogg.Base">
+        <item name="foggDesignFamily">glass</item>
+
+        <item name="foggRadiusCard">20dp</item>
+        <item name="foggRadiusSmall">14dp</item>
+        <item name="foggRadiusChip">18dp</item>
+        <item name="foggRadiusButton">16dp</item>
+        <item name="foggRadiusBadge">16dp</item>
+        <item name="foggStroke">1dp</item>
+
+        <item name="foggScreenPadding">20dp</item>
+        <item name="foggCardPadding">20dp</item>
+        <item name="foggCardGap">14dp</item>
+        <item name="foggSectionGap">26dp</item>
+        <item name="foggRowPaddingV">16dp</item>
+        <item name="foggRowPaddingH">18dp</item>
+        <item name="foggIconSize">21dp</item>
+        <item name="foggBadgeSize">40dp</item>
+
+        <item name="foggTextScreenTitle">@style/FoggText.Glass.ScreenTitle</item>
+        <item name="foggTextSectionHeader">@style/FoggText.Glass.SectionHeader</item>
+        <item name="foggTextCardTitle">@style/FoggText.Glass.CardTitle</item>
+        <item name="foggTextMetricValue">@style/FoggText.Glass.MetricValue</item>
+        <item name="foggTextMetricUnit">@style/FoggText.Glass.MetricUnit</item>
+        <item name="foggTextMetricInline">@style/FoggText.Glass.MetricInline</item>
+        <item name="foggTextBody">@style/FoggText.Glass.Body</item>
+        <item name="foggTextRowLabel">@style/FoggText.Glass.RowLabel</item>
+        <item name="foggTextRowValue">@style/FoggText.Glass.RowValue</item>
+        <item name="foggTextCaption">@style/FoggText.Glass.Caption</item>
+        <item name="foggTextButton">@style/FoggText.Glass.Button</item>
+    </style>
+
+    <!--
+      Editorial — no cards at all. Content sits on the page, grouped by
+      full-bleed hairlines, with spacious rows and display-weight numerals.
+      This is the family that most visibly proves a theme is more than a
+      recolour.
+    -->
+    <style name="Theme.Fogg.Family.Editorial" parent="Theme.Fogg.Base">
+        <item name="foggDesignFamily">editorial</item>
+
+        <item name="foggRadiusCard">0dp</item>
+        <item name="foggRadiusSmall">0dp</item>
+        <item name="foggRadiusChip">2dp</item>
+        <item name="foggRadiusButton">2dp</item>
+        <item name="foggRadiusBadge">0dp</item>
+        <item name="foggStroke">0dp</item>
+
+        <item name="foggScreenPadding">24dp</item>
+        <item name="foggCardPadding">18dp</item>
+        <item name="foggCardGap">8dp</item>
+        <item name="foggSectionGap">34dp</item>
+        <item name="foggRowPaddingV">20dp</item>
+        <item name="foggRowPaddingH">0dp</item>
+        <item name="foggIconSize">20dp</item>
+        <item name="foggBadgeSize">20dp</item>
+
+        <!-- Structural swaps, not just tokens. -->
+        <item name="foggCardBg">@drawable/bg_fogg_card_editorial</item>
+        <item name="foggCardBgAccent">@drawable/bg_fogg_card_editorial</item>
+        <item name="foggGroupBg">@drawable/bg_fogg_group_editorial</item>
+        <item name="foggDividerStyle">@style/Fogg.Divider.Full</item>
+        <!-- Bare glyphs instead of tinted badges. -->
+        <item name="foggRowIconStyle">@style/Fogg.Row.Icon.Bare</item>
+        <item name="foggSectionHeaderStyle">@style/Fogg.SectionHeader.Editorial</item>
+
+        <item name="foggTextScreenTitle">@style/FoggText.Editorial.ScreenTitle</item>
+        <item name="foggTextSectionHeader">@style/FoggText.Editorial.SectionHeader</item>
+        <item name="foggTextCardTitle">@style/FoggText.Editorial.CardTitle</item>
+        <item name="foggTextMetricValue">@style/FoggText.Editorial.MetricValue</item>
+        <item name="foggTextMetricUnit">@style/FoggText.Editorial.MetricUnit</item>
+        <item name="foggTextMetricInline">@style/FoggText.Editorial.MetricInline</item>
+        <item name="foggTextBody">@style/FoggText.Editorial.Body</item>
+        <item name="foggTextRowLabel">@style/FoggText.Editorial.RowLabel</item>
+        <item name="foggTextRowValue">@style/FoggText.Editorial.RowValue</item>
+        <item name="foggTextCaption">@style/FoggText.Editorial.Caption</item>
+        <item name="foggTextButton">@style/FoggText.Editorial.Button</item>
+    </style>
+
+    <!-- ════════════════════ Layer 3: palettes ════════════════════ -->
+
+    <style name="Theme.Fogg.Midnight" parent="Theme.Fogg.Family.Hud">
+        <item name="foggBgPrimary">@color/mid_bg</item>
+        <item name="foggBgSurface">@color/mid_surface</item>
+        <item name="foggBgCard">@color/mid_card</item>
+        <item name="foggBgCardEnd">@color/mid_card_end</item>
+        <item name="foggBgElevated">@color/mid_elevated</item>
+        <item name="foggDialogSurface">@color/mid_dialog</item>
+        <item name="foggAccent">@color/mid_accent</item>
+        <item name="foggAccentDark">@color/mid_accent_dark</item>
+        <item name="foggAccentSecondary">@color/mid_accent_secondary</item>
+        <item name="foggAccentGlow">@color/mid_accent_glow</item>
+        <item name="foggOnAccent">@color/mid_on_accent</item>
+        <item name="foggTextPrimary">@color/mid_text</item>
+        <item name="foggTextSecondary">@color/mid_text_secondary</item>
+        <item name="foggTextMuted">@color/mid_text_muted</item>
+        <item name="foggDivider">@color/mid_divider</item>
+        <item name="foggCardBorder">@color/mid_border</item>
+        <item name="foggGaugeTrack">@color/mid_track</item>
+        <item name="foggRipple">@color/mid_ripple</item>
+        <item name="foggNavActive">@color/mid_accent</item>
+        <item name="foggNavInactive">@color/mid_nav_inactive</item>
+        <item name="foggSteps">@color/mid_steps</item>
+        <item name="foggHeart">@color/mid_heart</item>
+        <item name="foggCalories">@color/mid_calories</item>
+        <item name="foggSleep">@color/mid_sleep</item>
+        <item name="foggDistance">@color/mid_distance</item>
+        <item name="foggSpo2">@color/mid_spo2</item>
+        <item name="foggStress">@color/mid_stress</item>
+        <item name="foggBp">@color/mid_bp</item>
+        <item name="foggSleepDeep">@color/mid_sleep_deep</item>
+        <item name="foggSleepLight">@color/mid_sleep_light</item>
+        <item name="foggSleepRem">@color/mid_sleep_rem</item>
+        <item name="foggSleepAwake">@color/mid_sleep_awake</item>
+
+        <item name="colorPrimary">@color/mid_accent</item>
+        <item name="colorPrimaryDark">@color/mid_surface</item>
+        <item name="colorAccent">@color/mid_accent</item>
+        <item name="colorControlActivated">@color/mid_accent</item>
+        <item name="colorControlNormal">@color/mid_text_secondary</item>
+        <item name="android:windowBackground">@color/mid_bg</item>
+        <item name="android:colorBackground">@color/mid_bg</item>
+        <item name="android:statusBarColor">@color/mid_surface</item>
+        <item name="android:navigationBarColor">@color/mid_surface</item>
+        <item name="android:textColorPrimary">@color/mid_text</item>
+        <item name="android:textColorSecondary">@color/mid_text_secondary</item>
+        <item name="android:textColorHint">@color/mid_text_muted</item>
+    </style>
+
+    <style name="Theme.Fogg.Emerald" parent="Theme.Fogg.Family.Organic">
+        <item name="foggBgPrimary">@color/eme_bg</item>
+        <item name="foggBgSurface">@color/eme_surface</item>
+        <item name="foggBgCard">@color/eme_card</item>
+        <item name="foggBgCardEnd">@color/eme_card_end</item>
+        <item name="foggBgElevated">@color/eme_elevated</item>
+        <item name="foggDialogSurface">@color/eme_dialog</item>
+        <item name="foggAccent">@color/eme_accent</item>
+        <item name="foggAccentDark">@color/eme_accent_dark</item>
+        <item name="foggAccentSecondary">@color/eme_accent_secondary</item>
+        <item name="foggAccentGlow">@color/eme_accent_glow</item>
+        <item name="foggOnAccent">@color/eme_on_accent</item>
+        <item name="foggTextPrimary">@color/eme_text</item>
+        <item name="foggTextSecondary">@color/eme_text_secondary</item>
+        <item name="foggTextMuted">@color/eme_text_muted</item>
+        <item name="foggDivider">@color/eme_divider</item>
+        <item name="foggCardBorder">@color/eme_border</item>
+        <item name="foggGaugeTrack">@color/eme_track</item>
+        <item name="foggRipple">@color/eme_ripple</item>
+        <item name="foggNavActive">@color/eme_accent</item>
+        <item name="foggNavInactive">@color/eme_nav_inactive</item>
+        <item name="foggSteps">@color/eme_steps</item>
+        <item name="foggHeart">@color/eme_heart</item>
+        <item name="foggCalories">@color/eme_calories</item>
+        <item name="foggSleep">@color/eme_sleep</item>
+        <item name="foggDistance">@color/eme_distance</item>
+        <item name="foggSpo2">@color/eme_spo2</item>
+        <item name="foggStress">@color/eme_stress</item>
+        <item name="foggBp">@color/eme_bp</item>
+        <item name="foggSleepDeep">@color/eme_sleep_deep</item>
+        <item name="foggSleepLight">@color/eme_sleep_light</item>
+        <item name="foggSleepRem">@color/eme_sleep_rem</item>
+        <item name="foggSleepAwake">@color/eme_sleep_awake</item>
+
+        <item name="colorPrimary">@color/eme_accent</item>
+        <item name="colorPrimaryDark">@color/eme_surface</item>
+        <item name="colorAccent">@color/eme_accent</item>
+        <item name="colorControlActivated">@color/eme_accent</item>
+        <item name="colorControlNormal">@color/eme_text_secondary</item>
+        <item name="android:windowBackground">@color/eme_bg</item>
+        <item name="android:colorBackground">@color/eme_bg</item>
+        <item name="android:statusBarColor">@color/eme_surface</item>
+        <item name="android:navigationBarColor">@color/eme_surface</item>
+        <item name="android:textColorPrimary">@color/eme_text</item>
+        <item name="android:textColorSecondary">@color/eme_text_secondary</item>
+        <item name="android:textColorHint">@color/eme_text_muted</item>
+    </style>
+
+    <style name="Theme.Fogg.Solar" parent="Theme.Fogg.Family.Bold">
+        <item name="foggBgPrimary">@color/sol_bg</item>
+        <item name="foggBgSurface">@color/sol_surface</item>
+        <item name="foggBgCard">@color/sol_card</item>
+        <item name="foggBgCardEnd">@color/sol_card_end</item>
+        <item name="foggBgElevated">@color/sol_elevated</item>
+        <item name="foggDialogSurface">@color/sol_dialog</item>
+        <item name="foggAccent">@color/sol_accent</item>
+        <item name="foggAccentDark">@color/sol_accent_dark</item>
+        <item name="foggAccentSecondary">@color/sol_accent_secondary</item>
+        <item name="foggAccentGlow">@color/sol_accent_glow</item>
+        <item name="foggOnAccent">@color/sol_on_accent</item>
+        <item name="foggTextPrimary">@color/sol_text</item>
+        <item name="foggTextSecondary">@color/sol_text_secondary</item>
+        <item name="foggTextMuted">@color/sol_text_muted</item>
+        <item name="foggDivider">@color/sol_divider</item>
+        <item name="foggCardBorder">@color/sol_border</item>
+        <item name="foggGaugeTrack">@color/sol_track</item>
+        <item name="foggRipple">@color/sol_ripple</item>
+        <item name="foggNavActive">@color/sol_accent</item>
+        <item name="foggNavInactive">@color/sol_nav_inactive</item>
+        <item name="foggSteps">@color/sol_steps</item>
+        <item name="foggHeart">@color/sol_heart</item>
+        <item name="foggCalories">@color/sol_calories</item>
+        <item name="foggSleep">@color/sol_sleep</item>
+        <item name="foggDistance">@color/sol_distance</item>
+        <item name="foggSpo2">@color/sol_spo2</item>
+        <item name="foggStress">@color/sol_stress</item>
+        <item name="foggBp">@color/sol_bp</item>
+        <item name="foggSleepDeep">@color/sol_sleep_deep</item>
+        <item name="foggSleepLight">@color/sol_sleep_light</item>
+        <item name="foggSleepRem">@color/sol_sleep_rem</item>
+        <item name="foggSleepAwake">@color/sol_sleep_awake</item>
+
+        <item name="colorPrimary">@color/sol_accent</item>
+        <item name="colorPrimaryDark">@color/sol_surface</item>
+        <item name="colorAccent">@color/sol_accent</item>
+        <item name="colorControlActivated">@color/sol_accent</item>
+        <item name="colorControlNormal">@color/sol_text_secondary</item>
+        <item name="android:windowBackground">@color/sol_bg</item>
+        <item name="android:colorBackground">@color/sol_bg</item>
+        <item name="android:statusBarColor">@color/sol_surface</item>
+        <item name="android:navigationBarColor">@color/sol_surface</item>
+        <item name="android:textColorPrimary">@color/sol_text</item>
+        <item name="android:textColorSecondary">@color/sol_text_secondary</item>
+        <item name="android:textColorHint">@color/sol_text_muted</item>
+    </style>
+
+    <style name="Theme.Fogg.Ocean" parent="Theme.Fogg.Family.Glass">
+        <item name="foggBgPrimary">@color/oce_bg</item>
+        <item name="foggBgSurface">@color/oce_surface</item>
+        <item name="foggBgCard">@color/oce_card</item>
+        <item name="foggBgCardEnd">@color/oce_card_end</item>
+        <item name="foggBgElevated">@color/oce_elevated</item>
+        <item name="foggDialogSurface">@color/oce_dialog</item>
+        <item name="foggAccent">@color/oce_accent</item>
+        <item name="foggAccentDark">@color/oce_accent_dark</item>
+        <item name="foggAccentSecondary">@color/oce_accent_secondary</item>
+        <item name="foggAccentGlow">@color/oce_accent_glow</item>
+        <item name="foggOnAccent">@color/oce_on_accent</item>
+        <item name="foggTextPrimary">@color/oce_text</item>
+        <item name="foggTextSecondary">@color/oce_text_secondary</item>
+        <item name="foggTextMuted">@color/oce_text_muted</item>
+        <item name="foggDivider">@color/oce_divider</item>
+        <item name="foggCardBorder">@color/oce_border</item>
+        <item name="foggGaugeTrack">@color/oce_track</item>
+        <item name="foggRipple">@color/oce_ripple</item>
+        <item name="foggNavActive">@color/oce_accent</item>
+        <item name="foggNavInactive">@color/oce_nav_inactive</item>
+        <item name="foggSteps">@color/oce_steps</item>
+        <item name="foggHeart">@color/oce_heart</item>
+        <item name="foggCalories">@color/oce_calories</item>
+        <item name="foggSleep">@color/oce_sleep</item>
+        <item name="foggDistance">@color/oce_distance</item>
+        <item name="foggSpo2">@color/oce_spo2</item>
+        <item name="foggStress">@color/oce_stress</item>
+        <item name="foggBp">@color/oce_bp</item>
+        <item name="foggSleepDeep">@color/oce_sleep_deep</item>
+        <item name="foggSleepLight">@color/oce_sleep_light</item>
+        <item name="foggSleepRem">@color/oce_sleep_rem</item>
+        <item name="foggSleepAwake">@color/oce_sleep_awake</item>
+
+        <item name="colorPrimary">@color/oce_accent</item>
+        <item name="colorPrimaryDark">@color/oce_surface</item>
+        <item name="colorAccent">@color/oce_accent</item>
+        <item name="colorControlActivated">@color/oce_accent</item>
+        <item name="colorControlNormal">@color/oce_text_secondary</item>
+        <item name="android:windowBackground">@color/oce_bg</item>
+        <item name="android:colorBackground">@color/oce_bg</item>
+        <item name="android:statusBarColor">@color/oce_surface</item>
+        <item name="android:navigationBarColor">@color/oce_surface</item>
+        <item name="android:textColorPrimary">@color/oce_text</item>
+        <item name="android:textColorSecondary">@color/oce_text_secondary</item>
+        <item name="android:textColorHint">@color/oce_text_muted</item>
+    </style>
+
+    <style name="Theme.Fogg.Onyx" parent="Theme.Fogg.Family.Editorial">
+        <item name="foggBgPrimary">@color/ony_bg</item>
+        <item name="foggBgSurface">@color/ony_surface</item>
+        <item name="foggBgCard">@color/ony_card</item>
+        <item name="foggBgCardEnd">@color/ony_card_end</item>
+        <item name="foggBgElevated">@color/ony_elevated</item>
+        <item name="foggDialogSurface">@color/ony_dialog</item>
+        <item name="foggAccent">@color/ony_accent</item>
+        <item name="foggAccentDark">@color/ony_accent_dark</item>
+        <item name="foggAccentSecondary">@color/ony_accent_secondary</item>
+        <item name="foggAccentGlow">@color/ony_accent_glow</item>
+        <item name="foggOnAccent">@color/ony_on_accent</item>
+        <item name="foggTextPrimary">@color/ony_text</item>
+        <item name="foggTextSecondary">@color/ony_text_secondary</item>
+        <item name="foggTextMuted">@color/ony_text_muted</item>
+        <item name="foggDivider">@color/ony_divider</item>
+        <item name="foggCardBorder">@color/ony_border</item>
+        <item name="foggGaugeTrack">@color/ony_track</item>
+        <item name="foggRipple">@color/ony_ripple</item>
+        <item name="foggNavActive">@color/ony_accent</item>
+        <item name="foggNavInactive">@color/ony_nav_inactive</item>
+        <item name="foggSteps">@color/ony_steps</item>
+        <item name="foggHeart">@color/ony_heart</item>
+        <item name="foggCalories">@color/ony_calories</item>
+        <item name="foggSleep">@color/ony_sleep</item>
+        <item name="foggDistance">@color/ony_distance</item>
+        <item name="foggSpo2">@color/ony_spo2</item>
+        <item name="foggStress">@color/ony_stress</item>
+        <item name="foggBp">@color/ony_bp</item>
+        <item name="foggSleepDeep">@color/ony_sleep_deep</item>
+        <item name="foggSleepLight">@color/ony_sleep_light</item>
+        <item name="foggSleepRem">@color/ony_sleep_rem</item>
+        <item name="foggSleepAwake">@color/ony_sleep_awake</item>
+
+        <item name="colorPrimary">@color/ony_accent</item>
+        <item name="colorPrimaryDark">@color/ony_bg</item>
+        <item name="colorAccent">@color/ony_accent</item>
+        <item name="colorControlActivated">@color/ony_accent</item>
+        <item name="colorControlNormal">@color/ony_text_secondary</item>
+        <item name="android:windowBackground">@color/ony_bg</item>
+        <item name="android:colorBackground">@color/ony_bg</item>
+        <item name="android:statusBarColor">@color/ony_bg</item>
+        <item name="android:navigationBarColor">@color/ony_bg</item>
+        <item name="android:textColorPrimary">@color/ony_text</item>
+        <item name="android:textColorSecondary">@color/ony_text_secondary</item>
+        <item name="android:textColorHint">@color/ony_text_muted</item>
+    </style>
+</resources>
