@@ -19,14 +19,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Permiso de notificaciones no concedido"
+            android:text="@string/notif_perm_not_granted"
             android:textColor="#FFFFFF"/>
 
         <Button
             android:id="@+id/btnGrantPermission"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Conceder"
+            android:text="@string/notif_grant_perm"
             android:textColor="#FFFFFF"
             style="@style/Widget.MaterialComponents.Button.TextButton"/>
     </LinearLayout>
@@ -34,7 +34,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Apps que se reenvían al reloj"
+        android:text="@string/notif_apps_forwarded"
         android:textSize="14sp"
         android:padding="16dp"
         android:textColor="@color/text_secondary"/>

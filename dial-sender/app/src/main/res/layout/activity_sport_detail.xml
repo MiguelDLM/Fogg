@@ -26,7 +26,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_back"
-                android:contentDescription="Atrás"
+                android:contentDescription="@string/back"
                 app:tint="#FFFFFF" />
 
             <TextView
@@ -35,7 +35,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:text="Detalle de Entrenamiento"
+                android:text="@string/sport_detail_title"
                 android:textColor="#FFFFFF"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -55,7 +55,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_share"
-                android:contentDescription="Compartir Ruta"
+                android:contentDescription="@string/sport_share_route"
                 app:tint="#FFFFFF" />
         </LinearLayout>
 
@@ -97,7 +97,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Duración"
+                        android:text="@string/sport_duration"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -120,7 +120,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Distancia"
+                        android:text="@string/metric_distance"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -143,7 +143,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Calorías"
+                        android:text="@string/metric_calories"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -166,7 +166,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Ritmo Medio"
+                        android:text="@string/sport_avg_pace"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -189,7 +189,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Frec. Cardíaca Med."
+                        android:text="@string/sport_avg_hr"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -212,7 +212,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Elevación Acum."
+                        android:text="@string/sport_elevation_gain"
                         android:textColor="#9AA4B2"
                         android:textSize="11sp"/>
                     <TextView
@@ -295,7 +295,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ritmo Cardíaco (ppm)"
+                android:text="@string/sport_chart_hr"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -318,7 +318,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Elevación (m)"
+                android:text="@string/sport_chart_elevation"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -341,7 +341,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Velocidad (km/h)"
+                android:text="@string/sport_chart_speed"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:textStyle="bold"

@@ -64,6 +64,23 @@
                 android:layout_gravity="center"
                 android:background="@color/bg_card"/>
 
+            <!-- Center crosshair guide (dashed lines) -->
+            <View
+                android:id="@+id/viewCrosshairX"
+                android:layout_width="240dp"
+                android:layout_height="1dp"
+                android:layout_gravity="center"
+                android:background="#33FFFFFF"
+                android:clickable="false"/>
+
+            <View
+                android:id="@+id/viewCrosshairY"
+                android:layout_width="1dp"
+                android:layout_height="240dp"
+                android:layout_gravity="center"
+                android:background="#33FFFFFF"
+                android:clickable="false"/>
+
             <View
                 android:layout_width="240dp"
                 android:layout_height="240dp"
@@ -140,15 +157,164 @@
                 android:padding="10dp"
                 android:visibility="gone">
 
-                <TextView
-                    android:id="@+id/txtSelectedLayer"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text=""
-                    android:textColor="@color/accent_primary"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="6dp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:id="@+id/txtSelectedLayer"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text=""
+                        android:textColor="@color/accent_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
+
+                    <Button
+                        android:id="@+id/btnCopyStyle"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:text="@string/copy_style_from"
+                        android:textSize="10sp"
+                        android:paddingHorizontal="8dp"
+                        android:visibility="gone"/>
+                </LinearLayout>
+
+                <!-- Numeric Pos X & Pos Y Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="X:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp"
+                        android:layout_marginEnd="4dp"/>
+                    <EditText
+                        android:id="@+id/edtLayerPosX"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:inputType="numberSigned"
+                        android:textColor="@color/text_primary"
+                        android:background="@color/bg_surface"
+                        android:padding="4dp"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Y:"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="4dp"/>
+                    <EditText
+                        android:id="@+id/edtLayerPosY"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:inputType="numberSigned"
+                        android:textColor="@color/text_primary"
+                        android:background="@color/bg_surface"
+                        android:padding="4dp"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"/>
+                </LinearLayout>
+
+                <!-- Alignment Quick Actions -->
+                <LinearLayout
+                    android:id="@+id/layoutAlignmentControls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp">
+
+                    <Button
+                        android:id="@+id/btnCenterX"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/center_x"
+                        android:textSize="10sp"
+                        android:padding="0dp"
+                        android:layout_marginEnd="3dp"/>
+
+                    <Button
+                        android:id="@+id/btnCenterY"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/center_y"
+                        android:textSize="10sp"
+                        android:padding="0dp"
+                        android:layout_marginEnd="3dp"/>
+
+                    <Button
+                        android:id="@+id/btnCenterAll"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/center_all"
+                        android:textSize="10sp"
+                        android:padding="0dp"/>
+                </LinearLayout>
+
+                <!-- Background Fit Quick Actions -->
+                <LinearLayout
+                    android:id="@+id/layoutBgFitControls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/btnBgFit"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/bg_fit"
+                        android:textSize="10sp"
+                        android:padding="0dp"
+                        android:layout_marginEnd="3dp"/>
+
+                    <Button
+                        android:id="@+id/btnBgFill"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/bg_fill"
+                        android:textSize="10sp"
+                        android:padding="0dp"
+                        android:layout_marginEnd="3dp"/>
+
+                    <Button
+                        android:id="@+id/btnBgReset"
+                        style="@style/ButtonSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="32dp"
+                        android:text="@string/bg_reset"
+                        android:textSize="10sp"
+                        android:padding="0dp"/>
+                </LinearLayout>
 
                 <!-- Scale -->
                 <LinearLayout
@@ -226,7 +392,7 @@
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Bloquear fondo"
+                    android:text="@string/lock_bg"
                     android:layout_marginTop="6dp"
                     android:visibility="gone"/>
             </LinearLayout>

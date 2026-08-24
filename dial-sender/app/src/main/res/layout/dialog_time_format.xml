@@ -8,7 +8,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Formato"
+        android:text="@string/time_group_format"
         android:textStyle="bold"
         android:textSize="14sp"
         android:layout_marginBottom="8dp" />
@@ -36,7 +36,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Modo de diseño"
+        android:text="@string/time_group_design_mode"
         android:textStyle="bold"
         android:textSize="14sp"
         android:layout_marginBottom="8dp" />
@@ -50,14 +50,14 @@
             android:id="@+id/rbTogether"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Todo junto — un solo estilo para todos"
+            android:text="@string/time_group_mode_together"
             android:checked="true" />
 
         <RadioButton
             android:id="@+id/rbParts"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Por partes — diseñas cada parte" />
+            android:text="@string/time_group_mode_parts" />
     </RadioGroup>
 
 </LinearLayout>

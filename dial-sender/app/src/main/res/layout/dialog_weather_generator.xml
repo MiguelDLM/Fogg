@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg_surface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/weather_builder_title"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Live 12-icon Preview Grid -->
+        <GridLayout
+            android:id="@+id/gridWeatherIconsPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="6"
+            android:rowCount="2"
+            android:background="@color/bg_elevated"
+            android:padding="8dp"
+            android:layout_marginBottom="12dp">
+
+            <ImageView android:id="@+id/imgWeather0" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather1" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather2" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather3" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather4" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather5" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather6" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather7" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather8" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather9" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather10" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+            <ImageView android:id="@+id/imgWeather11" android:layout_width="40dp" android:layout_height="40dp" android:layout_margin="2dp"/>
+        </GridLayout>
+
+        <!-- Dimensions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/width"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtWeatherWidth"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="64"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/height"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtWeatherHeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="64"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Apply Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnApplyWeather"
+            style="@style/ButtonSuccess"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/weather_apply"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+</ScrollView>

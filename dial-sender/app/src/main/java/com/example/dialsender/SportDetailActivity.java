@@ -119,7 +119,7 @@ public class SportDetailActivity extends AppCompatActivity {
                     pyModule.callAttr("generate_gif", 
                         coordsStr.toString(), 
                         outputPath, 
-                        currentSportName != null ? currentSportName : "Entrenamiento", 
+                        currentSportName != null ? currentSportName : getString(R.string.sport_other), 
                         txtDuration.getText().toString(), 
                         txtDistance.getText().toString(), 
                         txtCalories.getText().toString()
@@ -709,7 +709,7 @@ public class SportDetailActivity extends AppCompatActivity {
             intent.setType("image/gif");
             intent.putExtra(Intent.EXTRA_STREAM, uri);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(intent, "Compartir video de la ruta"));
+            startActivity(Intent.createChooser(intent, getString(R.string.sport_share_video)));
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, getString(R.string.share_error, e.getMessage()), Toast.LENGTH_SHORT).show();

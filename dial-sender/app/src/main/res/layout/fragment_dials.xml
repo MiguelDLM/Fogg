@@ -29,7 +29,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Biblioteca instalada"
+                android:text="@string/dials_installed_library"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"/>
@@ -51,14 +51,14 @@
                 android:padding="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:layout_marginEnd="8dp"
-                android:contentDescription="Select local dial"/>
+                android:contentDescription="@string/dials_select_local"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCreateDial"
                 style="@style/ButtonPrimary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="+ Nueva"
+                android:text="@string/dials_btn_new"
                 android:textSize="13sp"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"/>

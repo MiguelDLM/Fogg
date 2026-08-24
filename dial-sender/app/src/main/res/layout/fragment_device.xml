@@ -244,29 +244,29 @@
 
             <!-- Backlight -->
             <LinearLayout android:id="@+id/rowBacklight" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="Luz de fondo (pantalla)"/>
+                <TextView style="@style/DeviceRowLabel" android:text="@string/device_backlight_title"/>
                 <TextView android:id="@+id/txtBacklight" style="@style/DeviceRowValue" android:text="5s"/>
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
             <!-- Raise to Wake -->
             <LinearLayout android:id="@+id/rowRaiseToWake" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="Activar al levantar"/>
-                <TextView android:id="@+id/txtRaiseToWake" style="@style/DeviceRowValue" android:text="Apagado"/>
+                <TextView style="@style/DeviceRowLabel" android:text="@string/device_raise_to_wake"/>
+                <TextView android:id="@+id/txtRaiseToWake" style="@style/DeviceRowValue" android:text="@string/state_off"/>
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
             <!-- Shake Camera -->
             <LinearLayout android:id="@+id/btnShakeCamera" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="Girar muñeca para foto"/>
+                <TextView style="@style/DeviceRowLabel" android:text="@string/device_shake_camera"/>
                 <TextView style="@style/DeviceRowChevron" android:text="›"/>
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 
             <!-- Firmware Upgrade -->
             <LinearLayout android:id="@+id/btnFirmware" style="@style/DeviceRow">
-                <TextView style="@style/DeviceRowLabel" android:text="Actualizar firmware"/>
-                <TextView android:id="@+id/txtFirmware" style="@style/DeviceRowValue" android:text="v1.0.0"/>
+                <TextView style="@style/DeviceRowLabel" android:text="@string/device_fw_update_title"/>
+                <TextView android:id="@+id/txtFirmwareRowValue" style="@style/DeviceRowValue" android:text="v1.0.0"/>
             </LinearLayout>
             <View style="@style/DeviceRowDivider"/>
 

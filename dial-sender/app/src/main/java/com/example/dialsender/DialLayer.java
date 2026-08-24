@@ -42,6 +42,21 @@ public class DialLayer {
     // Full composite bitmap for sprite-sheets loaded from file
     public Bitmap compositeImage;
 
+    // Styling & Builder configs for style copying and re-editing
+    public String fontPath;
+    public int fontSize = 32;
+    public int fontColor = android.graphics.Color.WHITE;
+    public boolean fontBold = false;
+    public boolean fontItalic = false;
+    public int fontStrokeColor = android.graphics.Color.TRANSPARENT;
+    public int fontStrokeWidth = 0;
+    public int fontShadowColor = android.graphics.Color.TRANSPARENT;
+    public int fontShadowRadius = 0;
+
+    public HandGenerator.HandConfig handConfig;
+    public BatteryGenerator.BatteryConfig batteryConfig;
+    public WeatherGenerator.WeatherConfig weatherConfig;
+
     public DialLayer(int layerType, Bitmap icon, String name) {
         this.layerType = layerType;
         this.icon = icon;

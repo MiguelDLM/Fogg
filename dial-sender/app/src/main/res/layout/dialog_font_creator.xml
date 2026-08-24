@@ -49,7 +49,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="1. Seleccionar archivo de fuente (.ttf)"
+        android:text="@string/font_creator_step_font"
         android:textColor="@color/text_primary"
         android:textSize="14sp"
         android:textStyle="bold"
@@ -61,7 +61,7 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         app:icon="@android:drawable/ic_menu_agenda"
-        android:text="EXPLORAR ARCHIVOS..."
+        android:text="@string/font_creator_browse"
         android:textStyle="bold"
         android:textSize="14sp"
         android:layout_marginBottom="16dp"/>
@@ -94,7 +94,7 @@
             android:id="@+id/lblCustom"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="2. Texto personalizado a dibujar"
+            android:text="@string/font_creator_step_text"
             android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -108,7 +108,7 @@
             android:layout_height="wrap_content"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:visibility="gone"
-            android:hint="Escribe aquí el texto"
+            android:hint="@string/font_creator_text_hint"
             android:layout_marginBottom="16dp">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/edtCustom"

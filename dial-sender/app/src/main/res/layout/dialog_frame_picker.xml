@@ -9,7 +9,7 @@
         android:id="@+id/tvFramePickerTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Importar animación"
+        android:text="@string/anim_import_title"
         android:textStyle="bold"
         android:textSize="16sp"
         android:layout_marginBottom="8dp"/>
@@ -24,7 +24,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Intervalo de muestreo:"
+        android:text="@string/anim_sample_interval"
         android:layout_marginBottom="4dp"/>
 
     <RadioGroup
@@ -45,7 +45,7 @@
         android:id="@+id/tvFrameCount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="→ 0 frames (máx 30)"
+        android:text="→ 0 frames"
         android:layout_marginTop="8dp"/>
 
     <LinearLayout
@@ -59,7 +59,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Manual Interval (ms):"
+            android:text="@string/anim_manual_interval"
             android:textSize="12sp"/>
 
         <EditText
@@ -82,7 +82,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Max Frames (limit):"
+            android:text="@string/anim_max_frames"
             android:textSize="12sp"/>
 
         <EditText

@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg_surface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/battery_builder_title"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Live Strip Preview -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@color/bg_elevated"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:id="@+id/imgBatteryPreview0"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp" />
+            <ImageView
+                android:id="@+id/imgBatteryPreview1"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp" />
+            <ImageView
+                android:id="@+id/imgBatteryPreview2"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp" />
+            <ImageView
+                android:id="@+id/imgBatteryPreview3"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp" />
+            <ImageView
+                android:id="@+id/imgBatteryPreview4"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp" />
+            <ImageView
+                android:id="@+id/imgBatteryPreview5"
+                android:layout_width="40dp"
+                android:layout_height="36dp" />
+        </LinearLayout>
+
+        <!-- Style Selector -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/battery_style"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/spinnerBatteryStyle"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="@color/bg_elevated"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Color Mode -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/color_mode"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/rgBatteryColorMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <RadioButton
+                android:id="@+id/rbColorDynamic"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/color_dynamic"
+                android:textColor="@color/text_primary"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rbColorSolid"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/color_solid"
+                android:textColor="@color/text_primary" />
+        </RadioGroup>
+
+        <!-- Dimensions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/width"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtBatteryWidth"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="84"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/height"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+                <EditText
+                    android:id="@+id/edtBatteryHeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:inputType="number"
+                    android:text="75"
+                    android:textColor="@color/text_primary"
+                    android:background="@color/bg_elevated"
+                    android:padding="6dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/chkShowLightning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/battery_show_lightning"
+            android:textColor="@color/text_primary"
+            android:checked="true"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Apply Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnApplyBattery"
+            style="@style/ButtonSuccess"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/battery_apply"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+</ScrollView>

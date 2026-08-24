@@ -20,6 +20,10 @@ def chaquopyBuildPython = {
     if (explicit) {
         return explicit.toString()
     }
+    def pyenv39 = new File(System.getProperty("user.home"), ".pyenv/versions/3.9.0/bin/python3.9")
+    if (pyenv39.canExecute()) {
+        return pyenv39.absolutePath
+    }
     def standalone = new File(System.getProperty("user.home"),
                               ".local/python-standalone/bin/python3.12")
     if (standalone.canExecute()) {
@@ -27,8 +31,10 @@ def chaquopyBuildPython = {
     }
     for (name in ["python3.12", "python3.11", "python3.10", "python3.9", "python3.8"]) {
         for (dir in (System.getenv("PATH") ?: "").split(File.pathSeparator)) {
-            if (new File(dir, name).canExecute()) {
-                return name
+            if (dir.contains(".pyenv/shims")) continue
+            def f = new File(dir, name)
+            if (f.canExecute()) {
+                return f.absolutePath
             }
         }
     }
@@ -65,6 +71,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

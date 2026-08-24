@@ -70,10 +70,10 @@ public class SettingsFragment extends Fragment {
         if (profileDevice != null) {
             String addr = com.example.dialsender.ble.BleManager.getInstance(requireContext())
                     .getLastDeviceAddress();
-            profileDevice.setText(addr != null ? "Reloj: " + addr : "Sin dispositivo vinculado");
+            profileDevice.setText(addr != null ? getString(R.string.device_bound_fmt, addr) : getString(R.string.settings_no_device));
         }
         if (txtProfileName != null)
-            txtProfileName.setText(prefs.getString("profile_name", "Mi perfil"));
+            txtProfileName.setText(prefs.getString("profile_name", getString(R.string.profile_default_name)));
         loadProfilePhoto();
 
         View profileCard = view.findViewById(R.id.profileCard);
@@ -83,7 +83,7 @@ public class SettingsFragment extends Fragment {
         // Version footer — 6 consecutive taps unlock developer tools (Android-style)
         TextView txtVersion = view.findViewById(R.id.txtVersion);
         if (txtVersion != null) {
-            txtVersion.setText(getString(R.string.app_name) + " v0.4");
+            txtVersion.setText(getString(R.string.settings_version));
             txtVersion.setOnClickListener(new View.OnClickListener() {
                 int taps = 0;
                 long last = 0;
@@ -97,7 +97,7 @@ public class SettingsFragment extends Fragment {
                         startActivity(new Intent(requireContext(), DeveloperToolsActivity.class));
                     } else if (taps >= 3) {
                         Toast.makeText(requireContext(),
-                                "Faltan " + (6 - taps) + " toques para herramientas de desarrollo",
+                                getString(R.string.dev_tools_unlock_countdown, (6 - taps)),
                                 Toast.LENGTH_SHORT).show();
                     }
                 }
@@ -153,7 +153,7 @@ public class SettingsFragment extends Fragment {
         // Distance unit spinner
         Spinner spinnerDist = view.findViewById(R.id.spinnerDistance);
         ArrayAdapter<String> distAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_dropdown_item, new String[]{"km", "millas"});
+                android.R.layout.simple_spinner_dropdown_item, new String[]{"km", getString(R.string.unit_miles)});
         spinnerDist.setAdapter(distAdapter);
         spinnerDist.setSelection("mi".equals(prefs.getString("unit_distance", "km")) ? 1 : 0);
         spinnerDist.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -172,7 +172,7 @@ public class SettingsFragment extends Fragment {
         // Weight unit spinner
         Spinner spinnerWeight = view.findViewById(R.id.spinnerWeight);
         ArrayAdapter<String> weightAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_dropdown_item, new String[]{"kg", "libras"});
+                android.R.layout.simple_spinner_dropdown_item, new String[]{"kg", getString(R.string.unit_pounds)});
         spinnerWeight.setAdapter(weightAdapter);
         spinnerWeight.setSelection("lb".equals(prefs.getString("unit_weight", "kg")) ? 1 : 0);
         spinnerWeight.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {

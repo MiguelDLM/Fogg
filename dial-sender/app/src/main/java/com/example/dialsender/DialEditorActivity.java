@@ -76,6 +76,14 @@ public class DialEditorActivity extends AppCompatActivity {
     private Button btnUpload;
     private MaterialButton btnLockBg;
 
+    // Alignment and Numeric position controls
+    private EditText edtLayerPosX, edtLayerPosY;
+    private Button btnCenterX, btnCenterY, btnCenterAll;
+    private LinearLayout layoutAlignmentControls, layoutBgFitControls;
+    private Button btnBgFit, btnBgFill, btnBgReset;
+    private Button btnCopyStyle;
+    private boolean isUpdatingPosText = false;
+
     private List<DialLayer> layers = new ArrayList<>();
     private int selectedLayerIndex = -1;
     private int pendingElementType = -1;
@@ -164,6 +172,49 @@ public class DialEditorActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Alignment & Position View Binding
+        edtLayerPosX = findViewById(R.id.edtLayerPosX);
+        edtLayerPosY = findViewById(R.id.edtLayerPosY);
+        btnCenterX = findViewById(R.id.btnCenterX);
+        btnCenterY = findViewById(R.id.btnCenterY);
+        btnCenterAll = findViewById(R.id.btnCenterAll);
+        layoutAlignmentControls = findViewById(R.id.layoutAlignmentControls);
+        layoutBgFitControls = findViewById(R.id.layoutBgFitControls);
+        btnBgFit = findViewById(R.id.btnBgFit);
+        btnBgFill = findViewById(R.id.btnBgFill);
+        btnBgReset = findViewById(R.id.btnBgReset);
+        btnCopyStyle = findViewById(R.id.btnCopyStyle);
+
+        btnCenterX.setOnClickListener(v -> centerSelectedLayer(true, false));
+        btnCenterY.setOnClickListener(v -> centerSelectedLayer(false, true));
+        btnCenterAll.setOnClickListener(v -> centerSelectedLayer(true, true));
+        btnBgFit.setOnClickListener(v -> fitBackground(false));
+        btnBgFill.setOnClickListener(v -> fitBackground(true));
+        btnBgReset.setOnClickListener(v -> resetBackground());
+        btnCopyStyle.setOnClickListener(v -> showCopyStyleDialog());
+
+        android.text.TextWatcher posWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isUpdatingPosText) return;
+                if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+                DialLayer l = layers.get(selectedLayerIndex);
+                if (l.locked) return;
+                try {
+                    if (edtLayerPosX.hasFocus()) {
+                        l.posX = Float.parseFloat(edtLayerPosX.getText().toString());
+                        updatePreview();
+                    } else if (edtLayerPosY.hasFocus()) {
+                        l.posY = Float.parseFloat(edtLayerPosY.getText().toString());
+                        updatePreview();
+                    }
+                } catch (Exception ignored) {}
+            }
+        };
+        edtLayerPosX.addTextChangedListener(posWatcher);
+        edtLayerPosY.addTextChangedListener(posWatcher);
 
         findViewById(R.id.btnBackEditor).setOnClickListener(v -> finish());
         findViewById(R.id.btnAddElement).setOnClickListener(v -> showAddElementDialog());
@@ -1022,8 +1073,24 @@ public class DialEditorActivity extends AppCompatActivity {
         RecyclerView grid = galleryView.findViewById(R.id.gridPresets);
         grid.setLayoutManager(new GridLayoutManager(this, 3));
 
-        // Build items: gallery option + font option + presets
+        // Build items: gallery option + builders + font option + presets
         List<Object[]> items = new ArrayList<>();
+
+        // Hand Builder option for analog hands
+        if (isHandType(elementType)) {
+            items.add(new Object[] { getString(R.string.from_hand_builder), "__HAND_BUILDER__", null });
+        }
+
+        // Battery Builder option for battery
+        if (elementType == DialCompiler.TYPE_BATT_STRIP || elementType == DialCompiler.TYPE_BATTERY) {
+            items.add(new Object[] { getString(R.string.from_battery_builder), "__BATTERY_BUILDER__", null });
+        }
+
+        // Weather Builder option for weather
+        if (elementType == DialCompiler.TYPE_WEATHER) {
+            items.add(new Object[] { getString(R.string.from_weather_builder), "__WEATHER_BUILDER__", null });
+        }
+
         items.add(new Object[] { getString(R.string.from_gallery), null, null });
 
         // Font creator option for digit types
@@ -1064,10 +1131,11 @@ public class DialEditorActivity extends AppCompatActivity {
                 Bitmap thumb = (Bitmap) item[2];
                 if (thumb != null) {
                     h.imgThumb.setImageBitmap(thumb);
-                } else if (pos == 0) {
-                    h.imgThumb.setImageResource(android.R.drawable.ic_menu_gallery);
-                } else if ("__FONT__".equals(item[1])) {
+                } else if ("__HAND_BUILDER__".equals(item[1]) || "__BATTERY_BUILDER__".equals(item[1])
+                        || "__WEATHER_BUILDER__".equals(item[1]) || "__FONT__".equals(item[1])) {
                     h.imgThumb.setImageResource(android.R.drawable.ic_menu_edit);
+                } else if (item[1] == null) {
+                    h.imgThumb.setImageResource(android.R.drawable.ic_menu_gallery);
                 } else {
                     h.imgThumb.setImageBitmap(null);
                 }
@@ -1077,6 +1145,12 @@ public class DialEditorActivity extends AppCompatActivity {
                     if (path == null) {
                         pendingElementType = elementType;
                         pickImageFromGallery();
+                    } else if ("__HAND_BUILDER__".equals(path)) {
+                        showHandSetBuilder();
+                    } else if ("__BATTERY_BUILDER__".equals(path)) {
+                        showBatteryGenerator();
+                    } else if ("__WEATHER_BUILDER__".equals(path)) {
+                        showWeatherGenerator();
                     } else if ("__FONT__".equals(path)) {
                         showFontCreator(elementType);
                     } else if ("__SVG__".equals(path)) {
@@ -2782,15 +2856,498 @@ public class DialEditorActivity extends AppCompatActivity {
             txtSelectedLayer.setText(info);
             seekScale.setProgress((int) (layer.scale * 100));
             seekRotation.setProgress((int) layer.rotation);
+
+            isUpdatingPosText = true;
+            if (edtLayerPosX != null && !edtLayerPosX.hasFocus()) {
+                edtLayerPosX.setText(String.valueOf(Math.round(layer.posX)));
+            }
+            if (edtLayerPosY != null && !edtLayerPosY.hasFocus()) {
+                edtLayerPosY.setText(String.valueOf(Math.round(layer.posY)));
+            }
+            isUpdatingPosText = false;
+
             boolean isBg = layer.layerType == DialLayer.TYPE_BACKGROUND;
-            btnLockBg.setVisibility(isBg ? View.VISIBLE : View.GONE);
-            if (isBg) {
-                btnLockBg.setText(layer.locked ? R.string.unlock_bg : R.string.lock_bg);
+            if (btnLockBg != null) {
+                btnLockBg.setVisibility(isBg ? View.VISIBLE : View.GONE);
+                if (isBg) {
+                    btnLockBg.setText(layer.locked ? R.string.unlock_bg : R.string.lock_bg);
+                }
+            }
+            if (layoutBgFitControls != null) {
+                layoutBgFitControls.setVisibility(isBg ? View.VISIBLE : View.GONE);
+            }
+            if (layoutAlignmentControls != null) {
+                layoutAlignmentControls.setVisibility(isBg ? View.GONE : View.VISIBLE);
+            }
+            if (btnCopyStyle != null) {
+                btnCopyStyle.setVisibility(hasOtherStyledLayers(layer) ? View.VISIBLE : View.GONE);
             }
         } else {
             selectedLayerControls.setVisibility(View.GONE);
-            btnLockBg.setVisibility(View.GONE);
+            if (btnLockBg != null) btnLockBg.setVisibility(View.GONE);
         }
+    }
+
+    private void centerSelectedLayer(boolean cx, boolean cy) {
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer l = layers.get(selectedLayerIndex);
+        if (l.locked) return;
+        Bitmap bmp = getPreviewBitmap(l);
+        if (bmp == null) return;
+        float w = bmp.getWidth() * l.scale;
+        float h = bmp.getHeight() * l.scale;
+        if (cx) {
+            l.posX = (canvasWidth - w) / 2.0f;
+        }
+        if (cy) {
+            l.posY = (canvasHeight - h) / 2.0f;
+        }
+        refreshAll();
+    }
+
+    private void fitBackground(boolean fill) {
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer l = layers.get(selectedLayerIndex);
+        if (l.layerType != DialLayer.TYPE_BACKGROUND || l.locked) return;
+        Bitmap bmp = l.icon;
+        if (bmp == null) return;
+        float scaleX = (float) canvasWidth / bmp.getWidth();
+        float scaleY = (float) canvasHeight / bmp.getHeight();
+        l.scale = fill ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
+        l.posX = (canvasWidth - bmp.getWidth() * l.scale) / 2.0f;
+        l.posY = (canvasHeight - bmp.getHeight() * l.scale) / 2.0f;
+        l.rotation = 0;
+        refreshAll();
+    }
+
+    private void resetBackground() {
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer l = layers.get(selectedLayerIndex);
+        if (l.layerType != DialLayer.TYPE_BACKGROUND || l.locked) return;
+        l.scale = 1.0f;
+        l.posX = 0;
+        l.posY = 0;
+        l.rotation = 0;
+        refreshAll();
+    }
+
+    private boolean hasOtherStyledLayers(DialLayer currentLayer) {
+        for (DialLayer l : layers) {
+            if (l != currentLayer && (l.fontPath != null || l.fontSize > 0 || l.fontColor != 0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void showCopyStyleDialog() {
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer targetLayer = layers.get(selectedLayerIndex);
+        List<DialLayer> candidates = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (DialLayer l : layers) {
+            if (l != targetLayer) {
+                candidates.add(l);
+                labels.add(l.name);
+            }
+        }
+        if (candidates.isEmpty()) {
+            Toast.makeText(this, "No other layers to copy from", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.copy_style_from)
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                    DialLayer donor = candidates.get(which);
+                    targetLayer.fontPath = donor.fontPath;
+                    targetLayer.fontSize = donor.fontSize;
+                    targetLayer.fontColor = donor.fontColor;
+                    targetLayer.fontBold = donor.fontBold;
+                    targetLayer.fontItalic = donor.fontItalic;
+                    targetLayer.fontStrokeColor = donor.fontStrokeColor;
+                    targetLayer.fontStrokeWidth = donor.fontStrokeWidth;
+                    targetLayer.fontShadowColor = donor.fontShadowColor;
+                    targetLayer.fontShadowRadius = donor.fontShadowRadius;
+                    targetLayer.scale = donor.scale;
+                    refreshAll();
+                    Toast.makeText(this, "Style copied from " + donor.name, Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
+    // ===================== HAND SET BUILDER =====================
+
+    private void showHandSetBuilder() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_hand_generator, null);
+        ImageView imgDialLivePreview = dialogView.findViewById(R.id.imgDialLivePreview);
+        TextView txtDims = dialogView.findViewById(R.id.txtHandDimensionsInfo);
+        RadioGroup rgHandTabs = dialogView.findViewById(R.id.rgHandTabs);
+        Spinner spinnerStyle = dialogView.findViewById(R.id.spinnerHandStyle);
+        CheckBox chkProportional = dialogView.findViewById(R.id.chkProportional);
+        EditText edtWidth = dialogView.findViewById(R.id.edtHandWidth);
+        EditText edtTipLen = dialogView.findViewById(R.id.edtHandTipLen);
+        EditText edtTailLen = dialogView.findViewById(R.id.edtHandTailLen);
+        EditText edtHexColor = dialogView.findViewById(R.id.edtHexColor);
+        CheckBox chkOutline = dialogView.findViewById(R.id.chkOutline);
+        CheckBox chkShadow = dialogView.findViewById(R.id.chkShadow);
+        CheckBox chkRounded = dialogView.findViewById(R.id.chkRounded);
+        Button btnApply = dialogView.findViewById(R.id.btnApplyHandSet);
+
+        final HandGenerator.HandConfig[] configs = new HandGenerator.HandConfig[]{
+                HandGenerator.HandConfig.getDefault("hour"),
+                HandGenerator.HandConfig.getDefault("minute"),
+                HandGenerator.HandConfig.getDefault("second")
+        };
+        final int[] currentTab = {0};
+
+        final String[] styles = {"sword", "arrow", "baton", "needle", "club", "diamond", "leaf", "lollipop"};
+        final String[] styleNames = {"Sword (Espada)", "Arrow (Flecha)", "Baton (Bastón)", "Needle (Aguja)", "Club", "Diamond (Diamante)", "Leaf (Hoja)", "Lollipop"};
+        ArrayAdapter<String> styleAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, styleNames);
+        spinnerStyle.setAdapter(styleAdapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        Runnable updateDialPreview = () -> {
+            Bitmap preview = HandGenerator.renderDialPreview(configs[0], configs[1], configs[2], 280);
+            imgDialLivePreview.setImageBitmap(preview);
+            txtDims.setText(String.format(Locale.US, "H: %d×%d (ctx=%d)\nM: %d×%d (ctx=%d)\nS: %d×%d (ctx=%d)",
+                    configs[0].width + 10, configs[0].handLength + configs[0].tailLength + 10, configs[0].tailLength + 5,
+                    configs[1].width + 10, configs[1].handLength + configs[1].tailLength + 10, configs[1].tailLength + 5,
+                    configs[2].width + 10, configs[2].handLength + configs[2].tailLength + 10, configs[2].tailLength + 5));
+        };
+
+        final boolean[] isSettingFields = {false};
+        Runnable populateFields = () -> {
+            isSettingFields[0] = true;
+            HandGenerator.HandConfig cfg = configs[currentTab[0]];
+            for (int i = 0; i < styles.length; i++) {
+                if (styles[i].equalsIgnoreCase(cfg.tipStyle)) {
+                    spinnerStyle.setSelection(i);
+                    break;
+                }
+            }
+            edtWidth.setText(String.valueOf(cfg.width));
+            edtTipLen.setText(String.valueOf(cfg.handLength));
+            edtTailLen.setText(String.valueOf(cfg.tailLength));
+            edtHexColor.setText(String.format("#%06X", (0xFFFFFF & cfg.color)));
+            chkOutline.setChecked(cfg.outline);
+            chkShadow.setChecked(cfg.shadow);
+            chkRounded.setChecked(cfg.rounded);
+            isSettingFields[0] = false;
+            updateDialPreview.run();
+        };
+
+        rgHandTabs.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rbHourHand) currentTab[0] = 0;
+            else if (checkedId == R.id.rbMinuteHand) currentTab[0] = 1;
+            else if (checkedId == R.id.rbSecondHand) currentTab[0] = 2;
+            populateFields.run();
+        });
+
+        spinnerStyle.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View v, int position, long id) {
+                if (isSettingFields[0]) return;
+                configs[currentTab[0]].tipStyle = styles[position];
+                updateDialPreview.run();
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isSettingFields[0]) return;
+                try {
+                    HandGenerator.HandConfig cfg = configs[currentTab[0]];
+                    if (edtWidth.hasFocus()) {
+                        int oldW = cfg.width;
+                        int newW = Integer.parseInt(edtWidth.getText().toString());
+                        cfg.width = Math.max(1, newW);
+                        if (chkProportional.isChecked() && oldW > 0) {
+                            float factor = (float) newW / oldW;
+                            cfg.handLength = Math.round(cfg.handLength * factor);
+                            cfg.tailLength = Math.round(cfg.tailLength * factor);
+                            isSettingFields[0] = true;
+                            edtTipLen.setText(String.valueOf(cfg.handLength));
+                            edtTailLen.setText(String.valueOf(cfg.tailLength));
+                            isSettingFields[0] = false;
+                        }
+                    } else if (edtTipLen.hasFocus()) {
+                        cfg.handLength = Math.max(10, Integer.parseInt(edtTipLen.getText().toString()));
+                    } else if (edtTailLen.hasFocus()) {
+                        cfg.tailLength = Math.max(0, Integer.parseInt(edtTailLen.getText().toString()));
+                    }
+                    updateDialPreview.run();
+                } catch (Exception ignored) {}
+            }
+        };
+        edtWidth.addTextChangedListener(dimWatcher);
+        edtTipLen.addTextChangedListener(dimWatcher);
+        edtTailLen.addTextChangedListener(dimWatcher);
+
+        int[] swatchIds = {R.id.viewColorWhite, R.id.viewColorRed, R.id.viewColorYellow, R.id.viewColorCyan, R.id.viewColorOrange};
+        int[] swatchColors = {Color.WHITE, Color.parseColor("#FF4444"), Color.parseColor("#FFCC00"), Color.parseColor("#22D3EE"), Color.parseColor("#F97316")};
+        for (int i = 0; i < swatchIds.length; i++) {
+            int clr = swatchColors[i];
+            View sw = dialogView.findViewById(swatchIds[i]);
+            if (sw != null) {
+                sw.setOnClickListener(v -> {
+                    configs[currentTab[0]].color = clr;
+                    edtHexColor.setText(String.format("#%06X", (0xFFFFFF & clr)));
+                    updateDialPreview.run();
+                });
+            }
+        }
+
+        edtHexColor.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                if (isSettingFields[0]) return;
+                try {
+                    String hex = edtHexColor.getText().toString().trim();
+                    if (!hex.startsWith("#")) hex = "#" + hex;
+                    configs[currentTab[0]].color = Color.parseColor(hex);
+                    updateDialPreview.run();
+                } catch (Exception ignored) {}
+            }
+        });
+
+        chkOutline.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isSettingFields[0]) return;
+            configs[currentTab[0]].outline = isChecked;
+            updateDialPreview.run();
+        });
+        chkShadow.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isSettingFields[0]) return;
+            configs[currentTab[0]].shadow = isChecked;
+            updateDialPreview.run();
+        });
+        chkRounded.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isSettingFields[0]) return;
+            configs[currentTab[0]].rounded = isChecked;
+            updateDialPreview.run();
+        });
+
+        populateFields.run();
+
+        btnApply.setOnClickListener(v -> {
+            dialog.dismiss();
+            applyHandSet(configs[0], configs[1], configs[2]);
+        });
+
+        dialog.show();
+    }
+
+    private void applyHandSet(HandGenerator.HandConfig hourCfg, HandGenerator.HandConfig minCfg, HandGenerator.HandConfig secCfg) {
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            int t = layers.get(i).nativeElementType;
+            if (isHandType(t)) {
+                layers.remove(i);
+            }
+        }
+
+        int hW = hourCfg.width + 10;
+        int hH = hourCfg.handLength + hourCfg.tailLength + 10;
+        int hCtx = hourCfg.tailLength + 5;
+        Bitmap hourBmp = HandGenerator.generateHandBitmap(hourCfg, hW, hH);
+        DialLayer hourLayer = new DialLayer(DialLayer.TYPE_ARM, hourBmp, getString(R.string.hand_hour), DialCompiler.TYPE_ARM_HOUR);
+        hourLayer.pivotTail = hCtx;
+        hourLayer.handConfig = hourCfg;
+        layers.add(hourLayer);
+
+        int mW = minCfg.width + 10;
+        int mH = minCfg.handLength + minCfg.tailLength + 10;
+        int mCtx = minCfg.tailLength + 5;
+        Bitmap minBmp = HandGenerator.generateHandBitmap(minCfg, mW, mH);
+        DialLayer minLayer = new DialLayer(DialLayer.TYPE_ARM, minBmp, getString(R.string.hand_minute), DialCompiler.TYPE_ARM_MIN);
+        minLayer.pivotTail = mCtx;
+        minLayer.handConfig = minCfg;
+        layers.add(minLayer);
+
+        int sW = secCfg.width + 10;
+        int sH = secCfg.handLength + secCfg.tailLength + 10;
+        int sCtx = secCfg.tailLength + 5;
+        Bitmap secBmp = HandGenerator.generateHandBitmap(secCfg, sW, sH);
+        DialLayer secLayer = new DialLayer(DialLayer.TYPE_ARM, secBmp, getString(R.string.hand_second), DialCompiler.TYPE_ARM_SEC);
+        secLayer.pivotTail = sCtx;
+        secLayer.handConfig = secCfg;
+        layers.add(secLayer);
+
+        refreshAll();
+        Toast.makeText(this, R.string.hand_apply_set, Toast.LENGTH_SHORT).show();
+    }
+
+    // ===================== BATTERY GENERATOR =====================
+
+    private void showBatteryGenerator() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_battery_generator, null);
+        Spinner spinnerStyle = dialogView.findViewById(R.id.spinnerBatteryStyle);
+        RadioGroup rgColorMode = dialogView.findViewById(R.id.rgBatteryColorMode);
+        EditText edtW = dialogView.findViewById(R.id.edtBatteryWidth);
+        EditText edtH = dialogView.findViewById(R.id.edtBatteryHeight);
+        CheckBox chkLightning = dialogView.findViewById(R.id.chkShowLightning);
+        Button btnApply = dialogView.findViewById(R.id.btnApplyBattery);
+
+        ImageView[] previews = new ImageView[]{
+                dialogView.findViewById(R.id.imgBatteryPreview0),
+                dialogView.findViewById(R.id.imgBatteryPreview1),
+                dialogView.findViewById(R.id.imgBatteryPreview2),
+                dialogView.findViewById(R.id.imgBatteryPreview3),
+                dialogView.findViewById(R.id.imgBatteryPreview4),
+                dialogView.findViewById(R.id.imgBatteryPreview5)
+        };
+
+        BatteryGenerator.BatteryConfig cfg = new BatteryGenerator.BatteryConfig();
+        String[] styles = {"horizontal_capsule", "vertical_capsule", "circular_ring", "pill_dots"};
+        String[] styleNames = {"Horizontal Capsule", "Vertical Capsule", "Circular Ring", "Pill Dots"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, styleNames);
+        spinnerStyle.setAdapter(adapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        Runnable updatePreviews = () -> {
+            for (int i = 0; i < cfg.frameCount; i++) {
+                Bitmap frame = BatteryGenerator.generateSingleFrame(cfg, i, cfg.frameCount);
+                previews[i].setImageBitmap(frame);
+            }
+        };
+
+        spinnerStyle.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View v, int position, long id) {
+                cfg.presetStyle = styles[position];
+                updatePreviews.run();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        rgColorMode.setOnCheckedChangeListener((group, checkedId) -> {
+            cfg.colorMode = (checkedId == R.id.rbColorDynamic) ? "dynamic" : "solid";
+            updatePreviews.run();
+        });
+
+        chkLightning.setOnCheckedChangeListener((btn, isChecked) -> {
+            cfg.showLightning = isChecked;
+            updatePreviews.run();
+        });
+
+        android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try {
+                    cfg.frameWidth = Math.max(16, Integer.parseInt(edtW.getText().toString()));
+                    cfg.frameHeight = Math.max(16, Integer.parseInt(edtH.getText().toString()));
+                    updatePreviews.run();
+                } catch (Exception ignored) {}
+            }
+        };
+        edtW.addTextChangedListener(dimWatcher);
+        edtH.addTextChangedListener(dimWatcher);
+
+        updatePreviews.run();
+
+        btnApply.setOnClickListener(v -> {
+            dialog.dismiss();
+            Bitmap fullSheet = BatteryGenerator.generateVerticalSpriteSheet(cfg);
+            Bitmap[] frames = new Bitmap[cfg.frameCount];
+            int fh = cfg.frameHeight;
+            for (int i = 0; i < cfg.frameCount; i++) {
+                frames[i] = Bitmap.createBitmap(fullSheet, 0, i * fh, cfg.frameWidth, fh);
+            }
+            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[frames.length - 1], getBlockLabel(DialCompiler.TYPE_BATT_STRIP), DialCompiler.TYPE_BATT_STRIP);
+            layer.frames = frames;
+            layer.frameCount = cfg.frameCount;
+            layer.isSpriteSheet = true;
+            layer.compositeImage = fullSheet;
+            layer.batteryConfig = cfg;
+            layers.add(layer);
+            refreshAll();
+            Toast.makeText(this, R.string.battery_apply, Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.show();
+    }
+
+    // ===================== WEATHER GENERATOR =====================
+
+    private void showWeatherGenerator() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_weather_generator, null);
+        EditText edtW = dialogView.findViewById(R.id.edtWeatherWidth);
+        EditText edtH = dialogView.findViewById(R.id.edtWeatherHeight);
+        Button btnApply = dialogView.findViewById(R.id.btnApplyWeather);
+
+        ImageView[] previews = new ImageView[12];
+        int[] iconIds = {
+                R.id.imgWeather0, R.id.imgWeather1, R.id.imgWeather2, R.id.imgWeather3,
+                R.id.imgWeather4, R.id.imgWeather5, R.id.imgWeather6, R.id.imgWeather7,
+                R.id.imgWeather8, R.id.imgWeather9, R.id.imgWeather10, R.id.imgWeather11
+        };
+        for (int i = 0; i < 12; i++) {
+            previews[i] = dialogView.findViewById(iconIds[i]);
+        }
+
+        WeatherGenerator.WeatherConfig cfg = new WeatherGenerator.WeatherConfig();
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        Runnable updatePreviews = () -> {
+            for (int i = 0; i < cfg.frameCount; i++) {
+                Bitmap frame = WeatherGenerator.generateSingleFrame(cfg, i);
+                previews[i].setImageBitmap(frame);
+            }
+        };
+
+        android.text.TextWatcher dimWatcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                try {
+                    cfg.frameWidth = Math.max(16, Integer.parseInt(edtW.getText().toString()));
+                    cfg.frameHeight = Math.max(16, Integer.parseInt(edtH.getText().toString()));
+                    updatePreviews.run();
+                } catch (Exception ignored) {}
+            }
+        };
+        edtW.addTextChangedListener(dimWatcher);
+        edtH.addTextChangedListener(dimWatcher);
+
+        updatePreviews.run();
+
+        btnApply.setOnClickListener(v -> {
+            dialog.dismiss();
+            Bitmap fullSheet = WeatherGenerator.generateVerticalSpriteSheet(cfg);
+            Bitmap[] frames = new Bitmap[cfg.frameCount];
+            int fh = cfg.frameHeight;
+            for (int i = 0; i < cfg.frameCount; i++) {
+                frames[i] = Bitmap.createBitmap(fullSheet, 0, i * fh, cfg.frameWidth, fh);
+            }
+            DialLayer layer = new DialLayer(DialLayer.TYPE_ELEMENT, frames[1], getBlockLabel(DialCompiler.TYPE_WEATHER), DialCompiler.TYPE_WEATHER);
+            layer.frames = frames;
+            layer.frameCount = cfg.frameCount;
+            layer.isSpriteSheet = true;
+            layer.compositeImage = fullSheet;
+            layer.weatherConfig = cfg;
+            layers.add(layer);
+            refreshAll();
+            Toast.makeText(this, R.string.weather_apply, Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.show();
     }
 
     // ===================== COMPILE WITH NAME =====================

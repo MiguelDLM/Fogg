@@ -557,7 +557,7 @@ Pick an activity above to record your first one.</string>
     <string name="workout_mode_20">Indoor Walking</string>
     <string name="workout_mode_21">Free Exercise</string>
     <string name="workout_mode_22">Aerobic Exercise</string>
-    <string name="workout_mode_23">Weight Tranning</string>
+    <string name="workout_mode_23">Weight Training</string>
     <string name="workout_mode_24">Weight Lifting</string>
     <string name="workout_mode_25">Boxing</string>
     <string name="workout_mode_26">Jump Rope</string>
@@ -582,13 +582,13 @@ Pick an activity above to record your first one.</string>
     <string name="workout_mode_46">Stepping</string>
     <string name="workout_mode_47">Elliptical Machine</string>
     <string name="workout_mode_48">Zumba</string>
-    <string name="workout_mode_49">Crichket</string>
+    <string name="workout_mode_49">Cricket</string>
     <string name="workout_mode_50">Trekking</string>
     <string name="workout_mode_51">Aerobics</string>
     <string name="workout_mode_52">Rowing Machine</string>
     <string name="workout_mode_53">Rugby</string>
     <string name="workout_mode_54">Sit Up</string>
-    <string name="workout_mode_55">Dum Ble</string>
+    <string name="workout_mode_55">Dumbbell</string>
     <string name="workout_mode_56">Body Exercise</string>
     <string name="workout_mode_57">Karate</string>
     <string name="workout_mode_58">Fencing</string>
@@ -639,7 +639,7 @@ Pick an activity above to record your first one.</string>
     <string name="workout_mode_103">Floor Ball</string>
     <string name="workout_mode_104">Thai</string>
     <string name="workout_mode_105">Jai Ball</string>
-    <string name="workout_mode_106">Tennis_Doubles</string>
+    <string name="workout_mode_106">Tennis Doubles</string>
     <string name="workout_mode_107">Back Training</string>
     <string name="workout_mode_108">Water Volleyball</string>
     <string name="workout_mode_109">Water Skiing</string>
@@ -758,4 +758,99 @@ Pick an activity above to record your first one.</string>
     <string name="monitoring_window">%1$02d:%2$02d–%3$02d:%4$02d</string>
     <string name="monitoring_interval">Interval</string>
     <string name="monitoring_enabled">Enabled</string>
+
+    <!-- Notification permission & settings -->
+    <string name="notif_perm_not_granted">Notification permission not granted</string>
+    <string name="notif_grant_perm">Grant</string>
+    <string name="notif_apps_forwarded">Apps forwarded to watch</string>
+
+    <!-- Additional device settings -->
+    <string name="device_raise_to_wake">Raise to wake</string>
+    <string name="device_shake_camera">Shake wrist for photo</string>
+    <string name="device_bound_fmt">Watch: %s</string>
+    <string name="dev_tools_unlock_countdown">%d taps away from developer tools</string>
+    <string name="unit_miles">miles</string>
+    <string name="unit_pounds">pounds</string>
+
+    <!-- Sport detail & sharing -->
+    <string name="back">Back</string>
+    <string name="sport_detail_title">Workout Detail</string>
+    <string name="sport_share_route">Share route</string>
+    <string name="sport_share_video">Share route video</string>
+    <string name="sport_duration">Duration</string>
+    <string name="sport_avg_pace">Avg pace</string>
+    <string name="sport_avg_hr">Avg heart rate</string>
+    <string name="sport_elevation_gain">Total elevation</string>
+    <string name="sport_chart_hr">Heart Rate (bpm)</string>
+    <string name="sport_chart_elevation">Elevation (m)</string>
+    <string name="sport_chart_speed">Speed (km/h)</string>
+
+    <!-- Font creator dialog -->
+    <string name="font_creator_step_font">1. Select font file (.ttf)</string>
+    <string name="font_creator_browse">BROWSE FILES…</string>
+    <string name="font_creator_step_text">2. Custom text to draw</string>
+    <string name="font_creator_text_hint">Enter text here</string>
+
+    <!-- Frame / animation picker dialog -->
+    <string name="anim_import_title">Import animation</string>
+    <string name="anim_sample_interval">Sampling interval:</string>
+    <string name="anim_manual_interval">Manual interval (ms):</string>
+    <string name="anim_max_frames">Max frames (limit):</string>
+
+    <!-- Time format dialog -->
+    <string name="time_group_format">Format</string>
+    <string name="time_group_design_mode">Design mode</string>
+    <string name="time_group_mode_together">Together — one style for all</string>
+    <string name="time_group_mode_parts">In parts — style each part</string>
+
+    <!-- Dials library -->
+    <string name="dials_installed_library">Installed library</string>
+    <string name="dials_btn_new">+ New</string>
+    <string name="dials_select_local">Select local dial</string>
+
+    <!-- Dial Editor & Alignment Tools -->
+    <string name="center_x">Center X</string>
+    <string name="center_y">Center Y</string>
+    <string name="center_all">Center All</string>
+    <string name="bg_fit">Fit Screen</string>
+    <string name="bg_fill">Fill Screen</string>
+    <string name="bg_reset">Reset</string>
+    <string name="copy_style_from">Copy Style</string>
+    <string name="pos_x">Pos X</string>
+    <string name="pos_y">Pos Y</string>
+    <string name="from_hand_builder">Hand set builder</string>
+    <string name="from_battery_builder">Battery generator</string>
+    <string name="from_weather_builder">Weather generator</string>
+    <string name="width">Width</string>
+    <string name="height">Height</string>
+    <string name="dimensions">DIMENSIONS</string>
+    <string name="color">COLOR</string>
+    <string name="color_mode">COLOR MODE</string>
+    <string name="color_dynamic">Dynamic</string>
+    <string name="color_solid">Solid</string>
+
+    <!-- Hand Generator Dialog -->
+    <string name="hand_builder_title">Analog Hand Set Builder</string>
+    <string name="hand_hour">Hour</string>
+    <string name="hand_minute">Minute</string>
+    <string name="hand_second">Second</string>
+    <string name="hand_shape">HAND SHAPE</string>
+    <string name="hand_proportional">Proportional</string>
+    <string name="hand_width">Width</string>
+    <string name="hand_tip_length">Tip Length</string>
+    <string name="hand_tail_length">Tail Length</string>
+    <string name="hand_dark_outline">Dark outline</string>
+    <string name="hand_drop_shadow">Drop shadow</string>
+    <string name="hand_rounded_caps">Rounded caps</string>
+    <string name="hand_apply_set">Apply Hand Set (Hour + Min + Sec)</string>
+
+    <!-- Battery Generator Dialog -->
+    <string name="battery_builder_title">Battery Icon Generator</string>
+    <string name="battery_style">BATTERY STYLE</string>
+    <string name="battery_show_lightning">Show lightning bolt</string>
+    <string name="battery_apply">Apply Battery Strip (6 frames)</string>
+
+    <!-- Weather Generator Dialog -->
+    <string name="weather_builder_title">Weather Icon Generator</string>
+    <string name="weather_apply">Apply Weather Icons (12 frames)</string>
 </resources>
