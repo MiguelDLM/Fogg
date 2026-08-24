@@ -6,10 +6,12 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.View;
 
 import com.example.dialsender.R;
+import com.example.dialsender.theme.ThemeManager;
 
 public class GaugeView extends View {
 
@@ -32,7 +34,6 @@ public class GaugeView extends View {
     private float valueTextSizeMultiplier = 1.0f;
 
     private final RectF oval = new RectF();
-    private static final int TRACK_COLOR = Color.parseColor("#1a2332");
     private static final float STROKE_WIDTH_NORMAL = 18f;
     private static final float STROKE_WIDTH_THIN = 8f;
 
@@ -52,6 +53,8 @@ public class GaugeView extends View {
     }
 
     private void init(Context context, AttributeSet attrs) {
+        ThemeManager.AppTheme initialTheme = ThemeManager.getTheme(context);
+        arcColor = initialTheme.accentPrimary;
         if (attrs != null) {
             TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.GaugeView);
             value = a.getFloat(R.styleable.GaugeView_gv_value, 0f);
@@ -65,9 +68,14 @@ public class GaugeView extends View {
             a.recycle();
         }
 
+        // Track and text colours come from the active theme; they used to be
+        // three fixed hex values, so the ring stayed navy-on-cyan whichever
+        // theme was picked.
+        ThemeManager.AppTheme theme = initialTheme;
+
         trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         trackPaint.setStyle(Paint.Style.STROKE);
-        trackPaint.setColor(TRACK_COLOR);
+        trackPaint.setColor(theme.gaugeTrack);
         trackPaint.setStrokeCap(Paint.Cap.ROUND);
 
         arcPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -76,17 +84,29 @@ public class GaugeView extends View {
         arcPaint.setStrokeCap(Paint.Cap.ROUND);
 
         textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(Color.parseColor("#F0F6FC"));
+        textPaint.setColor(theme.textPrimary);
         textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setFakeBoldText(true);
+        textPaint.setTypeface(numeralTypeface(theme));
 
         labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         labelPaint.setColor(arcColor);
         labelPaint.setTextAlign(Paint.Align.CENTER);
 
         subPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        subPaint.setColor(Color.parseColor("#484F58"));
+        subPaint.setColor(theme.textMuted);
         subPaint.setTextAlign(Paint.Align.CENTER);
+    }
+
+    /** Numeral face for the active design language, matching FoggText.*.MetricValue. */
+    private static Typeface numeralTypeface(ThemeManager.AppTheme theme) {
+        switch (theme.design) {
+            case ORGANIC:   return Typeface.create("sans-serif", Typeface.BOLD);
+            case BOLD:      return Typeface.create("sans-serif-black", Typeface.NORMAL);
+            case GLASS:     return Typeface.create("sans-serif-medium", Typeface.NORMAL);
+            case EDITORIAL: return Typeface.create("sans-serif-light", Typeface.NORMAL);
+            case HUD:
+            default:        return Typeface.create("sans-serif-condensed", Typeface.BOLD);
+        }
     }
 
     public void setValue(float value) {
@@ -166,17 +186,29 @@ public class GaugeView extends View {
             canvas.drawArc(oval, startAngle, sweep, false, arcPaint);
         }
 
-        // Size text relative to the actual arc diameter so the value never
-        // overflows the ring (previously based on full view width).
-        float referenceWidth = isSemi ? Math.min(w, h * 1.5f) : arcDiameter;
-        float valueSp = referenceWidth * (isSemi ? 0.22f : 0.20f);
-        float labelSp = referenceWidth * (isSemi ? 0.10f : 0.09f);
-        float subSp = referenceWidth * (isSemi ? 0.08f : 0.07f);
+        // Text is sized off the arc diameter for both styles. The semicircle
+        // used to size off the view width, so on a wide card the value grew
+        // large enough to push the label and goal line out of the bottom of
+        // the view — that is what clipped "Pasos" under the step count.
+        float valueSp = arcDiameter * 0.20f;
+        float labelSp = arcDiameter * 0.085f;
+        float subSp = arcDiameter * 0.07f;
         float textY;
         if (isSemi) {
             textY = top + arcDiameter / 2f + stroke;
         } else {
             textY = oval.centerY() - (w * 0.06f);
+        }
+
+        // Second guard: shrink the whole stack to whatever room is actually
+        // left below textY, so no combination of card width and height clips it.
+        float stackHeight = valueSp * 0.8f + labelSp * 1.2f + subSp * 1.3f;
+        float available = h - textY - margin;
+        if (stackHeight > available && available > 0) {
+            float scale = available / stackHeight;
+            valueSp *= scale;
+            labelSp *= scale;
+            subSp *= scale;
         }
 
         textPaint.setTextSize(valueSp);

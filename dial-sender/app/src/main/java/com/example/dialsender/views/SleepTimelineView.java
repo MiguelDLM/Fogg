@@ -8,6 +8,7 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import com.example.dialsender.ble.BleSleep;
+import com.example.dialsender.theme.ThemeManager;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -17,11 +18,22 @@ import java.util.Locale;
 
 public class SleepTimelineView extends View {
 
-    private static final int COLOR_DEEP    = Color.parseColor("#34D399");
-    private static final int COLOR_LIGHT   = Color.parseColor("#22D3EE");
-    private static final int COLOR_REM     = Color.parseColor("#BC8CFF");
-    private static final int COLOR_AWAKE   = Color.parseColor("#F87171");
-    private static final int COLOR_UNKNOWN = Color.parseColor("#1a2332");
+    /**
+     * Stage colours come from the active theme. They used to be four constants
+     * here that disagreed with the dashboard legend and the metric detail
+     * screen, so the same night was drawn in three different palettes.
+     */
+    private ThemeManager.AppTheme cachedTheme;
+
+    private ThemeManager.AppTheme theme() {
+        // Cached: colorForMode() runs once per segment inside onDraw, and
+        // resolving the whole token set each time would be wasteful. Changing
+        // the theme recreates the activity, so this view never outlives it.
+        if (cachedTheme == null) {
+            cachedTheme = ThemeManager.getTheme(getContext());
+        }
+        return cachedTheme;
+    }
 
     private static class Segment {
         long startTs, endTs;
@@ -106,7 +118,7 @@ public class SleepTimelineView extends View {
         if (getWidth() == 0 || getHeight() == 0) return;
 
         if (segments.isEmpty() || sessionEnd <= sessionStart) {
-            labelPaint.setColor(Color.parseColor("#8B949E"));
+            labelPaint.setColor(theme().textSecondary);
             labelPaint.setTextSize(32f);
             labelPaint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText(getContext().getString(com.example.dialsender.R.string.sleep_no_data_day),
@@ -127,7 +139,7 @@ public class SleepTimelineView extends View {
         }
 
         // Time axis labels
-        labelPaint.setColor(Color.parseColor("#484F58"));
+        labelPaint.setColor(theme().textMuted);
         labelPaint.setTextAlign(Paint.Align.CENTER);
         labelPaint.setTextSize(h * 0.13f);
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
@@ -144,12 +156,12 @@ public class SleepTimelineView extends View {
 
     private int colorForMode(int mode) {
         switch (mode) {
-            case BleSleep.MODE_DEEP:      return COLOR_DEEP;
+            case BleSleep.MODE_DEEP:      return theme().sleepDeep;
             case BleSleep.MODE_LIGHT:
-            case BleSleep.MODE_PIECEMEAL: return COLOR_LIGHT;
-            case BleSleep.MODE_REM:       return COLOR_REM;
-            case BleSleep.MODE_AWAKE:     return COLOR_AWAKE;
-            default:                      return COLOR_UNKNOWN;
+            case BleSleep.MODE_PIECEMEAL: return theme().sleepLight;
+            case BleSleep.MODE_REM:       return theme().sleepRem;
+            case BleSleep.MODE_AWAKE:     return theme().sleepAwake;
+            default:                      return theme().gaugeTrack;
         }
     }
 
