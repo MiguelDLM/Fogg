@@ -1,19 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
-    <!-- Permission banner -->
+    <include layout="@layout/view_fogg_toolbar"/>
+
+    <!-- Shown until notification access is granted. -->
     <LinearLayout
         android:id="@+id/bannerPermission"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/status_warning"
+        android:background="?attr/foggWarning"
         android:orientation="horizontal"
-        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="8dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
         android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_info"
+            app:tint="#FFFFFF"/>
 
         <TextView
             android:layout_width="0dp"
@@ -24,25 +39,30 @@
 
         <Button
             android:id="@+id/btnGrantPermission"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/notif_grant_perm"
-            android:textColor="#FFFFFF"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+            android:textColor="#FFFFFF"/>
     </LinearLayout>
 
     <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/notif_apps_forwarded"
-        android:textSize="14sp"
-        android:padding="16dp"
-        android:textColor="@color/text_secondary"/>
+        style="@style/Fogg.Body"
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="?attr/foggScreenPadding"
+        android:paddingTop="14dp"
+        android:paddingBottom="6dp"
+        android:text="@string/notif_apps_forwarded"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvApps"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:paddingStart="?attr/foggScreenPadding"
+        android:paddingEnd="?attr/foggScreenPadding"
+        android:paddingBottom="24dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"/>
 
 </LinearLayout>

@@ -40,10 +40,10 @@ public class NotificationSettingsActivity extends AppCompatActivity {
     }
 
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notification_settings);
-        if (getSupportActionBar() != null)
-            getSupportActionBar().setTitle(R.string.notifications_title);
+        com.example.dialsender.views.FoggToolbar.attach(this, R.string.notifications_title);
 
         pm = getPackageManager();
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);

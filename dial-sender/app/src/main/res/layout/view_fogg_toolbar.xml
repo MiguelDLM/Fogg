@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared screen header.
+
+  The app's themes are NoActionBar, so the getSupportActionBar().setTitle()
+  calls the secondary screens were making did nothing and those screens showed
+  no title and no back affordance at all. Include this at the top of a screen
+  and wire it up with FoggToolbar.attach().
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/foggToolbar"
+    style="?attr/foggToolbarStyle">
+
+    <ImageView
+        android:id="@+id/foggToolbarBack"
+        style="@style/Fogg.Toolbar.Back"
+        android:contentDescription="@string/fogg_back"/>
+
+    <TextView
+        android:id="@+id/foggToolbarTitle"
+        style="@style/Fogg.Toolbar.Title"
+        android:maxLines="1"
+        android:ellipsize="end"/>
+
+    <ImageView
+        android:id="@+id/foggToolbarAction"
+        style="@style/Fogg.Toolbar.Action"
+        android:contentDescription="@null"
+        android:visibility="gone"/>
+</LinearLayout>

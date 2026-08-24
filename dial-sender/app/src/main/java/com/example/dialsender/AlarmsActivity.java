@@ -41,7 +41,7 @@ public class AlarmsActivity extends AppCompatActivity implements BleManager.Alar
     private final List<BleAlarm> alarms = new ArrayList<>();
     private AlarmAdapter adapter;
     private RecyclerView list;
-    private TextView empty;
+    private View empty;
     private TextView hint;
 
     @Override
@@ -51,10 +51,10 @@ public class AlarmsActivity extends AppCompatActivity implements BleManager.Alar
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_alarms);
-        if (getSupportActionBar() != null)
-            getSupportActionBar().setTitle(R.string.alarms_title);
+        com.example.dialsender.views.FoggToolbar.attach(this, R.string.alarms_title);
 
         ble = BleManager.getInstance(this);
 
@@ -201,7 +201,9 @@ public class AlarmsActivity extends AppCompatActivity implements BleManager.Alar
     }
 
     private void paintChip(TextView chip, boolean on) {
-        chip.setTextColor(getResources().getColor(on ? R.color.accent_primary : R.color.text_secondary));
+        com.example.dialsender.theme.ThemeManager.AppTheme theme =
+                com.example.dialsender.theme.ThemeManager.getTheme(this);
+        chip.setTextColor(on ? theme.accentPrimary : theme.textSecondary);
         chip.setAlpha(on ? 1f : 0.6f);
     }
 

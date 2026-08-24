@@ -4,39 +4,55 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <include layout="@layout/view_fogg_toolbar"/>
+
         <TextView
             android:id="@+id/tvAlarmsHint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"/>
+            style="@style/Fogg.Body"
+            android:paddingStart="?attr/foggScreenPadding"
+            android:paddingEnd="?attr/foggScreenPadding"
+            android:paddingTop="14dp"
+            android:paddingBottom="6dp"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvAlarms"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"/>
+            android:layout_weight="1"
+            android:paddingStart="?attr/foggScreenPadding"
+            android:paddingEnd="?attr/foggScreenPadding"
+            android:paddingBottom="88dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"/>
 
-        <TextView
+        <!-- Empty state: icon over a line of copy, not a bare sentence. -->
+        <LinearLayout
             android:id="@+id/tvAlarmsEmpty"
-            android:layout_width="match_parent"
+            style="@style/Fogg.EmptyState"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:gravity="center"
-            android:padding="24dp"
-            android:textSize="15sp"
-            android:textColor="@color/text_secondary"
-            android:text="@string/alarms_empty"
-            android:visibility="gone"/>
+            android:visibility="gone">
 
+            <ImageView
+                style="@style/Fogg.EmptyState.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_alarm"/>
+
+            <TextView
+                style="@style/Fogg.Body"
+                android:gravity="center"
+                android:paddingStart="32dp"
+                android:paddingEnd="32dp"
+                android:text="@string/alarms_empty"/>
+        </LinearLayout>
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -44,8 +60,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
+        android:layout_margin="20dp"
         android:contentDescription="@string/alarm_add"
-        android:src="@android:drawable/ic_input_add"/>
+        android:src="@drawable/ic_add"
+        app:backgroundTint="?attr/foggAccent"
+        app:tint="?attr/foggOnAccent"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -36,6 +36,9 @@ import java.util.Locale;
  * an on-screen shutter button.
  */
 public class CameraActivity extends AppCompatActivity {
+    /** Active theme, resolved once so every builder below can read its tokens. */
+    private com.example.dialsender.theme.ThemeManager.AppTheme theme;
+
 
     private ImageCapture imageCapture;
     private BleManager ble;
@@ -46,6 +49,8 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     protected void onCreate(Bundle savedInstanceState) {
+        com.example.dialsender.theme.ThemeManager.applyTheme(this);
+        theme = com.example.dialsender.theme.ThemeManager.getTheme(this);
         super.onCreate(savedInstanceState);
 
         FrameLayout root = new FrameLayout(this);

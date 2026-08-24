@@ -31,7 +31,7 @@ public class SettingsActivity extends AppCompatActivity {
         txtThemeValue = findViewById(R.id.txtThemeValue);
         txtLangValue = findViewById(R.id.txtLangValue);
 
-        findViewById(R.id.btnBackSettings).setOnClickListener(v -> finish());
+        com.example.dialsender.views.FoggToolbar.attach(this, R.string.settings);
 
         // Theme picker
         findViewById(R.id.rowTheme).setOnClickListener(v -> showThemePicker());

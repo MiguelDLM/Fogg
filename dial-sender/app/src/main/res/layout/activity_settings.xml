@@ -3,35 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_primary">
+    android:background="?attr/foggBgPrimary">
 
-    <!-- Toolbar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/bg_surface"
-        android:padding="16dp"
-        android:gravity="center_vertical"
-        android:elevation="0dp">
-
-        <ImageView
-            android:id="@+id/btnBackSettings"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_back"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginEnd="12dp"
-            android:contentDescription="Back"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"/>
-    </LinearLayout>
+    <include layout="@layout/view_fogg_toolbar"/>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -50,8 +24,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/appearance"
-                android:textColor="@color/accent_primary"
-                android:textSize="13sp"
+                android:textColor="?attr/foggAccent"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:textStyle="bold"
                 android:letterSpacing="0.05"
                 android:layout_marginBottom="12dp"/>
@@ -61,7 +35,7 @@
                 android:id="@+id/rowTheme"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
+                android:background="?attr/foggCardBg"
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
@@ -74,16 +48,16 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/theme"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp"/>
+                    android:textColor="?attr/foggTextPrimary"
+                    android:textAppearance="?attr/foggTextRowLabel"/>
 
                 <TextView
                     android:id="@+id/txtThemeValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/theme_dark"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
+                    android:textColor="?attr/foggTextSecondary"
+                    android:textAppearance="?attr/foggTextRowLabel"
                     android:drawableEnd="@drawable/ic_back"
                     android:drawablePadding="4dp"/>
             </LinearLayout>
@@ -93,7 +67,7 @@
                 android:id="@+id/rowLanguage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
+                android:background="?attr/foggCardBg"
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
@@ -106,16 +80,16 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/language"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp"/>
+                    android:textColor="?attr/foggTextPrimary"
+                    android:textAppearance="?attr/foggTextRowLabel"/>
 
                 <TextView
                     android:id="@+id/txtLangValue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/lang_system"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
+                    android:textColor="?attr/foggTextSecondary"
+                    android:textAppearance="?attr/foggTextRowLabel"
                     android:drawableEnd="@drawable/ic_back"
                     android:drawablePadding="4dp"/>
             </LinearLayout>
@@ -125,8 +99,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/about"
-                android:textColor="@color/accent_primary"
-                android:textSize="13sp"
+                android:textColor="?attr/foggAccent"
+                android:textAppearance="?attr/foggTextRowValue"
                 android:textStyle="bold"
                 android:letterSpacing="0.05"
                 android:layout_marginBottom="12dp"/>
@@ -134,7 +108,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
+                android:background="?attr/foggCardBg"
                 android:orientation="vertical"
                 android:padding="20dp">
 
@@ -142,25 +116,24 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/version_label"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
+                    android:textColor="?attr/foggTextPrimary"
+                    android:textAppearance="?attr/foggTextScreenTitle"
                     android:layout_marginBottom="8dp"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/about_desc"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
+                    android:textColor="?attr/foggTextSecondary"
+                    android:textAppearance="?attr/foggTextRowValue"
                     android:layout_marginBottom="12dp"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/about_author"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp"/>
+                    android:textColor="?attr/foggTextMuted"
+                    android:textAppearance="?attr/foggTextRowValue"/>
             </LinearLayout>
 
         </LinearLayout>
