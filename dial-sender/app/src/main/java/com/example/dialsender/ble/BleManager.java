@@ -28,6 +28,7 @@ import android.os.Vibrator;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
+import com.example.dialsender.R;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -3291,14 +3292,14 @@ public class BleManager {
         PendingIntent fullPi = PendingIntent.getActivity(context, 1, full,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(context, FIND_PHONE_CHANNEL)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("Tu reloj está buscando el teléfono")
-                .setContentText("Toca «Detener» para silenciar")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(context.getString(R.string.findphone_notif_title))
+                .setContentText(context.getString(R.string.findphone_notif_desc))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setOngoing(true)
                 .setFullScreenIntent(fullPi, true)
-                .addAction(0, "Detener", stopPi);
+                .addAction(0, context.getString(R.string.findphone_stop), stopPi);
         try {
             nm.notify(FIND_PHONE_NOTIF_ID, b.build());
         } catch (Exception ignored) {

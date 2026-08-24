@@ -186,7 +186,7 @@ public class BleForegroundService extends Service implements BleManager.Connecti
                 PendingIntent.FLAG_IMMUTABLE);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(connected
                         ? R.string.notif_ble_connected : R.string.notif_ble_searching))
