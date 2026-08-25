@@ -62,6 +62,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     private TextView txtBacklight;
     private TextView txtRaiseToWake;
     private TextView txtFirmware;
+    private TextView txtFirmwareRowValue;
 
     private BleManager bleManager;
     private BluetoothManager bluetoothManager;
@@ -93,6 +94,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         txtBacklight = view.findViewById(R.id.txtBacklight);
         txtRaiseToWake = view.findViewById(R.id.txtRaiseToWake);
         txtFirmware = view.findViewById(R.id.txtFirmware);
+        txtFirmwareRowValue = view.findViewById(R.id.txtFirmwareRowValue);
 
         bluetoothManager = (BluetoothManager) requireContext()
                 .getSystemService(Context.BLUETOOTH_SERVICE);
@@ -104,6 +106,12 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         bleManager.addListener(this);
 
         btnConnect.setOnClickListener(v -> handleConnect());
+
+        View btnQrPair = view.findViewById(R.id.btnQrPair);
+        if (btnQrPair != null) {
+            btnQrPair.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), com.example.dialsender.QrDeviceScannerActivity.class)));
+        }
 
         // Device function entries
         View btnWatchFaces = view.findViewById(R.id.btnWatchFaces);
@@ -267,7 +275,18 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (pd.isShowing()) {
                         pd.dismiss();
-                        String currentVer = sp2.getString("firmware_version", "v0.0.6");
+                        String currentVer = sp2.getString("firmware_version", "");
+                        if (currentVer.isEmpty() || currentVer.equals("v") || currentVer.equals("—")) {
+                            String fwVer = sp2.getString("device_info_firmware_version", "");
+                            String fullVer = sp2.getString("device_info_full_version", "");
+                            if (!fwVer.isEmpty() && !fwVer.equals("0.0.0")) {
+                                currentVer = "v" + fwVer;
+                            } else if (!fullVer.isEmpty()) {
+                                currentVer = (fullVer.startsWith("v") || fullVer.startsWith("V")) ? fullVer : "v" + fullVer;
+                            } else {
+                                currentVer = "v1.0.0";
+                            }
+                        }
                         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                                 .setTitle(getString(R.string.device_fw_update_title))
                                 .setMessage(getString(R.string.device_fw_uptodate_msg, currentVer))
@@ -331,14 +350,29 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             if (txtRssi != null)
                 txtRssi.setText("FW:");
             String version = sp.getString("firmware_version", "");
+            if (version.isEmpty() || version.equals("v") || version.equals("v0.0.0")) {
+                String fwVer = sp.getString("device_info_firmware_version", "");
+                String fullVer = sp.getString("device_info_full_version", "");
+                if (!fwVer.isEmpty() && !fwVer.equals("0.0.0")) {
+                    version = "v" + fwVer;
+                } else if (!fullVer.isEmpty()) {
+                    version = (fullVer.startsWith("v") || fullVer.startsWith("V")) ? fullVer : "v" + fullVer;
+                } else {
+                    version = "—";
+                }
+            }
             if (txtFirmware != null)
-                txtFirmware.setText(version.isEmpty() ? "—" : version);
+                txtFirmware.setText(version);
+            if (txtFirmwareRowValue != null)
+                txtFirmwareRowValue.setText(version);
         } else if (connected) {
             txtStatus.setText(R.string.connecting);
             txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
             if (txtBattery != null) txtBattery.setText("");
             if (statsRow != null)
                 statsRow.setVisibility(View.GONE);
+            if (txtFirmwareRowValue != null)
+                txtFirmwareRowValue.setText("—");
         } else {
             statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
             txtStatus.setText(R.string.disconnected);
@@ -347,6 +381,8 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             if (txtBattery != null) txtBattery.setText("");
             if (statsRow != null)
                 statsRow.setVisibility(View.GONE);
+            if (txtFirmwareRowValue != null)
+                txtFirmwareRowValue.setText("—");
         }
 
         android.content.SharedPreferences sp = requireContext()
@@ -428,29 +464,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     public void onConnectionStateChange(boolean connected, boolean sessionReady) {
         if (!isAdded())
             return;
-        requireActivity().runOnUiThread(() -> {
-            if (sessionReady) {
-                statusIndicator.setBackgroundResource(R.drawable.indicator_connected);
-                txtStatus.setText(R.string.connected);
-                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).success);
-                btnConnect.setText(R.string.reconnect);
-            } else if (connected) {
-                txtStatus.setText(R.string.connecting);
-                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
-            } else if (bleManager.isReconnecting()) {
-                // The background retry loop is running: tell the user instead of
-                // showing a flat "Desconectado" that looks like a dead app.
-                statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
-                txtStatus.setText(R.string.connecting);
-                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).warning);
-                btnConnect.setText(R.string.reconnect);
-            } else {
-                statusIndicator.setBackgroundResource(R.drawable.indicator_disconnected);
-                txtStatus.setText(R.string.disconnected);
-                txtStatus.setTextColor(com.example.dialsender.theme.ThemeManager.getTheme(requireContext()).danger);
-                btnConnect.setText(R.string.scan_connect);
-            }
-        });
+        requireActivity().runOnUiThread(this::syncConnectionUi);
     }
 
     @Override
@@ -491,6 +505,37 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             }
             Toast.makeText(requireContext(), getString(R.string.device_agps_transfer_error, reason), Toast.LENGTH_LONG).show();
         }
+    }
+
+    /**
+     * The peer cannot speak the watch protocol. Say so explicitly and point at
+     * the GATT dump BleManager just wrote: the old behaviour was to drop
+     * silently back to "disconnected", which reads as a bug in the app rather
+     * than as unsupported hardware.
+     */
+    @Override
+    public void onDeviceIncompatible(String deviceName, String reason) {
+        if (!isAdded())
+            return;
+        int bodyRes;
+        if (BleManager.REASON_NO_CHARACTERISTICS.equals(reason))
+            bodyRes = R.string.incompatible_no_characteristics;
+        else if (BleManager.REASON_NO_CCCD.equals(reason))
+            bodyRes = R.string.incompatible_no_cccd;
+        else
+            bodyRes = R.string.incompatible_no_service;
+
+        String body = getString(bodyRes, deviceName)
+                + "\n\n" + getString(R.string.incompatible_dump_hint);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.incompatible_title)
+                .setMessage(body)
+                .setPositiveButton(R.string.incompatible_open_devtools, (d, w) ->
+                        startActivity(new android.content.Intent(requireContext(),
+                                com.example.dialsender.DeveloperToolsActivity.class)))
+                .setNegativeButton(android.R.string.ok, null)
+                .show();
     }
 
     @Override

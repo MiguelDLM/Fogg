@@ -41,7 +41,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -58,10 +57,9 @@ public class BleManager {
     private BluetoothGatt bluetoothGatt;
     private BluetoothGattCharacteristic writeChar;
 
-    private static final UUID SERVICE_UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID WRITE_CHAR_UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID NOTIFY_CHAR_UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+    // The protocol's GATT addresses live in BleUuids, not as literals here: the
+    // scan filter needs the same service UUID and the two copies were free to
+    // drift apart.
 
     // Protocol State — exactly as in omo version
     private enum ConnectionState {
@@ -119,6 +117,13 @@ public class BleManager {
             rxFilled = 0;
         }
     };
+    // The watch answers SESSION CREATE in well under a second on every model we
+    // have logs for. Without a deadline, a peer that exposes the right service
+    // but never replies leaves the app pinned on "Connecting…" forever with a
+    // live GATT link — there was no timeout on this state at all.
+    private static final long HANDSHAKE_TIMEOUT_MS = 6000;
+    private final Runnable handshakeTimeoutRunnable = this::handleHandshakeTimeout;
+
     private int writeRetryCount = 0;
     private static final int MAX_WRITE_RETRIES = 3;
     private static final long WRITE_TIMEOUT_MS = 5000;
@@ -192,6 +197,12 @@ public class BleManager {
         default void onFindPhoneRequest() {}
 
         default void onTransferFailed(String reason) {}
+
+        /**
+         * The peer we connected to cannot speak the watch protocol. {@code reason}
+         * is one of the {@code BleManager.REASON_*} constants.
+         */
+        default void onDeviceIncompatible(String deviceName, String reason) {}
     }
 
     // Health data key codes from protocol doc 03-HEALTH-DATA.md
@@ -511,6 +522,7 @@ public class BleManager {
         isSending = false;
         isFileTransferActive = false;
         handler.removeCallbacks(writeWatchdogRunnable);
+        handler.removeCallbacks(handshakeTimeoutRunnable);
 
         if (bluetoothGatt != null) {
             try {
@@ -732,12 +744,60 @@ public class BleManager {
     }
 
     /**
-     * The device we connected to does not expose the watch service. Retrying it
-     * on the back-off loop would burn battery forever against hardware that can
-     * never answer, so forget it and stop.
+     * Print every service and characteristic the peer exposes.
+     *
+     * This runs when discovery fails to find the watch protocol, and it is the
+     * whole point of that failure path: "device may not be compatible" told a
+     * user nothing they could act on, and told us nothing we could diagnose.
+     * The dump lands in the same BLE log the developer tools already copy and
+     * save, so an incompatibility report arrives with the peer's real GATT
+     * table attached instead of requiring the reporter to install nRF Connect.
      */
     @SuppressLint("MissingPermission")
-    private void handleIncompatibleDevice(BluetoothDevice device) {
+    private void dumpGattTable(BluetoothGatt gatt) {
+        if (gatt == null)
+            return;
+        List<BluetoothGattService> services;
+        try {
+            services = gatt.getServices();
+        } catch (Exception e) {
+            log("GATT dump unavailable: " + e.getMessage());
+            return;
+        }
+        if (services == null || services.isEmpty()) {
+            log("GATT dump: the peer exposed no services at all");
+            return;
+        }
+        log("--- GATT dump (" + services.size() + " services) ---");
+        for (BluetoothGattService service : services) {
+            log("  service " + BleUuids.describe(service.getUuid()));
+            List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
+            if (chars == null || chars.isEmpty()) {
+                log("    (no characteristics)");
+                continue;
+            }
+            for (BluetoothGattCharacteristic c : chars) {
+                log("    char " + BleUuids.describe(c.getUuid())
+                        + " props=" + BleUuids.describeProperties(c.getProperties())
+                        + (c.getDescriptor(BleUuids.CCCD) != null ? " +CCCD" : ""));
+            }
+        }
+        log("--- end GATT dump ---");
+    }
+
+    /** Why a peer was rejected. Surfaced to the UI so it can say something useful. */
+    public static final String REASON_NO_SERVICE = "no_service";
+    public static final String REASON_NO_CHARACTERISTICS = "no_characteristics";
+    public static final String REASON_NO_CCCD = "no_cccd";
+
+    /**
+     * The device we connected to does not speak the watch protocol. Retrying it
+     * on the back-off loop would burn battery forever against hardware that can
+     * never answer, so forget it and stop — but tell the UI why, because the
+     * user otherwise just sees the connection drop back to "disconnected".
+     */
+    @SuppressLint("MissingPermission")
+    private void handleIncompatibleDevice(BluetoothDevice device, String reason) {
         String name = device != null ? device.getAddress() : "device";
         try {
             if (device != null && device.getName() != null)
@@ -762,6 +822,9 @@ public class BleManager {
         closeConnection(true);
         autoReconnect = true;
         notifyConnectionState(false, false);
+
+        final String shownName = name;
+        forEachListener(l -> l.onDeviceIncompatible(shownName, reason));
     }
 
     /**
@@ -811,6 +874,7 @@ public class BleManager {
                 isSending = false;
                 isFileTransferActive = false;
                 handler.removeCallbacks(rxAssemblyTimeout);
+                handler.removeCallbacks(handshakeTimeoutRunnable);
                 rxAssembly = null;
                 rxFilled = 0;
                 handler.removeCallbacks(healthTimeoutRunnable);
@@ -833,30 +897,36 @@ public class BleManager {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                BluetoothGattService service = gatt.getService(SERVICE_UUID);
+                BluetoothGattService service = gatt.getService(BleUuids.SERVICE);
                 if (service != null) {
-                    writeChar = service.getCharacteristic(WRITE_CHAR_UUID);
-                    BluetoothGattCharacteristic notifyChar = service.getCharacteristic(NOTIFY_CHAR_UUID);
+                    writeChar = service.getCharacteristic(BleUuids.WRITE_CHAR);
+                    BluetoothGattCharacteristic notifyChar = service.getCharacteristic(BleUuids.NOTIFY_CHAR);
 
                     if (writeChar != null && notifyChar != null) {
                         log("STF Services Found!");
-                        rememberVerifiedDevice(gatt.getDevice());
                         gatt.setCharacteristicNotification(notifyChar, true);
-                        BluetoothGattDescriptor descriptor = notifyChar.getDescriptor(CCCD_UUID);
+                        BluetoothGattDescriptor descriptor = notifyChar.getDescriptor(BleUuids.CCCD);
                         if (descriptor != null) {
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             gatt.writeDescriptor(descriptor);
                             log("Enabling notifications...");
                         } else {
                             log("ERROR: CCCD descriptor not found!");
+                            dumpGattTable(gatt);
+                            handleIncompatibleDevice(gatt.getDevice(), REASON_NO_CCCD);
                         }
                     } else {
-                        log("ERROR: Required characteristics not found");
-                        handleIncompatibleDevice(gatt.getDevice());
+                        log("ERROR: " + BleUuids.describe(BleUuids.SERVICE)
+                                + " is present but its read/write characteristics are not");
+                        dumpGattTable(gatt);
+                        handleIncompatibleDevice(gatt.getDevice(), REASON_NO_CHARACTERISTICS);
                     }
                 } else {
-                    log("ERROR: STF Service UUID not found - device may not be compatible");
-                    handleIncompatibleDevice(gatt.getDevice());
+                    log("ERROR: this device does not expose "
+                            + BleUuids.describe(BleUuids.SERVICE)
+                            + ", which is the only channel the watch protocol runs on");
+                    dumpGattTable(gatt);
+                    handleIncompatibleDevice(gatt.getDevice(), REASON_NO_SERVICE);
                 }
             } else {
                 log("ERROR: Service discovery failed, status=" + status);
@@ -922,6 +992,29 @@ public class BleManager {
         enqueueLogicalFrame(HANDSHAKE_CMD);
         isSending = true;
         sendNextChunk();
+        handler.removeCallbacks(handshakeTimeoutRunnable);
+        handler.postDelayed(handshakeTimeoutRunnable, HANDSHAKE_TIMEOUT_MS);
+    }
+
+    /**
+     * No SESSION CREATE reply. Drop the link so the existing back-off loop
+     * retries from a clean state instead of sitting on a connection that will
+     * never produce a session. Deliberately not treated as incompatibility: a
+     * missed reply is far more often a flaky link than the wrong hardware, and
+     * forgetting the watch over one silent handshake would be worse than the
+     * hang it replaces.
+     */
+    private void handleHandshakeTimeout() {
+        if (connectionState != ConnectionState.HANDSHAKE_SENT)
+            return;
+        log("ERROR: no SESSION CREATE reply after " + HANDSHAKE_TIMEOUT_MS
+                + "ms — dropping the link so the retry loop can start over");
+        connectionState = ConnectionState.DISCONNECTED;
+        isConnected = false;
+        closeConnection(false);
+        notifyConnectionState(false, false);
+        if (autoReconnect && shouldReconnect())
+            setReconnecting(true);
     }
 
     /**
@@ -933,7 +1026,15 @@ public class BleManager {
      */
     private void onSessionReady() {
         connectionState = ConnectionState.SESSION_READY;
+        handler.removeCallbacks(handshakeTimeoutRunnable);
         log("=== SESSION READY ===");
+        // Verification means "answered our protocol", not "exposed a service
+        // with the right UUID". Marking the device at discovery time let any
+        // peer carrying a Nordic UART service inherit the picker-skipping
+        // shortcut without ever proving it speaks to us.
+        BluetoothGatt gatt = bluetoothGatt;
+        if (gatt != null)
+            rememberVerifiedDevice(gatt.getDevice());
         notifyConnectionState(true, true);
         handler.postDelayed(this::readDeviceInfo, 200);
         handler.postDelayed(this::readFirmwareVersion, 350);
@@ -1097,10 +1198,13 @@ public class BleManager {
 
         // Firmware Version response (Cmd=0x02, Key=0x04)
         if (isReply && cmd == 0x02 && key == 0x04) {
-            String version = (data.length > 9) ? new String(Arrays.copyOfRange(data, 9, data.length)).trim() : "";
-            log("Firmware Version: " + version);
-            prefs.edit().putString("firmware_version", "v" + version).apply();
-            notifyConnectionState(true, true);
+            String version = parseFirmwareVersionPayload(data, 9);
+            if (!version.isEmpty()) {
+                String formatted = (version.startsWith("v") || version.startsWith("V")) ? version : "v" + version;
+                log("Firmware Version: " + formatted);
+                prefs.edit().putString("firmware_version", formatted).apply();
+                notifyConnectionState(true, true);
+            }
             return;
         }
 
@@ -2411,13 +2515,14 @@ public class BleManager {
                     + ", keeping " + ioBufferSize);
         }
 
-        prefs.edit()
+        SharedPreferences.Editor editor = prefs.edit()
                 .putString("device_info_variant", info.variant.name())
                 .putString("device_info_platform", info.platform)
                 .putString("device_info_prototype", info.prototype)
                 .putString("device_info_name", info.bleName)
                 .putString("device_info_firmware_flag", info.firmwareFlag)
                 .putString("device_info_full_version", info.fullVersion)
+                .putString("device_info_firmware_version", info.firmwareVersion)
                 .putString("device_info_ui_version", info.uiVersion)
                 .putString("device_info_language_version", info.languageVersion)
                 .putInt("device_info_agps_type", info.agpsType)
@@ -2425,8 +2530,59 @@ public class BleManager {
                 .putInt("device_info_sleep_algorithm", info.sleepAlgorithmType)
                 .putInt("device_info_io_buffer", info.ioBufferSize)
                 .putString("device_info_data_keys", info.dataKeysHex())
-                .putString("device_info_flags", info.flagsCompact())
-                .apply();
+                .putString("device_info_flags", info.flagsCompact());
+
+        if (info.firmwareVersion != null && !info.firmwareVersion.isEmpty() && !info.firmwareVersion.equals("0.0.0")) {
+            editor.putString("firmware_version", "v" + info.firmwareVersion);
+        } else if (info.fullVersion != null && !info.fullVersion.isEmpty()) {
+            String fv = (info.fullVersion.startsWith("v") || info.fullVersion.startsWith("V"))
+                    ? info.fullVersion : "v" + info.fullVersion;
+            editor.putString("firmware_version", fv);
+        }
+        editor.apply();
+        notifyConnectionState(true, true);
+    }
+
+    /**
+     * Parses firmware version from raw packet payload (offset 9 onward).
+     * Handles ASCII text strings (with optional NUL terminator) and binary version bytes
+     * (e.g. [0x00, 0x00, 0x06] -> "0.0.6").
+     */
+    public static String parseFirmwareVersionPayload(byte[] data, int offset) {
+        if (data == null || offset >= data.length) return "";
+
+        int end = data.length;
+        for (int i = offset; i < data.length; i++) {
+            if (data[i] == 0) {
+                end = i;
+                break;
+            }
+        }
+
+        boolean allPrintable = (end > offset);
+        for (int i = offset; i < end; i++) {
+            int b = data[i] & 0xFF;
+            if (b < 0x20 || b > 0x7E) {
+                allPrintable = false;
+                break;
+            }
+        }
+
+        if (allPrintable) {
+            String str = new String(data, offset, end - offset, java.nio.charset.StandardCharsets.UTF_8).trim();
+            if (!str.isEmpty()) {
+                return str;
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = offset; i < data.length; i++) {
+            if (sb.length() > 0) {
+                sb.append('.');
+            }
+            sb.append(data[i] & 0xFF);
+        }
+        return sb.toString();
     }
 
     public void readFirmwareVersion() {

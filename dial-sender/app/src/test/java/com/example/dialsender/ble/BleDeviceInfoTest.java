@@ -308,4 +308,19 @@ public class BleDeviceInfoTest {
         assertEquals("0.0.6", info.firmwareVersion);
         assertEquals("", info.fullVersion);   // never arrived
     }
+
+    @Test
+    public void testParseBinaryFirmwareVersion() {
+        // [0x00, 0x00, 0x06]
+        byte[] frame = new byte[] { (byte)0xAB, 0x11, 0x00, 0x06, (byte)0xE0, 0x74, 0x02, 0x04, 0x10, 0x00, 0x00, 0x06 };
+        String version = BleManager.parseFirmwareVersionPayload(frame, 9);
+        assertEquals("0.0.6", version);
+    }
+
+    @Test
+    public void testParseAsciiFirmwareVersion() {
+        byte[] frame = new byte[] { (byte)0xAB, 0x11, 0x00, 0x08, 0x00, 0x00, 0x02, 0x04, 0x10, '1', '.', '2', '.', '3', 0x00 };
+        String version = BleManager.parseFirmwareVersionPayload(frame, 9);
+        assertEquals("1.2.3", version);
+    }
 }
