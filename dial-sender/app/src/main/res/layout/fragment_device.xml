@@ -14,10 +14,6 @@
 
     <LinearLayout style="@style/Fogg.ScreenContent">
 
-        <TextView
-            style="?attr/foggScreenTitleStyle"
-            android:text="@string/nav_device"/>
-
         <!-- ═══════════ Hero: bound device, link state, battery ═══════════ -->
         <LinearLayout style="?attr/foggCardStyle">
 
@@ -122,12 +118,31 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Stays a Button: DeviceFragment holds it as one. -->
-            <Button
-                android:id="@+id/btnConnect"
-                style="?attr/foggButtonPrimaryStyle"
-                android:layout_marginTop="18dp"
-                android:text="@string/scan_connect"/>
+            <!-- Connection Buttons: Connect / Reconnect and QR Pair -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="18dp">
+
+                <Button
+                    android:id="@+id/btnConnect"
+                    style="?attr/foggButtonPrimaryStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/scan_connect"/>
+
+                <Button
+                    android:id="@+id/btnQrPair"
+                    style="?attr/foggButtonGhostStyle"
+                    android:layout_width="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:drawableStart="@drawable/ic_qr_code"
+                    android:drawablePadding="8dp"
+                    android:text="@string/pair_with_qr"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ═══════════ Screen & watch faces ═══════════ -->
