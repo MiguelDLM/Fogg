@@ -35,6 +35,21 @@ public class DialLayer {
     // Animation interval (ms per frame, for TYPE_ANIM blocks only)
     public int animIntervalMs = 100;
 
+    // How the animation frames are squeezed to fit a dial (see DialCompiler).
+    // Kept on the layer rather than baked into `frames` because scaling the
+    // layer resamples the pixels and undoes the palette, so the treatment has
+    // to be re-applied at the size the block is actually written at.
+    public int animColors = 0;  // shared palette size; 0 = leave at full colour
+    public int animBinX   = 1;  // horizontal group width; 1 = leave untouched
+
+    // The frames exactly as the compiler will write them — scaled, cropped to
+    // the face and compressed. Held so the editor can preview the real thing:
+    // reducing a palette to 24 colours is a visible change, and finding that
+    // out only after installing the dial is too late. The key records the
+    // transform and plan they were built for, so a stale set is not drawn.
+    public Bitmap[] animCompiled;
+    public String   animCompiledKey;
+
     // Analog hands: vertical rotation pivot in source-image px from the BOTTOM
     // (firmware ctx byte). 0 = use the editor default tail.
     public int pivotTail = 0;

@@ -454,14 +454,12 @@ public class DialCompiler {
     }
 
     /**
-     * Upper bound, in bytes, for what a block will occupy in the .bin.
+     * Bytes a block occupies in the .bin when stored uncompressed.
      *
-     * Frames are stored as RGB565 (2 bytes/px) or RGBA5658 (3 bytes/px) with
-     * every row padded to a 4-byte boundary. They are RLE-compressed, but RLE
-     * only helps on flat colour: measured on photographic frames it lands at
-     * about 1.01x raw, i.e. very slightly *worse* than storing them plainly. So
-     * for video — the case that blows a dial up to megabytes — this bound is the
-     * real size, while a poster-style animation will come out far below it.
+     * Frames are RGB565 (2 bytes/px) or RGBA5658 (3 bytes/px) with every row
+     * padded to a 4-byte boundary. This is the ceiling: RLE never does worse
+     * than a couple of percent above it, so it stays useful as a quick bound
+     * for still blocks, where simulating the encoder would be overkill.
      */
     public static long estimateBlockBytes(int width, int height, int frames, boolean hasAlpha) {
         int bytesPerPixel = hasAlpha ? 3 : 2;
@@ -472,46 +470,180 @@ public class DialCompiler {
         return (long) (perFrame * Math.max(0, frames) * 1.02);
     }
 
+    // ── Animation compression ──────────────────────────────────────────
+    //
+    // The container knows two codecs, raw and RLE, and the firmware would not
+    // understand anything else, so the payload has to be shaped to suit the
+    // RLE it does have: three or more identical RGB565 pixels in a row cost 3
+    // bytes, anything else costs 1 byte plus 2 per pixel. Photographic video
+    // has almost no such runs and lands near raw size, which is how a
+    // full-screen animation reaches several megabytes.
+    //
+    // The factory dials show what the format is actually meant to hold. Their
+    // animation frames carry 139-251 distinct RGB565 colours each — they are
+    // palettised, not merely truncated to 16 bit — and they cover a fraction of
+    // the face (300x269, 391x442, 200x270) rather than all of it, with whole
+    // files landing at 757-944 KB. Matching that is what makes user footage
+    // fit, so the primary lever here is a shared-palette median cut, with
+    // horizontal binning as the secondary one.
+
     /**
-     * Makes animation frames compressible.
+     * Treatments in order of increasing harshness: {binX, palette size}, where
+     * a palette of 0 means "leave the colours alone".
      *
-     * The container only knows two codecs, raw and RLE — the firmware would not
-     * understand anything better, so the payload has to be shaped to suit the
-     * RLE it does have. That encoder emits a 3-byte run for three or more
-     * identical RGB565 pixels in a row and 2 bytes per pixel otherwise, so on
-     * photographic frames it saves almost nothing: measured on real footage a
-     * full-width animation lands at 0.84x raw, i.e. megabytes.
-     *
-     * Averaging every {@code binX} pixels horizontally and repeating the result
-     * guarantees every run reaches the 3-pixel threshold. The effect is a step
-     * change rather than a gradual one — measured on a 466x262, 8-frame
-     * animation: 1605 KB untouched, 1376 KB at binX=2, 706 KB at binX=3, since
-     * only at 3 does every group become a run.
-     *
-     * {@code posterizeBits} additionally drops the low bits of each channel.
-     * It compresses further but bands smooth gradients visibly, so it is off by
-     * default and left as an opt-in.
-     *
-     * @param binX          horizontal group width; 1 disables
-     * @param posterizeBits bits kept per channel (1-8); 0 or 8 disables
+     * Ordered rather than searched as a grid because compressed size falls
+     * monotonically along it, which lets {@link #planAnimation} bisect and pay
+     * for four measurements instead of fourteen. Colours go first and binning
+     * only comes in once the palette is exhausted: dropping colours is close to
+     * invisible on the footage people import, while binning visibly softens the
+     * image horizontally.
      */
-    public static Bitmap compressForAnimation(Bitmap src, int binX, int posterizeBits) {
-        if (src == null) return null;
-        boolean doBin = binX > 1;
-        boolean doPosterize = posterizeBits > 0 && posterizeBits < 8;
-        if (!doBin && !doPosterize) return src;
+    private static final int[][] ANIM_LADDER = {
+        { 1, 0 }, { 1, 256 }, { 1, 192 }, { 1, 128 }, { 1, 96 }, { 1, 64 },
+        { 1, 48 }, { 1, 32 }, { 3, 64 }, { 3, 48 }, { 3, 32 }, { 3, 24 },
+        { 4, 24 }, { 4, 16 },
+    };
 
-        int w = src.getWidth();
-        int h = src.getHeight();
-        int[] px = new int[w * h];
-        src.getPixels(px, 0, w, 0, 0, w, h);
+    /** Result of fitting an animation to a byte budget. */
+    public static final class AnimPlan {
+        /** Palette size applied, or 0 for "left at full colour". */
+        public final int colors;
+        /** Horizontal group width applied, 1 for "untouched". */
+        public final int binX;
+        /** Exact compressed size of the frames once the plan is applied. */
+        public final long bytes;
 
-        int mask = doPosterize ? (0xFF << (8 - posterizeBits)) & 0xFF : 0xFF;
+        public AnimPlan(int colors, int binX, long bytes) {
+            this.colors = colors;
+            this.binX = Math.max(1, binX);
+            this.bytes = bytes;
+        }
 
+        public boolean isLossless() { return colors == 0 && binX <= 1; }
+    }
+
+    /**
+     * Finds the mildest rung of {@link #ANIM_LADDER} that brings {@code frames}
+     * under {@code budgetBytes}, and returns it with the exact size it lands at.
+     *
+     * If even the bottom rung is too big the bottom rung is returned anyway —
+     * the caller still needs a number to show, and whether to go ahead is the
+     * user's call.
+     */
+    public static AnimPlan planAnimation(Bitmap[] frames, long budgetBytes) {
+        if (frames == null || frames.length == 0 || frames[0] == null) {
+            return new AnimPlan(0, 1, 0);
+        }
+        int w = frames[0].getWidth(), h = frames[0].getHeight();
+
+        int[][] source = new int[frames.length][];
+        for (int i = 0; i < frames.length; i++) {
+            Bitmap f = frames[i] != null ? frames[i] : frames[0];
+            int[] px = new int[w * h];
+            f.getPixels(px, 0, w, 0, 0, w, h);
+            source[i] = px;
+        }
+
+        // Binning is the expensive half and changes only three times along the
+        // ladder, so the binned pixels are kept and reused across rungs.
+        int[] cachedBin = { -1 };
+        int[][][] cached = { null };
+
+        int lo = 0, hi = ANIM_LADDER.length - 1;
+        int found = -1;
+        long foundBytes = 0;
+        int lastRung = -1;
+        long lastBytes = 0;
+        while (lo <= hi) {
+            int mid = (lo + hi) >>> 1;
+            long bytes = ladderBytes(source, w, h, mid, cachedBin, cached);
+            lastRung = mid;
+            lastBytes = bytes;
+            if (bytes <= budgetBytes) {
+                found = mid;
+                foundBytes = bytes;
+                hi = mid - 1;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        if (found >= 0) {
+            return new AnimPlan(ANIM_LADDER[found][1], ANIM_LADDER[found][0], foundBytes);
+        }
+        // Nothing on the ladder fits; hand back the bottom rung and its real size.
+        int hardest = ANIM_LADDER.length - 1;
+        long bytes = hardest == lastRung
+                ? lastBytes
+                : ladderBytes(source, w, h, hardest, cachedBin, cached);
+        return new AnimPlan(ANIM_LADDER[hardest][1], ANIM_LADDER[hardest][0], bytes);
+    }
+
+    /** Compressed size of the frames at one rung, without building bitmaps. */
+    private static long ladderBytes(int[][] source, int w, int h, int rung,
+                                    int[] cachedBin, int[][][] cached) {
+        int binX = ANIM_LADDER[rung][0];
+        int colors = ANIM_LADDER[rung][1];
+
+        if (cachedBin[0] != binX) {
+            cached[0] = binX <= 1 ? source : binRows(source, w, h, binX);
+            cachedBin[0] = binX;
+        }
+        int[][] work = cached[0];
+        int[] map = colors > 0 ? paletteMap(work, colors) : null;
+
+        long total = 0;
+        for (int[] frame : work) total += rleSize(frame, w, h, map);
+        return total;
+    }
+
+    /** Applies a plan produced by {@link #planAnimation}. */
+    public static Bitmap[] applyPlan(Bitmap[] frames, AnimPlan plan) {
+        if (frames == null || plan == null || plan.isLossless()) return frames;
+        Bitmap[] out = plan.binX > 1 ? binHorizontally(frames, plan.binX) : frames;
+        if (plan.colors > 0) out = quantizeShared(out, plan.colors);
+        return out;
+    }
+
+    /**
+     * Averages every {@code binX} pixels horizontally and repeats the result,
+     * which guarantees each group reaches the encoder's 3-pixel run threshold.
+     *
+     * The gain is a step rather than a curve — measured on a 466x466, 12-frame
+     * animation: 1978 KB untouched, 1827 KB at binX=2, 1077 KB at binX=3 —
+     * since only at 3 does every group become a run. That is why the ladder
+     * skips 2 entirely.
+     */
+    public static Bitmap[] binHorizontally(Bitmap[] frames, int binX) {
+        if (frames == null || binX <= 1) return frames;
+        Bitmap[] out = new Bitmap[frames.length];
+        for (int i = 0; i < frames.length; i++) {
+            Bitmap src = frames[i];
+            if (src == null) continue;
+            int w = src.getWidth(), h = src.getHeight();
+            int[] px = new int[w * h];
+            src.getPixels(px, 0, w, 0, 0, w, h);
+            binRow(px, w, h, binX);
+            Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            b.setPixels(px, 0, w, 0, 0, w, h);
+            out[i] = b;
+        }
+        return out;
+    }
+
+    private static int[][] binRows(int[][] frames, int w, int h, int binX) {
+        int[][] out = new int[frames.length][];
+        for (int i = 0; i < frames.length; i++) {
+            out[i] = frames[i].clone();
+            binRow(out[i], w, h, binX);
+        }
+        return out;
+    }
+
+    private static void binRow(int[] px, int w, int h, int binX) {
         for (int y = 0; y < h; y++) {
             int row = y * w;
-            for (int x0 = 0; x0 < w; x0 += doBin ? binX : 1) {
-                int n = doBin ? Math.min(binX, w - x0) : 1;
+            for (int x0 = 0; x0 < w; x0 += binX) {
+                int n = Math.min(binX, w - x0);
                 int a = 0, r = 0, g = 0, b = 0;
                 for (int k = 0; k < n; k++) {
                     int c = px[row + x0 + k];
@@ -520,31 +652,212 @@ public class DialCompiler {
                     g += (c >>> 8) & 0xFF;
                     b += c & 0xFF;
                 }
-                a /= n; r /= n; g /= n; b /= n;
-                if (doPosterize) {
-                    r &= mask; g &= mask; b &= mask;
-                }
-                int packed = (a << 24) | (r << 16) | (g << 8) | b;
-                for (int k = 0; k < n; k++) {
-                    px[row + x0 + k] = packed;
-                }
+                int packed = ((a / n) << 24) | ((r / n) << 16) | ((g / n) << 8) | (b / n);
+                for (int k = 0; k < n; k++) px[row + x0 + k] = packed;
             }
         }
+    }
 
-        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        out.setPixels(px, 0, w, 0, 0, w, h);
+    /**
+     * Reduces every frame to a single palette of at most {@code maxColors}.
+     *
+     * One palette for the whole animation rather than one per frame: a colour
+     * that survives in frame 3 and not in frame 4 shows up as flicker, and a
+     * shared palette also makes neighbouring pixels agree more often, which is
+     * what the run encoder rewards. Measured on a 466x466, 12-frame clip:
+     * 1978 KB at full colour, 1741 KB at 256, 1404 KB at 64, 1183 KB at 32.
+     *
+     * Deliberately undithered. Dithering would hide the banding but scatter
+     * every flat area into noise, and noise is exactly what this format cannot
+     * store — the factory dials are undithered for the same reason.
+     */
+    public static Bitmap[] quantizeShared(Bitmap[] frames, int maxColors) {
+        if (frames == null || frames.length == 0 || maxColors <= 0) return frames;
+
+        int w = -1, h = -1;
+        for (Bitmap f : frames) {
+            if (f == null) continue;
+            w = f.getWidth(); h = f.getHeight();
+            break;
+        }
+        if (w <= 0) return frames;
+
+        int[][] px = new int[frames.length][];
+        for (int i = 0; i < frames.length; i++) {
+            if (frames[i] == null) continue;
+            px[i] = new int[w * h];
+            frames[i].getPixels(px[i], 0, w, 0, 0, w, h);
+        }
+        int[] map = paletteMap(px, maxColors);
+        if (map == null) return frames;
+
+        Bitmap[] out = new Bitmap[frames.length];
+        for (int i = 0; i < frames.length; i++) {
+            if (px[i] == null) continue;
+            for (int j = 0; j < px[i].length; j++) {
+                px[i][j] = (px[i][j] & 0xFF000000) | from565(map[to565(px[i][j])]);
+            }
+            Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            b.setPixels(px[i], 0, w, 0, 0, w, h);
+            out[i] = b;
+        }
         return out;
+    }
+
+    /**
+     * Median cut over the colours present across every frame, returning a
+     * 65536-entry table that maps each RGB565 value to its bucket's
+     * representative, or null if there was nothing to reduce.
+     *
+     * Buckets are chosen for splitting by the squared error they carry — the
+     * sum over their pixels of the distance to the bucket's own average — and
+     * split at the pixel-weighted median of their widest channel. Splitting by
+     * pixel count instead spends the palette subdividing a large flat sky;
+     * splitting by colour-space volume spends it on a handful of stray
+     * highlights and flattens that sky to one tone. Squared error is what
+     * actually balances the two.
+     */
+    private static int[] paletteMap(int[][] frames, int maxColors) {
+        int[] hist = new int[65536];
+        for (int[] frame : frames) {
+            if (frame == null) continue;
+            for (int p : frame) hist[to565(p)]++;
+        }
+
+        int present = 0;
+        for (int i = 0; i < 65536; i++) if (hist[i] != 0) present++;
+        if (present <= maxColors) return null;
+
+        int[] palette = new int[present];
+        int k = 0;
+        for (int i = 0; i < 65536; i++) if (hist[i] != 0) palette[k++] = i;
+
+        int[] start = new int[maxColors];
+        int[] end = new int[maxColors];
+        double[] error = new double[maxColors];
+        start[0] = 0;
+        end[0] = present;
+        error[0] = boxError(palette, hist, 0, present);
+        int boxes = 1;
+
+        int[] scratch = new int[present];
+
+        while (boxes < maxColors) {
+            int pick = -1;
+            double worst = -1;
+            for (int i = 0; i < boxes; i++) {
+                if (end[i] - start[i] < 2) continue;
+                if (error[i] > worst) { worst = error[i]; pick = i; }
+            }
+            if (pick < 0) break;
+
+            int s = start[pick], e = end[pick];
+            int rMin = 255, rMax = 0, gMin = 255, gMax = 0, bMin = 255, bMax = 0;
+            long weight = 0;
+            for (int i = s; i < e; i++) {
+                int c = palette[i];
+                weight += hist[c];
+                int r = red565(c), g = green565(c), b = blue565(c);
+                if (r < rMin) rMin = r;
+                if (r > rMax) rMax = r;
+                if (g < gMin) gMin = g;
+                if (g > gMax) gMax = g;
+                if (b < bMin) bMin = b;
+                if (b > bMax) bMax = b;
+            }
+            int rSpan = rMax - rMin, gSpan = gMax - gMin, bSpan = bMax - bMin;
+            int channel = (rSpan >= gSpan && rSpan >= bSpan) ? 0 : (gSpan >= bSpan ? 1 : 2);
+
+            sortByChannel(palette, scratch, s, e, channel);
+
+            long half = weight / 2;
+            long acc = 0;
+            int split = s + 1;
+            for (int i = s; i < e - 1; i++) {
+                acc += hist[palette[i]];
+                if (acc >= half) { split = i + 1; break; }
+                split = i + 2;
+            }
+            if (split <= s) split = s + 1;
+            if (split >= e) split = e - 1;
+
+            end[pick] = split;
+            error[pick] = boxError(palette, hist, s, split);
+            start[boxes] = split;
+            end[boxes] = e;
+            error[boxes] = boxError(palette, hist, split, e);
+            boxes++;
+        }
+
+        int[] map = new int[65536];
+        for (int i = 0; i < boxes; i++) {
+            int rep = boxAverage(palette, hist, start[i], end[i]);
+            for (int j = start[i]; j < end[i]; j++) map[palette[j]] = rep;
+        }
+        return map;
+    }
+
+    /** Pixel-weighted sum of squared distance to the bucket's average colour. */
+    private static double boxError(int[] palette, int[] hist, int s, int e) {
+        long n = 0, sr = 0, sg = 0, sb = 0, qr = 0, qg = 0, qb = 0;
+        for (int i = s; i < e; i++) {
+            int c = palette[i];
+            long w = hist[c];
+            int r = red565(c), g = green565(c), b = blue565(c);
+            n += w;
+            sr += w * r; sg += w * g; sb += w * b;
+            qr += w * r * r; qg += w * g * g; qb += w * b * b;
+        }
+        if (n == 0) return 0;
+        return (qr - (double) sr * sr / n)
+             + (qg - (double) sg * sg / n)
+             + (qb - (double) sb * sb / n);
+    }
+
+    /** The bucket's pixel-weighted average, packed back to RGB565. */
+    private static int boxAverage(int[] palette, int[] hist, int s, int e) {
+        long n = 0, sr = 0, sg = 0, sb = 0;
+        for (int i = s; i < e; i++) {
+            int c = palette[i];
+            long w = hist[c];
+            n += w;
+            sr += w * red565(c); sg += w * green565(c); sb += w * blue565(c);
+        }
+        if (n == 0) n = 1;
+        int r = (int) (sr / n), g = (int) (sg / n), b = (int) (sb / n);
+        return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+
+    /** Counting sort of palette[s,e) on one 565 channel; stable, no allocation. */
+    private static void sortByChannel(int[] palette, int[] scratch, int s, int e, int channel) {
+        int buckets = channel == 1 ? 64 : 32;
+        int shift = channel == 0 ? 11 : (channel == 1 ? 5 : 0);
+        int mask = buckets - 1;
+        int[] counts = new int[buckets + 1];
+        for (int i = s; i < e; i++) counts[((palette[i] >>> shift) & mask) + 1]++;
+        for (int i = 0; i < buckets; i++) counts[i + 1] += counts[i];
+        for (int i = s; i < e; i++) scratch[counts[(palette[i] >>> shift) & mask]++] = palette[i];
+        System.arraycopy(scratch, 0, palette, s, e - s);
+    }
+
+    /** Exact compressed size of a whole RGB animation block. */
+    public static long animationBytes(Bitmap[] frames) {
+        if (frames == null) return 0;
+        long total = 0;
+        for (Bitmap f : frames) total += rleSizeRgb565(f);
+        return total;
     }
 
     /**
      * Exact compressed size of one RGB frame, mirroring the RLE encoder in
      * hkcomposer.py: a run of three or more identical RGB565 pixels costs 3
-     * bytes, anything else costs 1 byte plus 2 per pixel, and runs and literal
-     * blocks both cap at 127 pixels.
+     * bytes, anything else costs 1 byte plus 2 per pixel, runs and literal
+     * blocks both cap at 127 pixels, and each frame carries a four-byte row
+     * lookup entry per scanline before being padded to a 4-byte boundary.
      *
-     * Simulated rather than estimated because the whole point of the size
+     * Simulated rather than approximated because the whole point of the size
      * readout is to tell the user, before a multi-minute transfer, whether the
-     * dial will fit.
+     * dial will fit. Verified against the factory dials byte for byte.
      */
     public static long rleSizeRgb565(Bitmap frame) {
         if (frame == null) return 0;
@@ -552,16 +865,23 @@ public class DialCompiler {
         int h = frame.getHeight();
         int[] px = new int[w * h];
         frame.getPixels(px, 0, w, 0, 0, w, h);
+        return rleSize(px, w, h, null);
+    }
 
-        long total = 0;
+    /**
+     * @param map optional RGB565 -> RGB565 palette table, applied on the fly so
+     *            the planner can price a palette without building the bitmaps
+     */
+    private static long rleSize(int[] px, int w, int h, int[] map) {
+        long total = 4L * h; // per-scanline lookup table + skip offset
         for (int y = 0; y < h; y++) {
             int row = y * w;
             int x = 0;
             while (x < w) {
-                int cur = to565(px[row + x]);
+                int cur = mapped(px[row + x], map);
                 int run = 1;
                 int maxRun = Math.min(127, w - x);
-                while (run < maxRun && to565(px[row + x + run]) == cur) run++;
+                while (run < maxRun && mapped(px[row + x + run], map) == cur) run++;
 
                 if (run >= 3) {
                     total += 3;
@@ -571,10 +891,10 @@ public class DialCompiler {
                     int lit = 0;
                     int maxLit = Math.min(127, w - x);
                     while (lit < maxLit) {
-                        int c = to565(px[row + x + lit]);
+                        int c = mapped(px[row + x + lit], map);
                         int ahead = 1;
                         while (ahead < 3 && x + lit + ahead < w
-                                && to565(px[row + x + lit + ahead]) == c) ahead++;
+                                && mapped(px[row + x + lit + ahead], map) == c) ahead++;
                         if (ahead >= 3) break;
                         lit++;
                     }
@@ -584,17 +904,25 @@ public class DialCompiler {
                 }
             }
         }
-        // Frames are padded to a 4-byte boundary, plus the per-frame header.
-        total = (total + 3) & ~3L;
-        return total + RLE_FRAME_HEADER_BYTES;
+        return (total + 3) & ~3L;
     }
 
-    /** Lookup table plus skip offset the RLE writer prepends to every frame. */
-    private static final int RLE_FRAME_HEADER_BYTES = 4;
+    private static int mapped(int argb, int[] map) {
+        int c = to565(argb);
+        return map == null ? c : map[c];
+    }
 
     private static int to565(int argb) {
         int r = (argb >>> 16) & 0xFF, g = (argb >>> 8) & 0xFF, b = argb & 0xFF;
         return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+
+    private static int red565(int c)   { return (c >>> 11) << 3; }
+    private static int green565(int c) { return ((c >>> 5) & 0x3F) << 2; }
+    private static int blue565(int c)  { return (c & 0x1F) << 3; }
+
+    private static int from565(int c) {
+        return (red565(c) << 16) | (green565(c) << 8) | blue565(c);
     }
 
     /** True for the three analogue hands, which anchor by their pivot. */

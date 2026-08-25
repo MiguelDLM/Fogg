@@ -114,12 +114,30 @@ public class DialEditorActivity extends AppCompatActivity {
     };
 
     /**
-     * Above this the compiled dial gets a confirmation prompt. Not a hard limit
-     * from the protocol — the transfer never negotiates a size — but dials that
-     * work in practice sit two orders of magnitude below a full-face video, and
-     * pushing megabytes over BLE takes minutes before anything can go wrong.
+     * What a dial may weigh.
+     *
+     * The transfer never negotiates a size, so this comes from the factory
+     * dials instead: the three animated ones shipped for this watch are 757,
+     * 865 and 944 KB and all install, while anything past a megabyte is
+     * rejected. 820 KB sits below the largest that works and leaves room for
+     * the digits and hands usually added after an animation.
+     *
+     * One number for two jobs: it is the budget an imported animation is
+     * fitted to, and the point where compiling asks first. Fitting to a
+     * tighter budget than the prompt uses would mean squeezing animations that
+     * were going to be accepted anyway; fitting to a looser one would mean
+     * every fitted animation still triggers the prompt.
      */
-    private static final long DIAL_SIZE_WARN_BYTES = 500L * 1024L;
+    private static final long DIAL_SIZE_WARN_BYTES = 820L * 1024L;
+
+    /**
+     * Past this a dial stops transferring. The largest factory dial that
+     * installs on this watch is 944 KB; a 967 KB one built here failed to send.
+     * The true cutoff is somewhere in that gap, so the last size known to work
+     * is what gets used — a warning on a dial that would have transferred costs
+     * the user a shrug, a silent failure costs them a multi-minute transfer.
+     */
+    private static final long DIAL_SIZE_FAIL_BYTES = 944L * 1024L;
 
     private int canvasWidth = 466;
     private int canvasHeight = 466;
@@ -2886,14 +2904,20 @@ public class DialEditorActivity extends AppCompatActivity {
                         String.format(java.util.Locale.US, "%.1f", span / 1000f)));
 
                 // Cost of those frames once compiled. Shown here because this is
-                // where the frame count is decided, and video does not compress.
+                // where the frame count is decided — the single biggest lever on
+                // how big the animation ends up. It is the uncompressed ceiling:
+                // what the import actually squeezes it to is only known once the
+                // frames exist, and is reported after extraction.
                 if (sourceSize[0] > 0 && sourceSize[1] > 0) {
                     float fit = animFitScale(sourceSize[0], sourceSize[1]);
                     int w = Math.max(1, Math.round(sourceSize[0] * fit));
                     int h = Math.max(1, Math.round(sourceSize[1] * fit));
                     long bytes = DialCompiler.estimateBlockBytes(w, h, est, false);
                     tvSize.setText(getString(R.string.anim_size_estimate, formatBytes(bytes)));
-                    tvSize.setTextColor(bytes > DIAL_SIZE_WARN_BYTES
+                    // Red only when even the harshest setting cannot save it:
+                    // the fitter reliably gets photographic frames to about a
+                    // tenth of their uncompressed size.
+                    tvSize.setTextColor(bytes > DIAL_SIZE_WARN_BYTES * 10
                             ? com.example.dialsender.theme.ThemeManager.getTheme(this).danger
                             : com.example.dialsender.theme.ThemeManager.getTheme(this).textSecondary);
                 }
@@ -2976,9 +3000,22 @@ public class DialEditorActivity extends AppCompatActivity {
                         progress.setCancelable(false);
                         progress.show();
                         new Thread(() -> {
-                            final Bitmap[] fitted = fitFramesToFace(isGif
+                            // Off the UI thread: measuring an animation already on
+                            // the face means simulating the encoder over every one
+                            // of its frames.
+                            final long animBudget = animBudgetBytes();
+                            // Fitted and flattened to the watch's colour depth before
+                            // planning: the plan has to be priced on the pixels the
+                            // compiler will see, or the size promised here is not the
+                            // size that ships. This is also the one place a
+                            // several-second search is affordable — the progress
+                            // dialog is already up for the extraction.
+                            final Bitmap[] fitted = normalizeFrames(fitFramesToFace(isGif
                                     ? extractGifFrames(gifMovie, extractionMs, extractionLimit, fromMs, toMs)
-                                    : extractVideoFrames(animUri, extractionMs, extractionLimit, fromMs, toMs));
+                                    : extractVideoFrames(animUri, extractionMs, extractionLimit, fromMs, toMs)));
+                            final DialCompiler.AnimPlan plan = fitted == null || fitted.length == 0
+                                    ? null
+                                    : DialCompiler.planAnimation(fitted, animBudget);
                             runOnUiThread(() -> {
                                 progress.dismiss();
                                 if (fitted == null || fitted.length == 0) {
@@ -2992,6 +3029,8 @@ public class DialEditorActivity extends AppCompatActivity {
                                 layer.frameCount = frames.length;
                                 layer.isSpriteSheet = true;
                                 layer.animIntervalMs = extractionMs;
+                                layer.animColors = plan != null ? plan.colors : 0;
+                                layer.animBinX = plan != null ? plan.binX : 1;
                                 // Frames arrive already at their on-face size, so the
                                 // layer needs no scaling. Keeping the source resolution
                                 // around would only cost memory: the watch draws a block
@@ -3005,6 +3044,7 @@ public class DialEditorActivity extends AppCompatActivity {
                                 selectedLayerIndex = 0;
                                 Toast.makeText(this, getString(R.string.frames_imported, frames.length),
                                         Toast.LENGTH_SHORT).show();
+                                if (plan != null && !plan.isLossless()) reportAnimPlan(plan, animBudget);
                                 refreshAll();
                             });
                         }).start();
@@ -3299,6 +3339,30 @@ public class DialEditorActivity extends AppCompatActivity {
      * For multi-digit types, creates a combined two-digit bitmap.
      * For other types, returns a single representative frame.
      */
+    /**
+     * The compiled frame to draw for an animation, or null if there is none yet
+     * or the layer has moved since it was built.
+     *
+     * Falling back to the source frames while a drag is in flight is deliberate:
+     * rebuilding the block takes seconds, and showing the previous crop at the
+     * new position would put the image visibly in the wrong place. The compiled
+     * look returns a moment after the layer is let go.
+     */
+    private Bitmap compiledAnimFrame(DialLayer layer, boolean live) {
+        if (layer.nativeElementType != DialCompiler.TYPE_ANIM) return null;
+        Bitmap[] cache = layer.animCompiled;
+        if (cache == null || cache.length == 0) return null;
+        if (!animBlockKey(layer).equals(layer.animCompiledKey)) return null;
+
+        int index = 0;
+        if (live && cache.length > 1) {
+            long elapsed = System.currentTimeMillis() - previewStartedAt;
+            index = (int) ((elapsed / Math.max(20, layer.animIntervalMs)) % cache.length);
+        }
+        Bitmap frame = cache[index];
+        return frame != null && !frame.isRecycled() ? frame : null;
+    }
+
     private Bitmap getPreviewBitmap(DialLayer layer) {
         return getPreviewBitmap(layer, false);
     }
@@ -3437,6 +3501,11 @@ public class DialEditorActivity extends AppCompatActivity {
         previewImage.setImageBitmap(preview);
 
         txtLayerCount.setText(String.valueOf(layers.size()));
+        // Dragging and scaling go through here without touching updateControls,
+        // and both move an animation's crop against the face — so the size
+        // beside the slider would otherwise keep showing what it cost before
+        // the layer was moved.
+        updateSelectedLayerInfo();
     }
 
     /**
@@ -3491,6 +3560,30 @@ public class DialEditorActivity extends AppCompatActivity {
                 if (i == selectedLayerIndex) {
                     border.setColor(Color.parseColor("#58A6FF"));
                     canvas.drawRect(px, py, px + pw, py + ph, border);
+                }
+                continue;
+            }
+
+            // An animation with its compiled frames ready is drawn from those
+            // rather than from the source: they carry the reduced palette and
+            // the crop to the face, which is what the watch will show. They are
+            // already scaled and positioned, so they go down as-is — and the
+            // compiler ignores rotation on an animation block, so not rotating
+            // them here is the accurate thing to do too.
+            Bitmap compiled = compiledAnimFrame(layer, live);
+            if (compiled != null) {
+                float ax = Math.max(0, Math.round(layer.posX));
+                float ay = Math.max(0, Math.round(layer.posY));
+                Paint animPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                animPaint.setAlpha((int) (layer.alpha * 255));
+                canvas.drawBitmap(compiled, ax, ay, animPaint);
+                if (editorDecorations && i == selectedLayerIndex) {
+                    Paint border = new Paint();
+                    border.setStyle(Paint.Style.STROKE);
+                    border.setColor(Color.parseColor("#58A6FF"));
+                    border.setStrokeWidth(2);
+                    canvas.drawRect(ax, ay, ax + compiled.getWidth(),
+                            ay + compiled.getHeight(), border);
                 }
                 continue;
             }
@@ -3553,23 +3646,45 @@ public class DialEditorActivity extends AppCompatActivity {
         return preview;
     }
 
+    /**
+     * The one line above the transform controls: what the selected layer is,
+     * and for an animation what it will cost.
+     *
+     * Split out of updateControls because dragging and scaling refresh the
+     * preview without rebuilding the controls, and this line has to follow.
+     */
+    private void updateSelectedLayerInfo() {
+        if (txtSelectedLayer == null) return;
+        if (selectedLayerIndex < 0 || selectedLayerIndex >= layers.size()) return;
+        DialLayer layer = layers.get(selectedLayerIndex);
+
+        String info = layer.name;
+        if (layer.nativeElementType == DialCompiler.TYPE_ANIM
+                && layer.frames != null && layer.frames.length > 0
+                && layer.frames[0] != null) {
+            // Animations are the one layer whose cost is worth watching while it
+            // is resized, so the size is shown right next to the slider. Both
+            // numbers describe the block that actually gets written: what hangs
+            // off the edge of the face is cropped away and costs nothing, so
+            // counting it would only mislead.
+            int w = Math.max(1, Math.round(layer.frames[0].getWidth() * layer.scale));
+            int h = Math.max(1, Math.round(layer.frames[0].getHeight() * layer.scale));
+            Rect visible = animVisibleRect(layer, w, h);
+            info = getString(R.string.layer_anim_cost, layer.frames.length,
+                    Math.max(0, visible.width()), Math.max(0, visible.height()),
+                    animSizeBytes >= 0 ? formatBytes(animSizeBytes) : "…");
+            requestAnimSize(layer);
+        } else if (layer.isSpriteSheet) {
+            info += " • " + layer.frameCount + " frames";
+        }
+        txtSelectedLayer.setText(info);
+    }
+
     private void updateControls() {
         if (selectedLayerIndex >= 0 && selectedLayerIndex < layers.size()) {
             selectedLayerControls.setVisibility(View.VISIBLE);
             DialLayer layer = layers.get(selectedLayerIndex);
-            String info = layer.name;
-            if (layer.nativeElementType == DialCompiler.TYPE_ANIM
-                    && layer.frames != null && layer.frames.length > 0) {
-                // Animations are the one layer whose cost is worth watching while
-                // it is resized, so the estimate is shown right next to the slider.
-                int w = Math.max(1, Math.round(layer.frames[0].getWidth() * layer.scale));
-                int h = Math.max(1, Math.round(layer.frames[0].getHeight() * layer.scale));
-                info = getString(R.string.layer_anim_cost, layer.frames.length, w, h,
-                        formatBytes(DialCompiler.estimateBlockBytes(w, h, layer.frames.length, false)));
-            } else if (layer.isSpriteSheet) {
-                info += " • " + layer.frameCount + " frames";
-            }
-            txtSelectedLayer.setText(info);
+            updateSelectedLayerInfo();
             seekScale.setProgress((int) (layer.scale * 100));
             seekRotation.setProgress((int) layer.rotation);
 
@@ -4552,23 +4667,104 @@ public class DialEditorActivity extends AppCompatActivity {
     }
 
     private void compileAndFinish(String dialName) {
-        // Estimate first: a full-face video animation runs to megabytes, and the
-        // user should find that out here rather than after a multi-minute BLE
-        // transfer. Advisory only — the protocol never states a real limit.
-        long[] worst = { 0L };
-        String[] worstName = { "" };
-        long total = estimateDialBytes(worst, worstName);
-        if (total > DIAL_SIZE_WARN_BYTES) {
-            new AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.dial_too_big_title, formatBytes(total)))
-                    .setMessage(getString(R.string.dial_too_big_msg,
-                            worstName[0], formatBytes(worst[0])))
-                    .setPositiveButton(R.string.compile_anyway, (d, w) -> doCompile(dialName))
-                    .setNegativeButton(R.string.cancel, null)
-                    .show();
-            return;
+        // Measure first: the watch rejects a dial past a megabyte, and finding
+        // that out here beats finding it out after a multi-minute BLE transfer.
+        // Measuring means running the encoder over every animation frame, so it
+        // happens on its own thread — on a full-face clip it is seconds.
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+        progress.setMessage(getString(R.string.anim_measuring));
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            long[] worst = { 0L };
+            String[] worstName = { "" };
+            final long total = estimateDialBytes(worst, worstName);
+            final DialLayer anim = total > DIAL_SIZE_WARN_BYTES ? heaviestAnimLayer() : null;
+            final long worstBytes = worst[0];
+            final String worstLabel = worstName[0];
+            runOnUiThread(() -> {
+                progress.dismiss();
+                if (total <= DIAL_SIZE_WARN_BYTES) {
+                    doCompile(dialName);
+                    return;
+                }
+                AlertDialog.Builder b = new AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.dial_too_big_title, formatBytes(total)))
+                        .setMessage(getString(R.string.dial_too_big_msg,
+                                worstLabel, formatBytes(worstBytes)))
+                        .setNeutralButton(R.string.compile_anyway, (d, w) -> doCompile(dialName))
+                        .setNegativeButton(R.string.cancel, null);
+                // Offered rather than done silently: squeezing further means fewer
+                // colours or a softer image, and that is a visible change to
+                // something the user has been arranging on screen.
+                if (anim != null) {
+                    b.setPositiveButton(R.string.anim_optimize,
+                            (d, w) -> optimizeAnimThen(anim, total, () -> compileAndFinish(dialName)));
+                }
+                b.show();
+            });
+        }).start();
+    }
+
+    /** The animation layer costing the most, or null if the dial has none. */
+    private DialLayer heaviestAnimLayer() {
+        DialLayer worst = null;
+        long worstBytes = -1;
+        for (DialLayer layer : layers) {
+            if (layer.nativeElementType != DialCompiler.TYPE_ANIM
+                    || layer.frames == null || layer.frames.length == 0) continue;
+            long bytes = exactAnimBytes(layer);
+            if (bytes > worstBytes) { worstBytes = bytes; worst = layer; }
         }
-        doCompile(dialName);
+        return worst;
+    }
+
+    /**
+     * Re-fits one animation to whatever room the rest of the dial leaves, then
+     * carries on. Runs off the UI thread behind a progress dialog: the search
+     * palettises the frames once per rung of the ladder, which on a full-face
+     * clip is seconds rather than milliseconds.
+     */
+    private void optimizeAnimThen(DialLayer layer, long currentTotal, Runnable then) {
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+        progress.setMessage(getString(R.string.anim_optimizing));
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            long others = Math.max(0, currentTotal - exactAnimBytes(layer));
+            // Aimed at the warn line, not the hard limit, so the compile that
+            // follows goes straight through instead of prompting again.
+            long budget = Math.max(64L * 1024L, DIAL_SIZE_WARN_BYTES - others);
+            Bitmap[] rendered = renderAnimFrames(layer);
+            DialCompiler.AnimPlan plan = rendered == null ? null
+                    : DialCompiler.planAnimation(rendered, budget);
+            if (rendered != null) for (Bitmap f : rendered) if (f != null) f.recycle();
+            if (plan == null) {
+                runOnUiThread(() -> { progress.dismiss(); then.run(); });
+                return;
+            }
+            // Compounded with what the layer already carries: the plan was
+            // searched over frames that had the old treatment applied.
+            layer.animColors = plan.colors > 0
+                    ? (layer.animColors > 0 ? Math.min(layer.animColors, plan.colors) : plan.colors)
+                    : layer.animColors;
+            layer.animBinX = Math.max(layer.animBinX, plan.binX);
+
+            // Rebuilt here, while the progress dialog is still up, rather than
+            // left to the debounce: cutting a palette to two dozen colours is a
+            // visible change, and the user has to be able to look at it before
+            // deciding to go on.
+            String key = animBlockKey(layer);
+            AnimBlock block = buildAnimBlock(layer);
+            runOnUiThread(() -> {
+                progress.dismiss();
+                installAnimBlock(layer, key, block);
+                refreshAll();
+                reportAnimPlan(plan, budget, then);
+            });
+        }).start();
     }
 
     /**
@@ -4576,14 +4772,30 @@ public class DialEditorActivity extends AppCompatActivity {
      * can point at the actual culprit.
      */
     private long estimateDialBytes(long[] worstOut, String[] worstNameOut) {
-        long total = DialCompiler.estimateBlockBytes(280, 280, 1, false); // preview block
+        // Preview block. Rendered rather than bounded: it is the same composite
+        // the compiler builds, and on a dark or flat dial it compresses to a
+        // third of the bound — enough to decide whether the dial fits.
+        long total;
+        Bitmap preview = DialCompiler.normalizeForWatch(renderComposite(false, false), 280, 280);
+        if (preview != null) {
+            total = DialCompiler.rleSizeRgb565(preview);
+            preview.recycle();
+        } else {
+            total = DialCompiler.estimateBlockBytes(280, 280, 1, false);
+        }
         for (DialLayer layer : layers) {
             if (layer.pendingStyle || layer.frames == null || layer.frames.length == 0) continue;
             boolean hasAlpha = layer.nativeElementType != DialCompiler.TYPE_BACKGROUND
                     && layer.nativeElementType != DialCompiler.TYPE_ANIM;
             int w = Math.max(1, Math.round(layer.frames[0].getWidth() * layer.scale));
             int h = Math.max(1, Math.round(layer.frames[0].getHeight() * layer.scale));
-            long bytes = DialCompiler.estimateBlockBytes(w, h, layer.frames.length, hasAlpha);
+            // Animations get simulated rather than bounded: they are the only
+            // block big enough for the difference between the two to decide
+            // whether the dial fits, and the bound is up to 5x over once the
+            // frames are palettised.
+            long bytes = layer.nativeElementType == DialCompiler.TYPE_ANIM
+                    ? exactAnimBytes(layer)
+                    : DialCompiler.estimateBlockBytes(w, h, layer.frames.length, hasAlpha);
             total += bytes;
             if (worstOut != null && bytes > worstOut[0]) {
                 worstOut[0] = bytes;
@@ -4676,24 +4888,19 @@ public class DialEditorActivity extends AppCompatActivity {
                         block.x = 0;
                         block.y = 0;
                     } else if (block.type == DialCompiler.TYPE_ANIM) {
-                        int frameCount = (layer.frames != null && layer.frames.length > 0) ? layer.frames.length : 1;
-                        Bitmap[] renderedFrames = new Bitmap[frameCount];
-                        Bitmap firstFrame = (layer.frames != null && layer.frames.length > 0) ? layer.frames[0] : layer.icon;
-                        if (firstFrame == null) continue;
-                        int animW = Math.round(firstFrame.getWidth() * layer.scale);
-                        int animH = Math.round(firstFrame.getHeight() * layer.scale);
-
-                        for (int fi = 0; fi < frameCount; fi++) {
-                            Bitmap frameBmp = (layer.frames != null && layer.frames.length > fi) ? layer.frames[fi] : firstFrame;
-                            Bitmap scaledFrame = Bitmap.createScaledBitmap(frameBmp, animW, animH, true);
-                            renderedFrames[fi] = DialCompiler.normalizeForWatch(scaledFrame, animW, animH);
-                        }
+                        Bitmap[] renderedFrames = renderAnimFrames(layer);
+                        if (renderedFrames == null || renderedFrames.length == 0) continue;
+                        int animW = renderedFrames[0].getWidth();
+                        int animH = renderedFrames[0].getHeight();
                         block.images = renderedFrames;
                         block.width = animW;
                         block.height = animH;
-                        block.frames = frameCount;
-                        block.x = Math.round(layer.posX);
-                        block.y = Math.round(layer.posY);
+                        block.frames = renderedFrames.length;
+                        // renderAnimFrames already cropped to the face, so the
+                        // origin is the clamped one and clampBlocksToCanvas has
+                        // nothing left to do for this block.
+                        block.x = Math.max(0, Math.round(layer.posX));
+                        block.y = Math.max(0, Math.round(layer.posY));
                         block.animIntervalMs = layer.animIntervalMs;
                     } else if (layer.frames != null && layer.frames.length > 0) {
                         int scaledW = Math.max(1, (int) (layer.frames[0].getWidth() * layer.scale));
@@ -4756,18 +4963,29 @@ public class DialEditorActivity extends AppCompatActivity {
                     File savedFile = new File(userDialsDir, filename);
                     copyFile(outFile, savedFile);
 
-                    String size = outFile.length() > 1024
-                            ? String.format("%.1f KB", outFile.length() / 1024.0)
-                            : outFile.length() + " bytes";
+                    // Checked against the compiled file rather than the estimate
+                    // that ran before compiling: this is the number that decides
+                    // whether the transfer works, and the estimate cannot account
+                    // for how well the preview block happened to compress.
+                    final long compiledBytes = outFile.length();
+                    final boolean wontSend = compiledBytes > DIAL_SIZE_FAIL_BYTES;
+                    String size = formatBytes(compiledBytes);
 
                     runOnUiThread(() -> {
                         btnUpload.setEnabled(true);
                         btnUpload.setText(R.string.compile);
                         // Show success dialog with Send option
                         new AlertDialog.Builder(this)
-                                .setTitle("✅ " + filename)
-                                .setMessage(size)
-                                .setPositiveButton(R.string.send_dial, (d, w) -> {
+                                .setTitle(wontSend
+                                        ? getString(R.string.dial_wont_send_title, size)
+                                        : "✅ " + filename)
+                                .setMessage(wontSend
+                                        ? getString(R.string.dial_wont_send_msg,
+                                                formatBytes(DIAL_SIZE_FAIL_BYTES))
+                                        : size)
+                                .setPositiveButton(
+                                        wontSend ? R.string.send_anyway : R.string.send_dial,
+                                        (d, w) -> {
                                     try {
                                         java.io.FileInputStream fis = new java.io.FileInputStream(savedFile);
                                         java.io.ByteArrayOutputStream byteBuffer = new java.io.ByteArrayOutputStream();
@@ -5515,6 +5733,226 @@ public class DialEditorActivity extends AppCompatActivity {
         } catch (NumberFormatException ignored) {
         }
         return Math.max(1, Math.min(20, limit));
+    }
+
+    // Exact size of the selected animation, and the state used to keep it
+    // current. Simulating the encoder over a dozen full-face frames takes long
+    // enough to stutter a drag, so the slider never waits on it: the label
+    // shows the last number until a fresh one lands.
+    private long animSizeBytes = -1;
+    private String animSizeKey = null;
+    private String animSizeLayerId = null;
+    private final android.os.Handler animSizeHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable pendingAnimSize;
+
+    /**
+     * Everything about an animation that has to be recomputed when it changes:
+     * the frames the compiler will write, and what they weigh.
+     *
+     * Built together because they come from the same render — measuring the
+     * block means producing it, so throwing the frames away afterwards would
+     * mean rendering them twice, once for the number and once for the preview.
+     */
+    private static final class AnimBlock {
+        final Bitmap[] frames;
+        final long bytes;
+        AnimBlock(Bitmap[] frames, long bytes) { this.frames = frames; this.bytes = bytes; }
+    }
+
+    private AnimBlock buildAnimBlock(DialLayer layer) {
+        Bitmap[] frames = renderAnimFrames(layer);
+        if (frames == null) return null;
+        return new AnimBlock(frames, DialCompiler.animationBytes(frames));
+    }
+
+    /**
+     * Identifies the block a set of cached frames belongs to. Position counts
+     * because the crop to the face — and so both the frames and their size —
+     * moves with the layer, not just with its scale.
+     */
+    private String animBlockKey(DialLayer layer) {
+        return layer.layerId + "@" + Math.round(layer.scale * 1000)
+                + "+" + Math.round(layer.posX) + "," + Math.round(layer.posY)
+                + "/" + layer.animColors + "x" + layer.animBinX
+                + "#" + (layer.frames != null ? layer.frames.length : 0);
+    }
+
+    /**
+     * Hands a freshly built block to the layer and to the size readout.
+     *
+     * The frames it replaces are left to the collector rather than recycled:
+     * the compile and measure passes render the composite off the UI thread and
+     * would be reading them at exactly the wrong moment.
+     */
+    private void installAnimBlock(DialLayer layer, String key, AnimBlock block) {
+        layer.animCompiled = block != null ? block.frames : null;
+        layer.animCompiledKey = block != null ? key : null;
+        animSizeKey = key;
+        animSizeBytes = block != null ? block.bytes : -1;
+        animSizeLayerId = layer.layerId;
+    }
+
+    /** Rebuilds the selected animation's block once the slider settles. */
+    private void requestAnimSize(DialLayer layer) {
+        String key = animBlockKey(layer);
+        if (key.equals(animSizeKey)) return;
+        // A stale number from the same layer is fine to keep on screen while the
+        // new one is computed — it stops the label flickering through a drag.
+        // A number from a different layer is not, so that one gets blanked.
+        if (!layer.layerId.equals(animSizeLayerId)) {
+            animSizeBytes = -1;
+            animSizeLayerId = layer.layerId;
+        }
+
+        if (pendingAnimSize != null) animSizeHandler.removeCallbacks(pendingAnimSize);
+        pendingAnimSize = () -> new Thread(() -> {
+            AnimBlock block = buildAnimBlock(layer);
+            runOnUiThread(() -> {
+                installAnimBlock(layer, key, block);
+                if (selectedLayerIndex >= 0 && selectedLayerIndex < layers.size()
+                        && layers.get(selectedLayerIndex) == layer) {
+                    updateControls();
+                }
+                // The compressed frames are new, so what is on screen is out of
+                // date even though nothing the user touched has changed.
+                updatePreview();
+            });
+        }).start();
+        animSizeHandler.postDelayed(pendingAnimSize, 250);
+    }
+
+    /**
+     * What is left of the dial's budget for one animation: the hard limit less
+     * the preview allowance and everything already on the face, animations
+     * included — importing a second one should not be told it has the whole
+     * face to itself.
+     */
+    private long animBudgetBytes() {
+        // Aimed at the warn line rather than the hard limit, so a dial built
+        // around this animation compiles without prompting. estimateDialBytes
+        // already carries the preview block, which is built at compile time and
+        // so cannot be measured while editing.
+        return Math.max(64L * 1024L, DIAL_SIZE_WARN_BYTES - estimateDialBytes(null, null));
+    }
+
+    /**
+     * Says what the import had to give up. Worth a dialog rather than a toast:
+     * the frames on screen are now visibly different from the source clip, and
+     * the user should know why before deciding the result looks wrong.
+     */
+    private void reportAnimPlan(DialCompiler.AnimPlan plan, long budget) {
+        reportAnimPlan(plan, budget, null);
+    }
+
+    /**
+     * @param proceed what to do if the user accepts; when given, the dialog also
+     *                offers to stop here so they can look at the result first.
+     *                Compiling straight through would hide the very change the
+     *                dialog is describing behind a file-saved dialog.
+     */
+    private void reportAnimPlan(DialCompiler.AnimPlan plan, long budget, Runnable proceed) {
+        StringBuilder what = new StringBuilder();
+        if (plan.colors > 0) what.append(getString(R.string.anim_opt_colors, plan.colors));
+        if (plan.binX > 1) {
+            if (what.length() > 0) what.append('\n');
+            what.append(getString(R.string.anim_opt_bin, plan.binX));
+        }
+        boolean fits = plan.bytes <= budget;
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle(R.string.anim_opt_title)
+                .setMessage(getString(fits ? R.string.anim_opt_msg : R.string.anim_opt_msg_tight,
+                        formatBytes(plan.bytes), what.toString()));
+        if (proceed == null) {
+            b.setPositiveButton(android.R.string.ok, null);
+        } else {
+            b.setPositiveButton(R.string.compile, (d, w) -> proceed.run())
+             .setNegativeButton(R.string.anim_opt_review, null);
+        }
+        b.show();
+    }
+
+    /**
+     * The animation frames exactly as the compiler will write them: scaled to
+     * the layer's on-face size, flattened to the watch's colour depth, then put
+     * through whatever compression the layer carries.
+     *
+     * Shared by the compile path and the size readout on purpose. The readout
+     * exists to promise the user a number before a multi-minute transfer, and
+     * it can only promise it if it is measuring the same bytes that get sent.
+     */
+    private Bitmap[] renderAnimFrames(DialLayer layer) {
+        if (layer == null || layer.frames == null || layer.frames.length == 0) return null;
+        Bitmap first = layer.frames[0];
+        if (first == null) return null;
+        int w = Math.max(1, Math.round(first.getWidth() * layer.scale));
+        int h = Math.max(1, Math.round(first.getHeight() * layer.scale));
+        Rect visible = animVisibleRect(layer, w, h);
+        if (visible.isEmpty()) return null;
+
+        Bitmap[] out = new Bitmap[layer.frames.length];
+        for (int i = 0; i < out.length; i++) {
+            Bitmap src = layer.frames[i] != null ? layer.frames[i] : first;
+            Bitmap scaled = Bitmap.createScaledBitmap(src, w, h, true);
+            Bitmap cropped = Bitmap.createBitmap(scaled, visible.left, visible.top,
+                    visible.width(), visible.height());
+            out[i] = DialCompiler.normalizeForWatch(cropped, visible.width(), visible.height());
+            if (cropped != scaled) cropped.recycle();
+            if (scaled != src) scaled.recycle();
+        }
+        // After scaling and cropping, not before: resampling blends neighbouring
+        // palette entries back into a continuous ramp, so a palette applied to
+        // the source frames would be gone by the time the block is written.
+        return DialCompiler.applyPlan(out,
+                new DialCompiler.AnimPlan(layer.animColors, layer.animBinX, 0));
+    }
+
+    /**
+     * The part of a scaled animation layer that survives the crop to the face,
+     * in the scaled frame's own coordinates.
+     *
+     * Pixels pushed off the face are dropped by the compiler — a block's origin
+     * is stored unsigned, so it cannot even be placed at a negative one — and
+     * they must be dropped here too. A layer dragged half off the edge and
+     * blown up to twice the face was being priced at its full size, roughly
+     * double what it really costs, which then made the fitter squeeze it far
+     * harder than it needed to.
+     */
+    private Rect animVisibleRect(DialLayer layer, int scaledW, int scaledH) {
+        int x = Math.round(layer.posX), y = Math.round(layer.posY);
+        return new Rect(
+                Math.max(0, -x),
+                Math.max(0, -y),
+                Math.min(scaledW, canvasWidth - x),
+                Math.min(scaledH, canvasHeight - y));
+    }
+
+    /** What an animation layer will actually occupy in the .bin, to the byte. */
+    private long exactAnimBytes(DialLayer layer) {
+        Bitmap[] frames = renderAnimFrames(layer);
+        if (frames == null) return 0;
+        long bytes = DialCompiler.animationBytes(frames);
+        for (Bitmap f : frames) if (f != null) f.recycle();
+        return bytes;
+    }
+
+    /**
+     * Snaps frames to the watch's RGB565 palette at their current size.
+     *
+     * Done once at import rather than only at compile so that what the editor
+     * previews, what the size readout measures and what the compiler writes are
+     * all the same pixels.
+     */
+    private Bitmap[] normalizeFrames(Bitmap[] frames) {
+        if (frames == null) return null;
+        Bitmap[] out = new Bitmap[frames.length];
+        for (int i = 0; i < frames.length; i++) {
+            if (frames[i] == null) continue;
+            out[i] = DialCompiler.normalizeForWatch(
+                    frames[i], frames[i].getWidth(), frames[i].getHeight());
+            if (out[i] != frames[i]) frames[i].recycle();
+        }
+        return out;
     }
 
     /**
