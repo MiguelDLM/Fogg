@@ -14,10 +14,6 @@
 
     <LinearLayout style="@style/Fogg.ScreenContent">
 
-        <TextView
-            style="?attr/foggScreenTitleStyle"
-            android:text="@string/nav_yo"/>
-
         <!-- ═══════════ Profile ═══════════ -->
         <LinearLayout
             android:id="@+id/profileCard"

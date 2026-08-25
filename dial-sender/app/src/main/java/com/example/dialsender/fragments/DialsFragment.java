@@ -169,7 +169,13 @@ public class DialsFragment extends Fragment {
                     File thumbFile = new File(requireContext().getCacheDir(),
                             "preview_" + entry.name.replace(".bin", ".png"));
 
-                    if (thumbFile.exists() && thumbFile.length() > 0) {
+                    // A cached thumbnail older than the dial itself belongs to
+                    // whatever was compiled under that name before, so it gets
+                    // rebuilt rather than shown.
+                    boolean thumbFresh = thumbFile.exists() && thumbFile.length() > 0
+                            && (entry.isPreset
+                                || thumbFile.lastModified() >= new File(entry.path).lastModified());
+                    if (thumbFresh) {
                         entry.thumb = BitmapFactory.decodeFile(thumbFile.getAbsolutePath());
                         continue;
                     }
@@ -469,7 +475,7 @@ public class DialsFragment extends Fragment {
         }
     }
 
-    private void showDialContextMenu(DialEntry entry, int position) {
+    private void showDialContextMenu(DialEntry entry) {
         List<String> opts = new ArrayList<>();
         opts.add(getString(R.string.send_arrow));
         opts.add(getString(R.string.edit));
@@ -494,15 +500,15 @@ public class DialsFragment extends Fragment {
                     } else if (choice.equals(getString(R.string.export))) {
                         exportDial(entry);
                     } else if (choice.equals(getString(R.string.rename))) {
-                        showRenameDialog(entry, position);
+                        showRenameDialog(entry);
                     } else if (choice.equals(getString(R.string.delete))) {
-                        showDeleteConfirm(entry, position);
+                        showDeleteConfirm(entry);
                     }
                 })
                 .show();
     }
 
-    private void showRenameDialog(DialEntry entry, int position) {
+    private void showRenameDialog(DialEntry entry) {
         EditText input = new EditText(requireContext());
         input.setInputType(InputType.TYPE_CLASS_TEXT);
         input.setText(entry.name.replace(".bin", ""));
@@ -535,7 +541,8 @@ public class DialsFragment extends Fragment {
 
                         entry.name = newName;
                         entry.path = newFile.getAbsolutePath();
-                        dialAdapter.notifyItemChanged(position);
+                        int row = dialEntries.indexOf(entry);
+                        if (row >= 0) dialAdapter.notifyItemChanged(row);
                         Toast.makeText(requireContext(), R.string.dial_renamed, Toast.LENGTH_SHORT).show();
                     }
                 })
@@ -543,19 +550,31 @@ public class DialsFragment extends Fragment {
                 .show();
     }
 
-    private void showDeleteConfirm(DialEntry entry, int position) {
+    private void showDeleteConfirm(DialEntry entry) {
         new AlertDialog.Builder(requireContext())
                 .setTitle(R.string.delete)
                 .setMessage(R.string.confirm_delete)
                 .setPositiveButton(R.string.delete, (dialog, which) -> {
                     File file = new File(entry.path);
-                    file.delete();
+                    // Checked, not assumed: dropping the row for a file that is
+                    // still on disk makes the dial come back on the next visit
+                    // to this screen, with nothing said about why.
+                    if (file.exists() && !file.delete()) {
+                        Toast.makeText(requireContext(), R.string.dial_delete_failed,
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     File thumbFile = new File(requireContext().getCacheDir(),
                             "preview_" + entry.name.replace(".bin", ".png"));
                     thumbFile.delete();
 
-                    dialEntries.remove(position);
-                    dialAdapter.notifyItemRemoved(position);
+                    // Located now rather than when the menu opened, so the right
+                    // row goes even after an earlier delete shifted the list.
+                    int row = dialEntries.indexOf(entry);
+                    if (row >= 0) {
+                        dialEntries.remove(row);
+                        dialAdapter.notifyItemRemoved(row);
+                    }
                     Toast.makeText(requireContext(), R.string.dial_deleted, Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -656,10 +675,13 @@ public class DialsFragment extends Fragment {
                 holder.imgThumb.setImageDrawable(null);
             }
 
-            // Click -> Send, Long Click -> Context Menu
+            // Click -> Send, Long Click -> Context Menu.
+            // The entry is captured, never the position: RecyclerView does not
+            // rebind the rows below a removed one, so a position captured here
+            // is one too high for every one of them after the first delete.
             holder.itemView.setOnClickListener(v -> sendDial(entry));
             holder.itemView.setOnLongClickListener(v -> {
-                showDialContextMenu(entry, position);
+                showDialContextMenu(entry);
                 return true;
             });
         }

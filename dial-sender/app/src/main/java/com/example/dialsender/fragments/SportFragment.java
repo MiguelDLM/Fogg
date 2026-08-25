@@ -100,20 +100,6 @@ public class SportFragment extends Fragment {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(20), dp(20), dp(20), dp(28));
 
-        TextView title = new TextView(requireContext());
-        title.setText(getString(R.string.nav_deporte));
-        title.setTextColor(theme().textPrimary);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
-        title.setTypeface(null, Typeface.BOLD);
-        root.addView(title);
-
-        TextView prompt = new TextView(requireContext());
-        prompt.setText(getString(R.string.sport_pick_prompt));
-        prompt.setTextColor(theme().textSecondary);
-        prompt.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        prompt.setPadding(0, dp(4), 0, dp(20));
-        root.addView(prompt);
-
         root.addView(buildTileGrid());
 
         root.addView(buildHistoryHeader());

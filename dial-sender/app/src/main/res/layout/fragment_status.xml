@@ -12,26 +12,6 @@
         android:layout_height="0dp"
         android:visibility="gone"/>
 
-    <!-- Header — title only, no sync button -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="?attr/foggScreenPadding"
-        android:paddingEnd="?attr/foggScreenPadding"
-        android:paddingTop="?attr/foggScreenPadding"
-        android:paddingBottom="12dp">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/nav_estado"
-            style="?attr/foggScreenTitleStyle"/>
-
-    </LinearLayout>
-
     <!-- Swipe-to-refresh wraps the scroll; drag down to sync -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshHealth"
@@ -50,6 +30,7 @@
                 android:orientation="vertical"
                 android:paddingStart="?attr/foggScreenPadding"
                 android:paddingEnd="?attr/foggScreenPadding"
+                android:paddingTop="?attr/foggScreenPadding"
                 android:paddingBottom="24dp"/>
         </ScrollView>
 
