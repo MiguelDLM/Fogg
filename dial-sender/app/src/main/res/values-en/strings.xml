@@ -137,7 +137,7 @@ Pick an activity above to record your first one.</string>
     <string name="settings_section_language">LANGUAGE</string>
     <string name="settings_lang_es">Español</string>
     <string name="settings_lang_en">English</string>
-    <string name="settings_version">Fogg v0.5</string>
+    <string name="settings_version">Fogg v0.7</string>
 
     <!-- ── Device ── -->
     <string name="dev_watchfaces">Watch Faces</string>
@@ -193,6 +193,7 @@ Pick an activity above to record your first one.</string>
     <string name="send_arrow">Send →</string>
     <string name="rename_dial">Rename Dial</string>
     <string name="dial_renamed">Dial renamed</string>
+    <string name="dial_delete_failed">Could not delete the dial file</string>
     <string name="dial_deleted">Dial deleted</string>
     <string name="confirm_delete">Delete this dial?</string>
     <string name="extracting_preview">Loading thumbnails…</string>
@@ -298,7 +299,7 @@ Pick an activity above to record your first one.</string>
     <string name="health_data_desc">Sync and view health metrics charts</string>
     <string name="library">Library</string>
     <string name="library_desc">Pre-made dials and your creations</string>
-    <string name="version_label">Fogg v0.5</string>
+    <string name="version_label">Fogg v0.7</string>
     <string name="chipset_info">Compatible with Jieli / HK89 chipset</string>
 
     <!-- ── Settings activity ── -->
@@ -975,14 +976,50 @@ Pick an activity above to record your first one.</string>
     <string name="size_bytes_fmt">%d B</string>
     <string name="size_kb_fmt">%s KB</string>
     <string name="size_mb_fmt">%s MB</string>
-    <string name="anim_size_estimate">Estimated size: up to %1\$s</string>
-    <string name="anim_cost_hint">Size follows area: at half the size it takes a quarter of the space.</string>
-    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · up to %4\$s</string>
+    <string name="anim_size_estimate">Uncompressed: up to %1\$s</string>
+    <string name="anim_cost_hint">The import trims the palette until it fits. Fewer frames and less area always help.</string>
+    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · %4\$s</string>
     <string name="dial_too_big_title">This dial will weigh %1\$s</string>
     <string name="dial_too_big_msg">The heaviest block is «%1\$s» (%2\$s).
 
-Real video does not compress: every frame costs width × height × 2 bytes. To bring it down, make the animation smaller on the face (size falls with the square) or use fewer frames.
+The watch refuses transfers past roughly 944 KB, the heaviest factory dial that works.
 
-Compile anyway?</string>
+I can squeeze the animation further by trimming its colour palette, or you can cancel and use fewer frames or a smaller area.</string>
     <string name="compile_anyway">Compile anyway</string>
+    <string name="anim_optimize">Squeeze further</string>
+    <string name="dial_wont_send_title">Compiled, but it weighs %1\$s</string>
+    <string name="dial_wont_send_msg">The watch will most likely refuse the transfer: the limit is %1\$s.
+
+The dial is saved either way. To bring it down, shrink the animation\'s area or frame count, or go back and use «Squeeze further» when compiling.</string>
+    <string name="send_anyway">Send anyway</string>
+    <string name="anim_measuring">Measuring the dial…</string>
+    <string name="anim_optimizing">Fitting the animation…</string>
+    <string name="anim_opt_review">Look at it first</string>
+    <string name="anim_opt_title">Animation fitted</string>
+    <string name="anim_opt_msg">The animation takes %1\$s and fits the dial.
+
+%2\$s</string>
+    <string name="anim_opt_msg_tight">The animation takes %1\$s, still more than the watch accepts. Try fewer frames, or make it smaller on the face.
+
+%2\$s</string>
+    <string name="anim_opt_colors">· Palette cut to %1\$d colours</string>
+    <string name="anim_opt_bin">· Horizontal softening ×%1\$d</string>
+
+    <!-- Incompatible device -->
+    <string name="incompatible_title">This watch is not compatible</string>
+    <string name="incompatible_no_service">%1$s does not expose the Nordic UART service (6e400001-…), the only channel Fogg\'s protocol runs on. Its firmware uses a different BLE profile, so the app cannot talk to it.</string>
+    <string name="incompatible_no_characteristics">%1$s exposes the watch service but not its read/write characteristics. That is a firmware variant Fogg cannot use.</string>
+    <string name="incompatible_no_cccd">%1$s exposes the watch service, but its notify characteristic cannot be subscribed to, so the app would never receive a reply.</string>
+    <string name="incompatible_dump_hint">The device\'s full service list has been written to the BLE log. Open it under Me → tap the version 6 times → Developer tools, copy it, and attach it if you want to report this.</string>
+    <string name="incompatible_open_devtools">View the log</string>
+
+    <!-- QR Pairing -->
+    <string name="pair_with_qr">Pair with QR</string>
+    <string name="qr_scan_title">Scan QR Code</string>
+    <string name="qr_scan_hint">Point the camera at the QR code on the watch screen</string>
+    <string name="qr_invalid_code">No valid watch address found in the QR code</string>
+    <string name="qr_torch_on">Flashlight turned on</string>
+    <string name="qr_torch_off">Flashlight turned off</string>
+    <string name="qr_connecting_to">Connecting to %s…</string>
+
 </resources>

@@ -137,7 +137,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="settings_section_language">IDIOMA</string>
     <string name="settings_lang_es">Español</string>
     <string name="settings_lang_en">English</string>
-    <string name="settings_version">Fogg v0.5</string>
+    <string name="settings_version">Fogg v0.7</string>
 
     <!-- ── Device ── -->
     <string name="dev_watchfaces">Esferas del reloj</string>
@@ -193,6 +193,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="send_arrow">Enviar →</string>
     <string name="rename_dial">Renombrar esfera</string>
     <string name="dial_renamed">Esfera renombrada</string>
+    <string name="dial_delete_failed">No se pudo borrar el archivo del dial</string>
     <string name="dial_deleted">Esfera eliminada</string>
     <string name="confirm_delete">¿Eliminar esta esfera?</string>
     <string name="extracting_preview">Cargando miniaturas…</string>
@@ -298,7 +299,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="health_data_desc">Sincroniza y visualiza métricas de salud</string>
     <string name="library">Biblioteca</string>
     <string name="library_desc">Esferas prediseñadas y tus creaciones</string>
-    <string name="version_label">Fogg v0.5</string>
+    <string name="version_label">Fogg v0.7</string>
     <string name="chipset_info">Compatible con chipset Jieli / HK89</string>
 
     <!-- ── Settings activity ── -->
@@ -975,14 +976,50 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="size_bytes_fmt">%d B</string>
     <string name="size_kb_fmt">%s KB</string>
     <string name="size_mb_fmt">%s MB</string>
-    <string name="anim_size_estimate">Peso estimado: hasta %1\$s</string>
-    <string name="anim_cost_hint">El peso crece con el área: a la mitad de tamaño ocupa la cuarta parte.</string>
-    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · hasta %4\$s</string>
+    <string name="anim_size_estimate">Sin comprimir: hasta %1\$s</string>
+    <string name="anim_cost_hint">Al importar se ajusta la paleta para que quepa. Menos fotogramas y menos área siempre ayudan.</string>
+    <string name="layer_anim_cost">%1\$d frames · %2\$d×%3\$d · %4\$s</string>
     <string name="dial_too_big_title">El dial va a pesar %1\$s</string>
     <string name="dial_too_big_msg">El bloque más pesado es «%1\$s» (%2\$s).
 
-El vídeo real no se comprime: cada fotograma ocupa ancho × alto × 2 bytes. Para bajarlo, reduce el tamaño de la animación en la carátula (el peso cae al cuadrado) o usa menos fotogramas.
+El reloj rechaza las transferencias por encima de unos 944 KB, que es el dial de fábrica más pesado que funciona.
 
-¿Compilar de todos modos?</string>
+Puedo comprimir más la animación reduciendo su paleta de colores, o puedes cancelar y usar menos fotogramas o un área más pequeña.</string>
     <string name="compile_anyway">Compilar igual</string>
+    <string name="anim_optimize">Comprimir más</string>
+    <string name="dial_wont_send_title">Compilado, pero pesa %1\$s</string>
+    <string name="dial_wont_send_msg">Es probable que el reloj rechace la transferencia: el límite está en %1\$s.
+
+El dial queda guardado. Para bajarlo, reduce el área o los fotogramas de la animación, o vuelve al editor y usa «Comprimir más» al compilar.</string>
+    <string name="send_anyway">Enviar igualmente</string>
+    <string name="anim_measuring">Calculando el peso del dial…</string>
+    <string name="anim_optimizing">Ajustando la animación…</string>
+    <string name="anim_opt_review">Ver el resultado</string>
+    <string name="anim_opt_title">Animación ajustada</string>
+    <string name="anim_opt_msg">La animación ocupa %1\$s y cabe en el dial.
+
+%2\$s</string>
+    <string name="anim_opt_msg_tight">La animación ocupa %1\$s, todavía por encima de lo que admite el reloj. Prueba con menos fotogramas o reduce su tamaño en la carátula.
+
+%2\$s</string>
+    <string name="anim_opt_colors">· Paleta reducida a %1\$d colores</string>
+    <string name="anim_opt_bin">· Suavizado horizontal ×%1\$d</string>
+
+    <!-- Incompatible device -->
+    <string name="incompatible_title">Este reloj no es compatible</string>
+    <string name="incompatible_no_service">%1$s no expone el servicio Nordic UART (6e400001-…), el único canal por el que funciona el protocolo de Fogg. Su firmware usa otro perfil BLE, así que la app no puede hablar con él.</string>
+    <string name="incompatible_no_characteristics">%1$s expone el servicio del reloj, pero no sus características de lectura/escritura. Es una variante de firmware que Fogg no puede usar.</string>
+    <string name="incompatible_no_cccd">%1$s expone el servicio del reloj, pero su característica de notificación no admite suscripción, así que la app nunca recibiría respuestas.</string>
+    <string name="incompatible_dump_hint">Se ha guardado en el log BLE la lista completa de servicios del dispositivo. Ábrela en Yo → toca la versión 6 veces → Herramientas de desarrollo, cópiala y adjúntala si quieres reportarlo.</string>
+    <string name="incompatible_open_devtools">Ver el log</string>
+
+    <!-- QR Pairing -->
+    <string name="pair_with_qr">Vincular con QR</string>
+    <string name="qr_scan_title">Escanear código QR</string>
+    <string name="qr_scan_hint">Apunta la cámara al código QR de la pantalla del reloj</string>
+    <string name="qr_invalid_code">No se encontró una dirección de reloj válida en el código QR</string>
+    <string name="qr_torch_on">Linterna activada</string>
+    <string name="qr_torch_off">Linterna desactivada</string>
+    <string name="qr_connecting_to">Conectando a %s…</string>
+
 </resources>
