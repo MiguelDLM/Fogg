@@ -49,7 +49,7 @@ public final class WatchFilter {
     private static final String TAG = "WatchFilter";
 
     /** Service the whole watch protocol runs on — a definitive match. */
-    public static final UUID SERVICE_UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+    public static final UUID SERVICE_UUID = BleUuids.SERVICE;
 
     /** Names shorter than this only ever match exactly ("86", "A6", "L1"...). */
     private static final int MIN_PREFIX_LENGTH = 4;
