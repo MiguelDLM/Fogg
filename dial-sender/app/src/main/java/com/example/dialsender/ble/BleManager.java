@@ -3100,7 +3100,9 @@ public class BleManager {
 
     public void readWatchSettings() {
         if (!isSessionReady()) return;
-        for (int key : new int[] { 0x0B, 0x11, 0x1B, 0x26, 0x35, 0x3F, 0x4E, 0x51 })
+        // 0x1B (temperature) and 0x26 (hand wash) are not read: their rows are
+        // commented out in DeviceFragment — the watch has no such feature.
+        for (int key : new int[] { 0x0B, 0x11, 0x35, 0x3F, 0x51 })
             enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
                     (byte) BleKeyFlag.READ.getValue(), new byte[0]));
         flushQueue();
@@ -3685,8 +3687,8 @@ public class BleManager {
     public void readReminders() {
         if (!isSessionReady())
             return;
-        log("Tx reminder READ 0x09/0x21/0x26/0x1A");
-        for (int key : new int[] { 0x09, 0x21, 0x26, 0x1A }) {
+        log("Tx reminder READ 0x09/0x21/0x1A");
+        for (int key : new int[] { 0x09, 0x21, 0x1A }) {
             enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
                     (byte) BleKeyFlag.READ.getValue(), new byte[0]));
         }
@@ -3841,6 +3843,7 @@ public class BleManager {
             prefs.edit().remove("drink_water_pending").apply();
         }
 
+        // Hand wash: the row is commented out, so nothing can set this pending.
         if (prefs.getBoolean("wash_pending", false)) {
             sendWash(
                     prefs.getBoolean("wash_on", false),

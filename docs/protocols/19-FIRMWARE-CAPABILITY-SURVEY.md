@@ -116,15 +116,15 @@ after the 2026-08-26 pass.
 | Feature | Key | What the watch holds | App |
 |---|---|---|---|
 | Daily goals: calories, distance, sleep | `0x0239` `0x023A` `0x023B` | 500000, 5000 m, 480 min | **done** |
-| Hand-wash reminder | `0x0226` | every day, 08:00–18:00, every 60 min | **done** |
+| Hand-wash reminder | `0x0226` | every day, 08:00–18:00, every 60 min | protocol done, **row disabled** — §2.10 |
 | Heart-rate alarm, high/low | `0x023F` | high on at 150, low off at 60 bpm | **done** |
 | Vibration repeats | `0x020B` | 1 | **done** |
 | Units, metric/imperial | `0x0211` | metric | **done** |
 | Watch language + language list | `0x020F` + `0x024F` | code 1, plus the 18 it ships | blocked, §2.7 |
 | Per-app notification switches, watch side | `0x0214` | mask `FD FF 3F 00` | blocked, §2.7 |
-| Automatic temperature measurement | `0x021B` | on, every 12 min | **done** |
+| Automatic temperature measurement | `0x021B` | on, every 12 min | protocol done, **row disabled** — §2.10 |
 | Watch password | `0x0235` | unset | **done** |
-| SOS | `0x024E` | unconfigured, 20 bytes | **done**, unverified |
+| SOS | `0x024E` | stores and reads back a number | protocol done, **row disabled** — §2.10 |
 | Game-time reminder | `0x0251` | on, 30 min | **done** |
 | Watch QR code | `0x0229` | available | missing |
 | Monthly cycle calendar | `0x026C` | see [18-GIRL-CARE](./18-GIRL-CARE.md) | missing |
@@ -269,6 +269,31 @@ rebuilt. Fixed.) Either the watch renders them from a copy it
 refreshes only at boot, or the calorie/distance scales are wrong in a way the
 read-back cannot reveal — a `500000` written and echoed proves storage, not
 interpretation. Unresolved; a watch reboot after a write is the cheapest test.
+
+---
+
+### 2.10 Answering a READ is not the same as having the feature
+
+`WASH_SET` (0x0226) and `TEMPERATURE_DETECTING` (0x021B) both answer a READ with
+a plausible stored setting, which is why the sweep counted them as implemented.
+The Kronos Thunder nonetheless has no hand-wash reminder and no temperature
+sensor in its own menus: the firmware keeps the registers because the SDK is
+shared across a product family, not because this model does anything with them.
+
+`SOS_SET` (0x024E) is the same story one step further along: the watch stores a
+number and reads it back byte for byte, and still has no SOS feature to fire it.
+
+The rows for all three are therefore commented out in `fragment_device.xml` and
+`DeviceFragment`, and their keys dropped from `readWatchSettings()` and
+`readReminders()`. The senders stay in `BleManager` — the encodings are verified
+and correct for a watch that does have the hardware.
+
+Disabled alongside them, for the reasons in §2.9: **find watch** (`0x0234`,
+ACKed but never rings) and **shake wrist for photo** (no protocol behind it at
+all).
+
+The lesson for the sweep in §1: a non-empty READ proves the **key** exists, not
+that the **feature** does. Only the device's own UI settles that.
 
 ---
 

@@ -255,6 +255,7 @@
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 
+<!--
             <LinearLayout android:id="@+id/rowTempMonitoring" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_pulse"
                     android:contentDescription="@null" app:tint="?attr/foggCalories"/>
@@ -266,7 +267,9 @@
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
+    -->
 
+<!--
             <LinearLayout android:id="@+id/rowWash" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_wash"
                     android:contentDescription="@null" app:tint="?attr/foggSpo2"/>
@@ -278,6 +281,7 @@
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
+    -->
 
             <LinearLayout android:id="@+id/rowHrWarning" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_heart"
@@ -350,6 +354,7 @@
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 
+<!--
             <LinearLayout android:id="@+id/rowFindWatch" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_vibration"
                     android:contentDescription="@null"/>
@@ -357,6 +362,7 @@
                 <TextView android:id="@+id/txtFindWatch" style="@style/Fogg.Row.Value" android:text="@string/find_watch_ring"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
+    -->
 
             <LinearLayout android:id="@+id/btnCamera" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_camera"
@@ -366,6 +372,7 @@
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 
+<!--
             <LinearLayout android:id="@+id/btnShakeCamera" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_shake"
                     android:contentDescription="@null"/>
@@ -373,6 +380,7 @@
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
+    -->
 
             <LinearLayout android:id="@+id/rowDnd" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_dnd"
@@ -431,6 +439,7 @@
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 
+<!--
             <LinearLayout android:id="@+id/rowSos" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
                     android:contentDescription="@null" app:tint="?attr/foggDanger"/>
@@ -439,6 +448,7 @@
                     android:text="@string/state_off"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
+    -->
 
             <LinearLayout android:id="@+id/rowWatchPassword" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"

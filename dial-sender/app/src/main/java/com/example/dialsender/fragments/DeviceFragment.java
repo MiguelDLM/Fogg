@@ -151,7 +151,9 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                     startActivity(new Intent(requireContext(), com.example.dialsender.StockMarketActivity.class)));
         }
         setupCallControl(view);
-        setupFindWatch(view);
+        // Find watch (FIND_WATCH 0x0234): the frame is accepted but the watch
+        // never rings — see docs/protocols/15-MONITORING-AND-ACTIONS.md §2.
+        // setupFindWatch(view);
         setupMonitoring(view);
         setupStandbyRow(view, R.id.rowStandby, R.id.txtStandby);
 
@@ -252,12 +254,13 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             });
         }
 
-        // Girar muñeca para foto (Shake Camera)
-        View btnShakeCamera = view.findViewById(R.id.btnShakeCamera);
-        if (btnShakeCamera != null) {
-            btnShakeCamera.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), com.example.dialsender.CameraActivity.class)));
-        }
+        // Shake wrist for photo: there is no such key in the protocol, and the
+        // handler only opened the same CameraActivity the camera row opens.
+        // View btnShakeCamera = view.findViewById(R.id.btnShakeCamera);
+        // if (btnShakeCamera != null) {
+        //     btnShakeCamera.setOnClickListener(v ->
+        //             startActivity(new Intent(requireContext(), com.example.dialsender.CameraActivity.class)));
+        // }
 
         // Actualizar firmware (Firmware Upgrade Check)
         View btnFirmware = view.findViewById(R.id.btnFirmware);
@@ -963,37 +966,42 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     /** Long enough to walk to the next room, short enough not to annoy. */
     private static final long FIND_WATCH_TIMEOUT_MS = 30_000;
 
-    private void setupFindWatch(View view) {
-        View row = view.findViewById(R.id.rowFindWatch);
-        TextView value = view.findViewById(R.id.txtFindWatch);
-        if (row == null || value == null)
-            return;
-
-        final boolean[] ringing = { false };
-        row.setOnClickListener(v -> {
-            if (!bleManager.isSessionReady()) {
-                Toast.makeText(requireContext(), R.string.device_not_connected,
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ringing[0] = !ringing[0];
-            bleManager.sendFindWatch(ringing[0]);
-            value.setText(ringing[0] ? R.string.find_watch_ringing : R.string.find_watch_ring);
-            if (ringing[0]) {
-                // The watch never reports that it stopped, so the phone owns
-                // the stop: after a while, send it rather than just relabelling
-                // the row. Letting the label lapse on its own made the next tap
-                // start a second ring instead of ending the first.
-                value.postDelayed(() -> {
-                    if (!ringing[0])
-                        return;
-                    ringing[0] = false;
-                    bleManager.sendFindWatch(false);
-                    value.setText(R.string.find_watch_ring);
-                }, FIND_WATCH_TIMEOUT_MS);
-            }
-        });
-    }
+    /*
+     * Find watch is disabled: the write is ACKed but the watch never rings.
+     * Kept for a model that does honour FIND_WATCH (0x0234).
+     *
+     * private void setupFindWatch(View view) {
+     * View row = view.findViewById(R.id.rowFindWatch);
+     * TextView value = view.findViewById(R.id.txtFindWatch);
+     * if (row == null || value == null)
+     * return;
+     *
+     * final boolean[] ringing = { false };
+     * row.setOnClickListener(v -> {
+     * if (!bleManager.isSessionReady()) {
+     * Toast.makeText(requireContext(), R.string.device_not_connected,
+     * Toast.LENGTH_SHORT).show();
+     * return;
+     * }
+     * ringing[0] = !ringing[0];
+     * bleManager.sendFindWatch(ringing[0]);
+     * value.setText(ringing[0] ? R.string.find_watch_ringing : R.string.find_watch_ring);
+     * if (ringing[0]) {
+     * // The watch never reports that it stopped, so the phone owns
+     * // the stop: after a while, send it rather than just relabelling
+     * // the row. Letting the label lapse on its own made the next tap
+     * // start a second ring instead of ending the first.
+     * value.postDelayed(() -> {
+     * if (!ringing[0])
+     * return;
+     * ringing[0] = false;
+     * bleManager.sendFindWatch(false);
+     * value.setText(R.string.find_watch_ring);
+     * }, FIND_WATCH_TIMEOUT_MS);
+     * }
+     * });
+     * }
+     */
 
     // ===== Health monitoring windows =====
 
@@ -1017,15 +1025,25 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                 "set_sedentary", R.string.dev_sedentary, 8, 0, 22, 0, 60, true);
         setupReminderRow(view, R.id.rowDrinkWater, R.id.txtDrinkWater,
                 "drink_water", R.string.dev_drink_water, 8, 0, 22, 0, 60, false);
-        setupMonitoringRow(view, R.id.rowTempMonitoring, R.id.txtTempMonitoring,
-                PREF_TEMP_MON, R.string.dev_temp_monitoring, true, 0, 0, 23, 59, 60);
-        setupReminderRow(view, R.id.rowWash, R.id.txtWash,
-                "wash", R.string.dev_wash, 8, 0, 18, 0, 60, false);
+        // Hand wash (WASH_SET 0x0226) and automatic temperature
+        // (TEMPERATURE_DETECTING 0x021B) are commented out on purpose: both
+        // keys answer a READ on this watch, so the protocol side works and is
+        // kept in BleManager, but the Kronos Thunder has no such feature in its
+        // own menus and the rows promised something the hardware does not do.
+        // Re-enable together with their layout rows in fragment_device.xml and
+        // the keys in BleManager.readWatchSettings()/readReminders().
+        //
+        // setupMonitoringRow(view, R.id.rowTempMonitoring, R.id.txtTempMonitoring,
+        //         PREF_TEMP_MON, R.string.dev_temp_monitoring, true, 0, 0, 23, 59, 60);
+        // setupReminderRow(view, R.id.rowWash, R.id.txtWash,
+        //         "wash", R.string.dev_wash, 8, 0, 18, 0, 60, false);
         setupFemaleCareRow(view, R.id.rowFemaleCare, R.id.txtFemaleCare);
         setupHrWarningRow(view, R.id.rowHrWarning, R.id.txtHrWarning);
         setupVibrationRow(view, R.id.rowVibration, R.id.txtVibration);
         setupWatchPasswordRow(view, R.id.rowWatchPassword, R.id.txtWatchPassword);
-        setupSosRow(view, R.id.rowSos, R.id.txtSos);
+        // SOS (SOS_SET 0x024E): stored and read back correctly, but the watch
+        // has no SOS feature of its own to act on it.
+        // setupSosRow(view, R.id.rowSos, R.id.txtSos);
         setupGameTimeRow(view, R.id.rowGameTime, R.id.txtGameTime);
         setupShutdownRow(view, R.id.rowShutdown);
         setupUnitsRow(view, R.id.rowUnits, R.id.txtUnits);
