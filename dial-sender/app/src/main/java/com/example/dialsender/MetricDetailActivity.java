@@ -229,6 +229,7 @@ public class MetricDetailActivity extends AppCompatActivity {
         if (isBp) {
             renderBp(selDayStart);
             content.addView(descriptionCard());
+            content.addView(warningCard(R.string.bp_warning_title, R.string.bp_warning_body));
             return;
         }
 
@@ -269,6 +270,8 @@ public class MetricDetailActivity extends AppCompatActivity {
         }
 
         content.addView(descriptionCard());
+        if ("blood_oxygen".equals(metric))
+            content.addView(warningCard(R.string.spo2_warning_title, R.string.spo2_warning_body));
     }
 
     /** Renders sleep: per-day timeline + legend, or week/month bar charts. */
@@ -425,6 +428,43 @@ public class MetricDetailActivity extends AppCompatActivity {
     }
 
     /** Informational card explaining what the metric is (like Co-Fit). */
+    /**
+     * The honesty card. Two of these metrics are not measured by hardware this
+     * watch has: SpO2 is widely reported as synthesised, and blood pressure is
+     * derived from the pulse by a fixed equation. Each screen says so plainly
+     * rather than letting a confident-looking number stand on its own.
+     */
+    private View warningCard(int titleRes, int bodyRes) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(theme.bgElevated);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), 0x66F59E0B);
+        card.setBackground(bg);
+        card.setPadding(dp(16), dp(16), dp(16), dp(16));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(16), 0, dp(8));
+        card.setLayoutParams(lp);
+
+        TextView head = new TextView(this);
+        head.setText(titleRes);
+        head.setTextColor(0xFFF59E0B);
+        head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        head.setTypeface(null, Typeface.BOLD);
+        head.setPadding(0, 0, 0, dp(8));
+        card.addView(head);
+
+        TextView body = new TextView(this);
+        body.setText(bodyRes);
+        body.setTextColor(theme.textSecondary);
+        body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        body.setLineSpacing(dp(3), 1f);
+        card.addView(body);
+        return card;
+    }
+
     private View descriptionCard() {
         if (desc == null || desc.isEmpty())
             return new View(this);
