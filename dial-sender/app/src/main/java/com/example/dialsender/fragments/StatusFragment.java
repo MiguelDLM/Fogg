@@ -207,15 +207,21 @@ public class StatusFragment extends Fragment {
         );
 
         // 5. Blood Pressure Card
+        //
+        // The reading is a series like the others, so the card shows when it
+        // was taken and how it moved. Without those it looked frozen next to
+        // the heart-rate card and read as "not syncing" even while the watch
+        // was reporting fresh values.
         int[] bp = latestBp(todayStart);
+        List<float[]> systolic = bpSeries(todayStart);
         addCard(
                 getString(R.string.metric_blood_pressure),
                 bp != null ? bp[0] + "/" + bp[1] + " " + getString(R.string.unit_mmhg) : "—",
                 theme.accentBp,
                 R.drawable.ic_metric_pulse,
                 "blood_pressure",
-                null,
-                null,
+                lastTime(systolic),
+                systolic.size() >= 2 ? lineChart(systolic, theme.accentBp, todayStart, theme) : null,
                 theme,
                 density
         );
@@ -230,7 +236,7 @@ public class StatusFragment extends Fragment {
                 R.drawable.ic_metric_spo2,
                 "blood_oxygen",
                 lastTime(spo2s),
-                null,
+                spo2s.size() >= 2 ? lineChart(spo2s, theme.accentSpo2, todayStart, theme) : null,
                 theme,
                 density
         );
@@ -847,6 +853,28 @@ public class StatusFragment extends Fragment {
             return s.isEmpty() ? 0 : s.get(s.size() - 1)[1];
         }
         return max;
+    }
+
+    /** Systolic readings as a plain series, for the card's time and trend. */
+    private List<float[]> bpSeries(long start) {
+        List<float[]> out = new ArrayList<>();
+        String h = prefs.getString(P + "blood_pressure", "");
+        if (h.isEmpty())
+            return out;
+        long now = System.currentTimeMillis() / 1000 + 86400;
+        for (String e : h.split(",")) {
+            String[] parts = e.split(":");
+            if (parts.length < 2 || !parts[1].contains("/"))
+                continue;
+            try {
+                long ts = Long.parseLong(parts[0]);
+                float sys = Float.parseFloat(parts[1].split("/")[0]);
+                if (ts >= start && ts <= now)
+                    out.add(new float[]{ts, sys});
+            } catch (Exception ignored) {
+            }
+        }
+        return out;
     }
 
     private int[] latestBp(long start) {
