@@ -1123,6 +1123,17 @@ The dial is saved either way. To bring it down, shrink the animation\'s area or 
     <string name="period_fertile_in">fertile window in %d d</string>
     <string name="spo2_warning_title">Before you trust this reading</string>
     <string name="spo2_warning_body">Many watches in this class do not measure blood oxygen at all: they return a plausible-looking number instead of a real reading.\n\nCheck yours: rest the watch on an inanimate object — a table, a glass — and start a measurement. If it still reports around 98 %, the value is fabricated and your watch has no genuine SpO2 sensor.\n\nDo not use these figures for medical purposes.</string>
+    <string name="stock_search_prompt">Type a name or a ticker, then tap Search</string>
+    <string name="stock_searching">Searching…</string>
+    <string name="stock_no_results">No results</string>
+    <string name="stock_pick_result">Tap a result to add it</string>
+    <string name="stock_search_action">Search</string>
+    <string name="stock_search_failed">Search failed: %s</string>
+    <string name="stock_fetching_quote">Fetching quote…</string>
+    <string name="stock_quote_failed">Could not fetch the quote: %s</string>
+    <string name="stock_refreshing">Refreshing quotes…</string>
+    <string name="stock_refresh_failed">No quote could be refreshed</string>
+    <string name="stock_refresh">Refresh quotes</string>
     <string name="bp_warning_title">This number is calculated, not measured</string>
     <string name="bp_warning_body">Your watch has no blood-pressure sensor. Measuring it for real needs a cuff that inflates around the wrist — as on the Huawei Watch D — and a watch in this class has nothing of the kind.\n\nWhat it does instead is take your pulse, which is real, and run it through a fixed equation. At 70 bpm it will tell you 120/80. Get startled and go to 110 bpm and it will invent 140/90: it has not measured your pressure, it has translated your heart rate.\n\nDo not make health decisions from these figures, and do not use them to monitor high blood pressure.</string>
 </resources>

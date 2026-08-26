@@ -33,17 +33,6 @@ public class StockMarketActivity extends AppCompatActivity {
     private List<StockMarketManager.StockItem> stockList;
     private ThemeManager.AppTheme theme;
 
-    private static final String[][] POPULAR_STOCKS = {
-            {"AAPL", "Apple Inc.", "228.50", "2.45", "1.08"},
-            {"GOOGL", "Alphabet Inc.", "165.20", "-1.15", "-0.69"},
-            {"MSFT", "Microsoft Corp.", "415.80", "3.80", "0.92"},
-            {"NVDA", "NVIDIA Corp.", "124.30", "4.10", "3.41"},
-            {"AMZN", "Amazon.com Inc.", "178.60", "-0.80", "-0.45"},
-            {"TSLA", "Tesla Inc.", "215.40", "-3.20", "-1.46"},
-            {"META", "Meta Platforms", "502.10", "6.30", "1.27"},
-            {"BTC/USD", "Bitcoin USD", "64200.00", "1250.00", "1.98"}
-    };
-
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(LocaleHelper.wrap(base));
@@ -60,6 +49,7 @@ public class StockMarketActivity extends AppCompatActivity {
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnAddStock).setOnClickListener(v -> showAddStockDialog());
         findViewById(R.id.btnColorMode).setOnClickListener(v -> showColorModeDialog());
+        findViewById(R.id.btnRefreshStocks).setOnClickListener(v -> refreshQuotes());
 
         containerStocks = findViewById(R.id.containerStocks);
         txtEmptyStocks = findViewById(R.id.txtEmptyStocks);
@@ -211,86 +201,195 @@ public class StockMarketActivity extends AppCompatActivity {
                 .show();
     }
 
+    /**
+     * Search any ticker instead of picking from a baked-in list.
+     *
+     * The old dialog offered eight hardcoded companies with hardcoded prices,
+     * and its "custom" path asked the user to type the price and the change by
+     * hand — numbers that were stale the moment they were entered. Now the
+     * symbol comes from a live search and the price from a live quote.
+     */
     private void showAddStockDialog() {
         if (stockList != null && stockList.size() >= StockMarketManager.MAX_STOCKS) {
             Toast.makeText(this, R.string.world_clock_max_reached, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String[] popularNames = new String[POPULAR_STOCKS.length + 1];
-        for (int i = 0; i < POPULAR_STOCKS.length; i++) {
-            popularNames[i] = POPULAR_STOCKS[i][0] + " — " + POPULAR_STOCKS[i][1];
-        }
-        popularNames[POPULAR_STOCKS.length] = "+ " + getString(R.string.reminder_repeat_custom);
-
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.stock_add)
-                .setItems(popularNames, (dialog, which) -> {
-                    if (which < POPULAR_STOCKS.length) {
-                        String[] s = POPULAR_STOCKS[which];
-                        int newId = stockList.size() + 1;
-                        stockList.add(new StockMarketManager.StockItem(
-                                newId, s[0], s[1],
-                                Float.parseFloat(s[2]), Float.parseFloat(s[3]), Float.parseFloat(s[4]), 1000.0f
-                        ));
-                        StockMarketManager.saveStocks(this, stockList);
-                        StockMarketManager.syncToWatch(this);
-                        renderList();
-                        Toast.makeText(this, R.string.stock_synced, Toast.LENGTH_SHORT).show();
-                    } else {
-                        showCustomStockDialog();
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void showCustomStockDialog() {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
         int pad = (int) (20 * getResources().getDisplayMetrics().density);
-        layout.setPadding(pad, pad / 2, pad, pad);
+        box.setPadding(pad, pad / 2, pad, pad / 2);
 
-        final EditText edtSymbol = new EditText(this);
-        edtSymbol.setHint(R.string.stock_search_hint);
-        layout.addView(edtSymbol);
+        final EditText edtQuery = new EditText(this);
+        edtQuery.setHint(R.string.stock_search_hint);
+        edtQuery.setSingleLine(true);
+        edtQuery.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        box.addView(edtQuery);
 
-        final EditText edtPrice = new EditText(this);
-        edtPrice.setHint(R.string.stock_price);
-        edtPrice.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        layout.addView(edtPrice);
+        final TextView status = new TextView(this);
+        status.setTextColor(theme.textSecondary);
+        status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        status.setPadding(0, pad / 3, 0, pad / 3);
+        status.setText(R.string.stock_search_prompt);
+        box.addView(status);
 
-        final EditText edtChange = new EditText(this);
-        edtChange.setHint(R.string.stock_change_percent);
-        edtChange.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
-        layout.addView(edtChange);
+        final LinearLayout results = new LinearLayout(this);
+        results.setOrientation(LinearLayout.VERTICAL);
+        box.addView(results);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.addView(layout);
+        scroll.addView(box);
 
-        new AlertDialog.Builder(this)
+        final AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.stock_add)
                 .setView(scroll)
-                .setPositiveButton(R.string.save, (d, w) -> {
-                    String sym = edtSymbol.getText().toString().trim().toUpperCase(Locale.US);
-                    if (sym.isEmpty()) sym = "STOCK";
-
-                    float price = 100.0f;
-                    float chgPct = 0.0f;
-                    try {
-                        price = Float.parseFloat(edtPrice.getText().toString().trim());
-                        chgPct = Float.parseFloat(edtChange.getText().toString().trim());
-                    } catch (Exception ignored) {}
-
-                    float chgPt = (price * chgPct) / 100.0f;
-                    int newId = stockList.size() + 1;
-                    stockList.add(new StockMarketManager.StockItem(newId, sym, sym, price, chgPt, chgPct, 1000.0f));
-                    StockMarketManager.saveStocks(this, stockList);
-                    StockMarketManager.syncToWatch(this);
-                    renderList();
-                    Toast.makeText(this, R.string.stock_synced, Toast.LENGTH_SHORT).show();
-                })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .create();
+
+        final Runnable runSearch = () -> {
+            String q = edtQuery.getText().toString().trim();
+            if (q.isEmpty()) return;
+            results.removeAllViews();
+            status.setText(R.string.stock_searching);
+            com.example.dialsender.ble.StockApi.search(q,
+                    new com.example.dialsender.ble.StockApi.Callback<List<com.example.dialsender.ble.StockApi.Quote>>() {
+                        @Override
+                        public void onResult(List<com.example.dialsender.ble.StockApi.Quote> hits) {
+                            if (isFinishing()) return;
+                            results.removeAllViews();
+                            if (hits.isEmpty()) {
+                                status.setText(R.string.stock_no_results);
+                                return;
+                            }
+                            status.setText(R.string.stock_pick_result);
+                            for (com.example.dialsender.ble.StockApi.Quote hit : hits)
+                                results.addView(searchResultRow(hit, dialog));
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            if (isFinishing()) return;
+                            status.setText(getString(R.string.stock_search_failed, message));
+                        }
+                    });
+        };
+
+        edtQuery.setOnEditorActionListener((v, actionId, event) -> {
+            runSearch.run();
+            return true;
+        });
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.stock_search_action),
+                (d, w) -> { });
+        dialog.show();
+        // Wired after show() so searching does not dismiss the dialog.
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> runSearch.run());
+    }
+
+    private View searchResultRow(com.example.dialsender.ble.StockApi.Quote hit, AlertDialog parent) {
+        int pad = (int) (12 * getResources().getDisplayMetrics().density);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(pad / 2, pad, pad / 2, pad);
+        row.setClickable(true);
+
+        TextView sym = new TextView(this);
+        sym.setText(hit.symbol);
+        sym.setTextColor(theme.textPrimary);
+        sym.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        sym.setTypeface(null, Typeface.BOLD);
+        row.addView(sym);
+
+        TextView name = new TextView(this);
+        name.setText(hit.exchange.isEmpty() ? hit.label() : hit.label() + " · " + hit.exchange);
+        name.setTextColor(theme.textSecondary);
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        row.addView(name);
+
+        row.setOnClickListener(v -> {
+            parent.dismiss();
+            addBySymbol(hit.symbol, hit.label());
+        });
+        return row;
+    }
+
+    /** Fetch the live quote, then store and push the row. */
+    private void addBySymbol(String symbol, String name) {
+        Toast.makeText(this, R.string.stock_fetching_quote, Toast.LENGTH_SHORT).show();
+        com.example.dialsender.ble.StockApi.quote(symbol,
+                new com.example.dialsender.ble.StockApi.Callback<com.example.dialsender.ble.StockApi.Quote>() {
+                    @Override
+                    public void onResult(com.example.dialsender.ble.StockApi.Quote q) {
+                        if (isFinishing()) return;
+                        if (stockList.size() >= StockMarketManager.MAX_STOCKS) {
+                            Toast.makeText(StockMarketActivity.this,
+                                    R.string.world_clock_max_reached, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        stockList.add(new StockMarketManager.StockItem(
+                                stockList.size() + 1,
+                                q.symbol,
+                                name == null || name.isEmpty() ? q.label() : name,
+                                q.price, q.changePoint, q.changePercent, 0f));
+                        StockMarketManager.saveStocks(StockMarketActivity.this, stockList);
+                        StockMarketManager.syncToWatch(StockMarketActivity.this);
+                        renderList();
+                        Toast.makeText(StockMarketActivity.this,
+                                R.string.stock_synced, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (isFinishing()) return;
+                        Toast.makeText(StockMarketActivity.this,
+                                getString(R.string.stock_quote_failed, message),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    /** Re-quote every saved row and push the fresh numbers to the watch. */
+    private void refreshQuotes() {
+        if (stockList == null || stockList.isEmpty()) return;
+        List<String> symbols = new java.util.ArrayList<>();
+        for (StockMarketManager.StockItem it : stockList)
+            symbols.add(it.stockCode);
+
+        Toast.makeText(this, R.string.stock_refreshing, Toast.LENGTH_SHORT).show();
+        com.example.dialsender.ble.StockApi.quoteAll(symbols,
+                new com.example.dialsender.ble.StockApi.Callback<List<com.example.dialsender.ble.StockApi.Quote>>() {
+                    @Override
+                    public void onResult(List<com.example.dialsender.ble.StockApi.Quote> quotes) {
+                        if (isFinishing()) return;
+                        int updated = 0;
+                        for (com.example.dialsender.ble.StockApi.Quote q : quotes) {
+                            for (StockMarketManager.StockItem it : stockList) {
+                                if (!it.stockCode.equalsIgnoreCase(q.symbol)) continue;
+                                it.sharePrice = q.price;
+                                it.netChangePoint = q.changePoint;
+                                it.netChangePercent = q.changePercent;
+                                updated++;
+                            }
+                        }
+                        if (updated == 0) {
+                            Toast.makeText(StockMarketActivity.this,
+                                    R.string.stock_refresh_failed, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        StockMarketManager.saveStocks(StockMarketActivity.this, stockList);
+                        StockMarketManager.syncToWatch(StockMarketActivity.this);
+                        renderList();
+                        Toast.makeText(StockMarketActivity.this,
+                                R.string.stock_synced, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (isFinishing()) return;
+                        Toast.makeText(StockMarketActivity.this,
+                                getString(R.string.stock_quote_failed, message),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 }

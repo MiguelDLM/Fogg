@@ -1123,6 +1123,17 @@ El dial queda guardado. Para bajarlo, reduce el área o los fotogramas de la ani
     <string name="period_fertile_in">ventana fértil en %d d</string>
     <string name="spo2_warning_title">Antes de fiarte de este dato</string>
     <string name="spo2_warning_body">Se ha comprobado que muchos relojes de esta gama no miden la oxigenación en sangre: devuelven una cifra verosímil en lugar de una lectura real.\n\nCompruébalo tú: coloca el reloj sobre un objeto inanimado —una mesa, un vaso— y lanza una medición. Si aun así informa de un 98 %, el valor está inventado y tu reloj no lleva un sensor de SpO2 auténtico.\n\nNo uses estas cifras con fines médicos.</string>
+    <string name="stock_search_prompt">Escribe un nombre o un símbolo y pulsa Buscar</string>
+    <string name="stock_searching">Buscando…</string>
+    <string name="stock_no_results">Sin resultados</string>
+    <string name="stock_pick_result">Toca un resultado para añadirlo</string>
+    <string name="stock_search_action">Buscar</string>
+    <string name="stock_search_failed">No se pudo buscar: %s</string>
+    <string name="stock_fetching_quote">Obteniendo cotización…</string>
+    <string name="stock_quote_failed">No se pudo obtener la cotización: %s</string>
+    <string name="stock_refreshing">Actualizando cotizaciones…</string>
+    <string name="stock_refresh_failed">No se pudo actualizar ninguna cotización</string>
+    <string name="stock_refresh">Actualizar cotizaciones</string>
     <string name="bp_warning_title">Este dato no está medido, está calculado</string>
     <string name="bp_warning_body">Tu reloj no lleva tensiómetro. Medir la presión arterial de verdad exige un brazalete que se infle en la muñeca —como el Huawei Watch D—, y en un reloj de esta gama no hay nada parecido.\n\nLo que hace es partir de tus pulsaciones, que sí son reales, y aplicarles una ecuación fija. Con 70 pulsaciones te dirá 120/80. Si te asustas y subes a 110, se inventará un 140/90: no ha medido tu presión, ha traducido tu pulso.\n\nNo tomes ninguna decisión de salud a partir de estas cifras, y no las uses para vigilar una hipertensión.</string>
 </resources>

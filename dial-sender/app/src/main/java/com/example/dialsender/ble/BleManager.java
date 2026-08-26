@@ -1615,11 +1615,19 @@ public class BleManager {
         }
 
         // Stock Market (0x0408)
+        //
+        // Same shape as WORLD_CLOCK above, and the same trap: the bodyless
+        // DELETE reply that acknowledges our own reset-all is not the watch
+        // announcing a deletion. Reading it as one logged "Watch deleted STOCK
+        // id=-1" on every refresh and would have deleted a real row the day an
+        // id happened to match.
         if (cmd == 0x04 && key == 0x08) {
             int f = flag & 0xFF;
-            log("Rx STOCK flag=0x" + String.format("%02X", f) + " isReply=" + isReply);
-            if (f == BleKeyFlag.DELETE.getValue()) {
-                int id = (data.length > 9) ? (data[9] & 0xFF) : -1;
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            log("Rx STOCK flag=0x" + String.format("%02X", f) + " isReply=" + isReply
+                    + " body=" + body.length + "B");
+            if (!isReply && f == BleKeyFlag.DELETE.getValue() && body.length >= 1) {
+                int id = body[0] & 0xFF;
                 log("Watch deleted STOCK id=" + id);
                 StockMarketManager.deleteStockById(context, id);
             }

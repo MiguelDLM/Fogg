@@ -110,6 +110,32 @@ removed on the device — same shape as the world clock.
 
 ---
 
+### 2.3 Where the numbers come from
+
+The payload is only half the feature: the watch renders whatever price it is
+handed. The app used to hand it a table of eight companies with prices frozen in
+the source, plus a dialog that asked the user to type a price and a percentage
+by hand.
+
+`StockApi` replaces both with two key-less public endpoints:
+
+| | Endpoint | Gives |
+|---|---|---|
+| Search | `query1.finance.yahoo.com/v1/finance/search?q=…` | symbol, name, exchange |
+| Quote | `query1.finance.yahoo.com/v8/finance/chart/SYM` | `regularMarketPrice`, `previousClose` |
+
+The change in points and percent is derived from price minus previous close.
+Both endpoints are undocumented and rate-limit, so a quote falls back to Stooq's
+CSV (`stooq.com/q/l/?s=SYM.us&f=sd2t2ohlcvn&h&e=csv`, a different operator)
+before giving up, and a symbol that fails a bulk refresh is left untouched
+rather than zeroed — a rate-limit must not wipe a row.
+
+Verified on hardware: searching "santander" returned the NYSE, Madrid,
+Frankfurt, Mexico and NEO listings, and picking the Madrid one pushed
+`Tx STOCK id=4 code=SAN.MC price=12.752 change=0.526 (4.30%)`.
+
+---
+
 ## 3. Support
 
 Neither key is gated on a `DEVICE_INFO` flag we can read on a V2 watch. Both are

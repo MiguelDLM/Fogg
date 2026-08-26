@@ -47,6 +47,17 @@
             android:contentDescription="@string/stock_color_mode"/>
 
         <ImageView
+            android:id="@+id/btnRefreshStocks"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="6dp"
+            android:src="@drawable/ic_refresh"
+            app:tint="?attr/foggTextPrimary"
+            android:contentDescription="@string/stock_refresh"/>
+
+        <ImageView
             android:id="@+id/btnAddStock"
             android:layout_width="36dp"
             android:layout_height="36dp"
