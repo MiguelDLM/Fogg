@@ -49,6 +49,14 @@ public class PeriodTrackerManager {
         public Phase currentPhase;
         public int daysUntilNextPeriod;
         public int daysUntilOvulation;
+        /**
+         * Days until the fertile window opens, 0 once it has. Distinct from
+         * {@link #daysUntilOvulation}, which counts to the ovulation day
+         * itself. The watch shows this one ("N days to enter the ovulation
+         * period") while this app showed only the other, so the two screens
+         * quoted different numbers for the same correct cycle.
+         */
+        public int daysUntilFertileWindow;
         public Calendar nextPeriodDate;
         public Calendar nextOvulationDate;
     }
@@ -135,6 +143,9 @@ public class PeriodTrackerManager {
             daysToOvulation = (cycle - dayInCycle) + ovulationDayInCycle;
         }
         status.daysUntilOvulation = daysToOvulation;
+
+        int fertileStart = Math.max(duration + 1, ovulationDayInCycle - 5);
+        status.daysUntilFertileWindow = (dayInCycle < fertileStart) ? (fertileStart - dayInCycle) : 0;
 
         Calendar nextOvu = (Calendar) today.clone();
         nextOvu.add(Calendar.DAY_OF_YEAR, daysToOvulation);

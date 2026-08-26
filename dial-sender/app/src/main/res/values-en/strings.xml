@@ -1120,4 +1120,5 @@ The dial is saved either way. To bring it down, shrink the animation\'s area or 
     <string name="game_time_minutes">Remind after %d min</string>
     <string name="dev_sos">SOS</string>
     <string name="sos_phone_hint">Emergency number</string>
+    <string name="period_fertile_in">fertile window in %d d</string>
 </resources>

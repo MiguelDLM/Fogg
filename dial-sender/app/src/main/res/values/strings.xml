@@ -1120,4 +1120,5 @@ El dial queda guardado. Para bajarlo, reduce el área o los fotogramas de la ani
     <string name="game_time_minutes">Avisar tras %d min</string>
     <string name="dev_sos">SOS</string>
     <string name="sos_phone_hint">Número de emergencia</string>
+    <string name="period_fertile_in">ventana fértil en %d d</string>
 </resources>

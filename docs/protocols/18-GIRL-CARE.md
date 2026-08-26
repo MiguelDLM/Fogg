@@ -68,6 +68,39 @@ outright — the calendar grid and both date pickers could all offer one.
 
 ---
 
+### 1.3 The watch counts the phase, the phone counts the cycle
+
+The two screens quote different numbers from the same data, and neither is
+wrong. Verified with start = 2026-08-20, cycle 28, duration 5, on 2026-08-26:
+
+| | Shows | Meaning |
+|---|---|---|
+| Phone | "Day 7 of cycle" | day since the period started, 1-based |
+| Watch | "day 03, safe period" | day within the **current phase** |
+| Phone | "ovulation in 7 days" | to the ovulation day (day 14) |
+| Watch | "2 days enter period of ovulation" | to the **fertile window** opening (day 9) |
+
+Both agree on the substance: safe phase now, fertile window in two days. The
+watch's phase-day sits one ahead of what the phone's boundaries imply — its safe
+phase appears to start on the last day of menstruation rather than the day
+after — which is a firmware display convention, not a payload difference. The
+0x021A read confirms the watch stored exactly what was sent:
+
+```
+Rx reminder key=0x1A raw = 01 08 00 02 03 1A 08 14 05 1C
+                                          └ 2026-08-20 ┘
+```
+
+Because day 20 differs from the year offset 26, this capture also settles the
+byte order — the watch reads bytes 5-7 as year, month, day, the same way the
+phone writes them.
+
+`CycleStatus` now carries `daysUntilFertileWindow` alongside
+`daysUntilOvulation` so the app states both milestones and the two screens can
+be read against each other.
+
+---
+
 ## 2. `GIRL_CARE_MONTHLY` (0x026C) — 31 bytes
 
 One byte per day of the month. The Kronos answers a read with:

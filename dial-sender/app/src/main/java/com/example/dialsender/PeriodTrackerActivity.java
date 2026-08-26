@@ -170,6 +170,11 @@ public class PeriodTrackerActivity extends AppCompatActivity {
 
             if (status.daysUntilOvulation == 0) {
                 txtNextOvulationDays.setText(R.string.period_ovulation_today);
+            } else if (status.daysUntilFertileWindow > 0) {
+                // Both milestones, because the watch quotes the fertile-window
+                // one and this screen used to quote only the ovulation day.
+                txtNextOvulationDays.setText(getString(R.string.period_ovulation_in, status.daysUntilOvulation)
+                        + " · " + getString(R.string.period_fertile_in, status.daysUntilFertileWindow));
             } else {
                 txtNextOvulationDays.setText(getString(R.string.period_ovulation_in, status.daysUntilOvulation));
             }
