@@ -1627,6 +1627,31 @@ public class BleManager {
             return;
         }
 
+        // Music transport buttons on the watch (MUSIC_CONTROL 0x0402, watch ->
+        // phone). One byte: 0 play, 1 pause, 2 toggle, 3 next, 4 previous,
+        // 5/6 volume — see docs/protocols/12-MUSIC-CONTROL.md §2.
+        //
+        // This branch did not exist: WatchMusicController.onWatchCommand() was
+        // written and never called, so every button press fell through to the
+        // "Unhandled response" line below. Next and previous appeared to work
+        // because the watch is also an AVRCP device over classic Bluetooth and
+        // that path skips tracks on its own; play/pause had nothing to fall
+        // back on and did nothing.
+        if (cmd == 0x04 && key == 0x02) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (!isReply && body.length >= 1) {
+                int command = body[0] & 0xFF;
+                log("Rx MUSIC command from watch: " + command + " raw=" + bytesToHex(body));
+                WatchMusicController mc = getMusicController();
+                handler.post(() -> mc.onWatchCommand(command));
+                sendAck(cmd, key, flag);
+            } else {
+                log("Rx MUSIC ack flag=0x" + String.format("%02X", flag)
+                        + " body=" + body.length + "B");
+            }
+            return;
+        }
+
         // Unknown response
         log("Unhandled response: Cmd=0x" + String.format("%02X", cmd) + " Key=0x" + String.format("%02X", key));
     }
