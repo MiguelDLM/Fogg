@@ -18,6 +18,11 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -27,6 +32,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+
+import com.example.dialsender.theme.ThemeManager;
 
 import com.example.dialsender.ble.WatchCallController;
 import androidx.annotation.Nullable;
@@ -133,9 +140,20 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             rowAlarms.setOnClickListener(v ->
                     startActivity(new Intent(requireContext(), com.example.dialsender.AlarmsActivity.class)));
         }
+        View rowWorldClock = view.findViewById(R.id.rowWorldClock);
+        if (rowWorldClock != null) {
+            rowWorldClock.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), com.example.dialsender.WorldClockActivity.class)));
+        }
+        View rowStock = view.findViewById(R.id.rowStock);
+        if (rowStock != null) {
+            rowStock.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), com.example.dialsender.StockMarketActivity.class)));
+        }
         setupCallControl(view);
         setupFindWatch(view);
         setupMonitoring(view);
+        setupStandbyRow(view, R.id.rowStandby, R.id.txtStandby);
 
         View btnCamera = view.findViewById(R.id.btnCamera);
         if (btnCamera != null) {
@@ -193,25 +211,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             });
         }
 
-        // Recordatorio sedentario (SEDENTARINESS 0x0209, 6B: bitfield[en|repeat], sh,sm,eh,em,interval)
-        TextView txtSed = view.findViewById(R.id.txtSedentary);
-        View rowSed = view.findViewById(R.id.rowSedentary);
-        if (txtSed != null && rowSed != null) {
-            boolean[] on = { sp2.getBoolean("set_sedentary", false) };
-            txtSed.setText(on[0] ? R.string.state_on : R.string.state_off);
-            rowSed.setOnClickListener(v -> {
-                on[0] = !on[0];
-                txtSed.setText(on[0] ? R.string.state_on : R.string.state_off);
-                sp2.edit().putBoolean("set_sedentary", on[0]).apply();
-                if (bleManager.isSessionReady()) {
-                    byte b0 = (byte) ((on[0] ? 0x80 : 0x00) | 0x7F); // enabled bit + all weekdays
-                    byte[] p = new byte[] { b0, 8, 0, 22, 0, 60 };   // 08:00–22:00, cada 60 min
-                    bleManager.sendSetting(0x09, p);
-                } else {
-                    Toast.makeText(requireContext(), getString(R.string.device_not_connected), Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
+
         // Luz de fondo (Backlight)
         View rowBacklight = view.findViewById(R.id.rowBacklight);
         if (rowBacklight != null && txtBacklight != null) {
@@ -465,6 +465,13 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         if (!isAdded())
             return;
         requireActivity().runOnUiThread(this::syncConnectionUi);
+        // setupMonitoring() runs while the watch is still connecting, so its
+        // one-shot read never fires on a cold start and the rows keep showing
+        // phone-side values. Ask again as soon as the session is up.
+        if (sessionReady) {
+            bleManager.readAllMonitoring();
+            bleManager.readReminders();
+        }
     }
 
     @Override
@@ -993,6 +1000,7 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     private static final String PREF_HR_MON = "hr_monitoring";
     private static final String PREF_SPO2_MON = "spo2_monitoring";
     private static final String PREF_SLEEP_MON = "sleep_monitoring";
+    private static final String PREF_TEMP_MON = "temp_monitoring";
 
     private final java.util.List<Runnable> monitoringRepaint = new ArrayList<>();
 
@@ -1005,6 +1013,23 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
         setupMonitoringRow(view, R.id.rowSleepMonitoring, R.id.txtSleepMonitoring,
                 PREF_SLEEP_MON, R.string.dev_sleep_monitoring, false, 21, 0, 10, 0, 0);
 
+        setupReminderRow(view, R.id.rowSedentary, R.id.txtSedentary,
+                "set_sedentary", R.string.dev_sedentary, 8, 0, 22, 0, 60, true);
+        setupReminderRow(view, R.id.rowDrinkWater, R.id.txtDrinkWater,
+                "drink_water", R.string.dev_drink_water, 8, 0, 22, 0, 60, false);
+        setupMonitoringRow(view, R.id.rowTempMonitoring, R.id.txtTempMonitoring,
+                PREF_TEMP_MON, R.string.dev_temp_monitoring, true, 0, 0, 23, 59, 60);
+        setupReminderRow(view, R.id.rowWash, R.id.txtWash,
+                "wash", R.string.dev_wash, 8, 0, 18, 0, 60, false);
+        setupFemaleCareRow(view, R.id.rowFemaleCare, R.id.txtFemaleCare);
+        setupHrWarningRow(view, R.id.rowHrWarning, R.id.txtHrWarning);
+        setupVibrationRow(view, R.id.rowVibration, R.id.txtVibration);
+        setupWatchPasswordRow(view, R.id.rowWatchPassword, R.id.txtWatchPassword);
+        setupSosRow(view, R.id.rowSos, R.id.txtSos);
+        setupGameTimeRow(view, R.id.rowGameTime, R.id.txtGameTime);
+        setupShutdownRow(view, R.id.rowShutdown);
+        setupUnitsRow(view, R.id.rowUnits, R.id.txtUnits);
+
         // The watch holds the real setting; ask for it and repaint when it
         // answers, so the rows never show a phone-side guess.
         bleManager.setMonitoringListener(() -> {
@@ -1012,8 +1037,10 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
                 for (Runnable r : monitoringRepaint)
                     r.run();
         });
-        if (bleManager.isSessionReady())
+        if (bleManager.isSessionReady()) {
             bleManager.readAllMonitoring();
+            bleManager.readReminders();
+        }
     }
 
     /**
@@ -1094,6 +1121,8 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
             bleManager.sendHeartRateMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]);
         else if (PREF_SPO2_MON.equals(pref))
             bleManager.sendBloodOxygenMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]);
+        else if (PREF_TEMP_MON.equals(pref))
+            bleManager.sendTemperatureMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]);
         else
             bleManager.sendSleepMonitoring(on, cfg[1], cfg[2], cfg[3], cfg[4]);
     }
@@ -1188,5 +1217,775 @@ public class DeviceFragment extends Fragment implements BleManager.BleStateListe
     private static int pickerMinute(TimePicker p) {
         return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
                 ? p.getMinute() : p.getCurrentMinute();
+    }
+
+    // ===== Reminders & Female Care Rows =====
+
+    private void setupReminderRow(View view, int rowId, int valueId, final String pref,
+                                  final int titleRes, final int defStartH, final int defStartM,
+                                  final int defEndH, final int defEndM, final int defInterval,
+                                  final boolean isSedentary) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null)
+            return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        // Backwards compatibility for set_sedentary
+        boolean defOn = isSedentary ? sp.getBoolean("set_sedentary", false) : sp.getBoolean(pref + "_on", false);
+
+        final int[] cfg = {
+                (sp.getBoolean(pref + "_on", defOn)) ? 1 : 0,
+                sp.getInt(pref + "_repeat", 0x7F), // default everyday
+                sp.getInt(pref + "_sh", defStartH), sp.getInt(pref + "_sm", defStartM),
+                sp.getInt(pref + "_eh", defEndH), sp.getInt(pref + "_em", defEndM),
+                sp.getInt(pref + "_interval", defInterval)
+        };
+        renderReminder(value, cfg);
+
+        monitoringRepaint.add(() -> {
+            boolean curOn = isSedentary ? sp.getBoolean("set_sedentary", false) : sp.getBoolean(pref + "_on", false);
+            cfg[0] = sp.getBoolean(pref + "_on", curOn) ? 1 : 0;
+            cfg[1] = sp.getInt(pref + "_repeat", 0x7F);
+            cfg[2] = sp.getInt(pref + "_sh", defStartH);
+            cfg[3] = sp.getInt(pref + "_sm", defStartM);
+            cfg[4] = sp.getInt(pref + "_eh", defEndH);
+            cfg[5] = sp.getInt(pref + "_em", defEndM);
+            cfg[6] = sp.getInt(pref + "_interval", defInterval);
+            renderReminder(value, cfg);
+        });
+
+        row.setOnClickListener(v -> showReminderDialog(pref, titleRes, cfg, isSedentary,
+                () -> {
+                    sp.edit()
+                            .putBoolean(pref + "_on", cfg[0] == 1)
+                            .putBoolean(isSedentary ? "set_sedentary" : pref + "_on", cfg[0] == 1)
+                            .putInt(pref + "_repeat", cfg[1])
+                            .putInt(pref + "_sh", cfg[2]).putInt(pref + "_sm", cfg[3])
+                            .putInt(pref + "_eh", cfg[4]).putInt(pref + "_em", cfg[5])
+                            .putInt(pref + "_interval", cfg[6])
+                            .apply();
+                    renderReminder(value, cfg);
+                    pushReminder(pref, cfg, isSedentary);
+                }));
+    }
+
+    private void renderReminder(TextView value, int[] cfg) {
+        if (cfg[0] == 0) {
+            value.setText(R.string.state_off);
+            return;
+        }
+        String window = getString(R.string.monitoring_window, cfg[2], cfg[3], cfg[4], cfg[5]);
+        String repeatStr = formatRepeatDays(cfg[1]);
+        value.setText(window + " · " + getString(R.string.monitoring_every, cfg[6]) + " · " + repeatStr);
+    }
+
+    private String formatRepeatDays(int repeatMask) {
+        int rep = repeatMask & 0x7F;
+        if (rep == 0x7F) return getString(R.string.reminder_repeat_everyday);
+        if (rep == 0x1F) return getString(R.string.reminder_repeat_workdays);
+        if (rep == 0x60) return getString(R.string.reminder_repeat_weekends);
+        if (rep == 0) return getString(R.string.state_off);
+
+        boolean isEn = Locale.getDefault().getLanguage().startsWith("en");
+        String[] dayNames = isEn
+                ? new String[]{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+                : new String[]{"Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"};
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 7; i++) {
+            if ((rep & (1 << i)) != 0) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(dayNames[i]);
+            }
+        }
+        return sb.toString();
+    }
+
+    private void pushReminder(String pref, int[] cfg, boolean isSedentary) {
+        if (!bleManager.isSessionReady()) {
+            // The edit is already in prefs but never reached the watch. Mark it
+            // so the next connect pushes it, instead of reading the watch's
+            // older setting back over the top of it.
+            requireContext().getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE)
+                    .edit().putBoolean(pref + "_pending", true).apply();
+            Toast.makeText(requireContext(), R.string.device_not_connected, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        boolean on = cfg[0] == 1;
+        if (isSedentary) {
+            bleManager.sendSedentariness(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5], cfg[6]);
+        } else if ("wash".equals(pref)) {
+            bleManager.sendWash(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5], cfg[6]);
+        } else {
+            bleManager.sendDrinkWater(on, cfg[1], cfg[2], cfg[3], cfg[4], cfg[5], cfg[6]);
+        }
+    }
+
+    private void showReminderDialog(String pref, int titleRes, int[] cfg, boolean isSedentary, Runnable onSave) {
+        ThemeManager.AppTheme theme = ThemeManager.getTheme(requireContext());
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, pad);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        toggle.setText(R.string.monitoring_enabled);
+        toggle.setChecked(cfg[0] == 1);
+        box.addView(toggle);
+
+        final TimePicker from = new TimePicker(requireContext());
+        final TimePicker to = new TimePicker(requireContext());
+        for (TimePicker p : new TimePicker[] { from, to })
+            p.setIs24HourView(true);
+        setPickerTime(from, cfg[2], cfg[3]);
+        setPickerTime(to, cfg[4], cfg[5]);
+        box.addView(labelledPicker(getString(R.string.monitoring_window, cfg[2], cfg[3], cfg[4], cfg[5]), from));
+        box.addView(to);
+
+        // Interval selector
+        TextView lblInt = new TextView(requireContext());
+        lblInt.setText(R.string.reminder_interval);
+        lblInt.setTextColor(theme.textSecondary);
+        lblInt.setPadding(0, pad / 2, 0, 4);
+        box.addView(lblInt);
+
+        final EditText interval = new EditText(requireContext());
+        interval.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        interval.setText(String.valueOf(cfg[6]));
+        box.addView(interval);
+
+        // Weekday selection
+        TextView lblRep = new TextView(requireContext());
+        lblRep.setText(R.string.reminder_repeat);
+        lblRep.setTextColor(theme.textSecondary);
+        lblRep.setPadding(0, pad / 2, 0, 8);
+        box.addView(lblRep);
+
+        final int[] repeatHolder = { cfg[1] & 0x7F };
+        if (repeatHolder[0] == 0) repeatHolder[0] = 0x7F; // default everyday if 0
+
+        // Weekday circular buttons row (L, M, M, J, V, S, D / M, T, W, T, F, S, S)
+        LinearLayout daysRow = new LinearLayout(requireContext());
+        daysRow.setOrientation(LinearLayout.HORIZONTAL);
+        daysRow.setGravity(Gravity.CENTER);
+        daysRow.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        boolean isEn = Locale.getDefault().getLanguage().startsWith("en");
+        String[] dayLetters = isEn
+                ? new String[]{"M", "T", "W", "T", "F", "S", "S"}
+                : new String[]{"L", "M", "M", "J", "V", "S", "D"};
+
+        final TextView[] dayButtons = new TextView[7];
+
+        Runnable refreshDayButtons = () -> {
+            for (int i = 0; i < 7; i++) {
+                boolean active = (repeatHolder[0] & (1 << i)) != 0;
+                GradientDrawable bg = new GradientDrawable();
+                bg.setShape(GradientDrawable.OVAL);
+                if (active) {
+                    bg.setColor(theme.accentPrimary);
+                    dayButtons[i].setTextColor(theme.onAccent);
+                } else {
+                    bg.setColor(Color.parseColor("#1AFFFFFF"));
+                    dayButtons[i].setTextColor(theme.textSecondary);
+                }
+                dayButtons[i].setBackground(bg);
+            }
+        };
+
+        float density = getResources().getDisplayMetrics().density;
+        int size = (int) (36 * density);
+
+        for (int i = 0; i < 7; i++) {
+            final int dayIndex = i;
+            TextView btnDay = new TextView(requireContext());
+            btnDay.setText(dayLetters[i]);
+            btnDay.setGravity(Gravity.CENTER);
+            btnDay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            btnDay.setTypeface(Typeface.DEFAULT_BOLD);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            if (i > 0) lp.setMarginStart((int) (6 * density));
+            btnDay.setLayoutParams(lp);
+
+            btnDay.setOnClickListener(v -> {
+                repeatHolder[0] = repeatHolder[0] ^ (1 << dayIndex);
+                if ((repeatHolder[0] & 0x7F) == 0) {
+                    repeatHolder[0] = 1 << dayIndex; // Keep at least 1 day selected
+                }
+                refreshDayButtons.run();
+            });
+
+            dayButtons[i] = btnDay;
+            daysRow.addView(btnDay);
+        }
+
+        refreshDayButtons.run();
+        box.addView(daysRow);
+
+        // Quick Preset Chips (Todos, Laborales, Finde)
+        LinearLayout presetsRow = new LinearLayout(requireContext());
+        presetsRow.setOrientation(LinearLayout.HORIZONTAL);
+        presetsRow.setGravity(Gravity.CENTER);
+        presetsRow.setPadding(0, (int) (10 * density), 0, 0);
+
+        Button btnEveryday = new Button(requireContext(), null, 0, android.R.style.Widget_Button_Small);
+        btnEveryday.setText(R.string.reminder_repeat_everyday);
+        btnEveryday.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        btnEveryday.setOnClickListener(v -> {
+            repeatHolder[0] = 0x7F;
+            refreshDayButtons.run();
+        });
+        presetsRow.addView(btnEveryday);
+
+        Button btnWorkdays = new Button(requireContext(), null, 0, android.R.style.Widget_Button_Small);
+        btnWorkdays.setText(R.string.reminder_repeat_workdays);
+        btnWorkdays.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        btnWorkdays.setOnClickListener(v -> {
+            repeatHolder[0] = 0x1F;
+            refreshDayButtons.run();
+        });
+        presetsRow.addView(btnWorkdays);
+
+        Button btnWeekends = new Button(requireContext(), null, 0, android.R.style.Widget_Button_Small);
+        btnWeekends.setText(R.string.reminder_repeat_weekends);
+        btnWeekends.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        btnWeekends.setOnClickListener(v -> {
+            repeatHolder[0] = 0x60;
+            refreshDayButtons.run();
+        });
+        presetsRow.addView(btnWeekends);
+
+        box.addView(presetsRow);
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.addView(box);
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(titleRes)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    cfg[0] = toggle.isChecked() ? 1 : 0;
+                    cfg[1] = repeatHolder[0] & 0x7F;
+                    cfg[2] = pickerHour(from);
+                    cfg[3] = pickerMinute(from);
+                    cfg[4] = pickerHour(to);
+                    cfg[5] = pickerMinute(to);
+                    try {
+                        cfg[6] = Math.max(15, Math.min(240, Integer.parseInt(interval.getText().toString().trim())));
+                    } catch (Exception ignored) {}
+
+                    onSave.run();
+                })
+                .show();
+    }
+
+    private void setupFemaleCareRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        renderFemaleCare(value);
+
+        monitoringRepaint.add(() -> renderFemaleCare(value));
+
+        row.setOnClickListener(v -> {
+            startActivity(new Intent(requireContext(), com.example.dialsender.PeriodTrackerActivity.class));
+        });
+    }
+
+    private void renderFemaleCare(TextView value) {
+        if (!com.example.dialsender.ble.PeriodTrackerManager.isEnabled(requireContext())) {
+            value.setText(R.string.state_off);
+            return;
+        }
+        com.example.dialsender.ble.PeriodTrackerManager.CycleStatus status =
+                com.example.dialsender.ble.PeriodTrackerManager.getCycleStatus(requireContext());
+        int phaseRes;
+        switch (status.currentPhase) {
+            case MENSTRUATION:
+                phaseRes = R.string.period_phase_menstruation;
+                break;
+            case FERTILE_WINDOW:
+                phaseRes = R.string.period_phase_fertile;
+                break;
+            case OVULATION_DAY:
+                phaseRes = R.string.period_phase_ovulation;
+                break;
+            case LUTEAL_SAFE:
+                phaseRes = R.string.period_phase_luteal;
+                break;
+            case FOLLICULAR_SAFE:
+            default:
+                phaseRes = R.string.period_phase_follicular;
+                break;
+        }
+        value.setText(getString(R.string.period_day_in_cycle, status.currentDayInCycle) + " · " + getString(phaseRes));
+    }
+
+    private void setupStandbyRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        renderStandby(value, sp);
+
+        // The watch is the source of truth wherever its firmware answers
+        // 0x0254; this repaint picks that reply up whenever it lands.
+        monitoringRepaint.add(() -> renderStandby(value, sp));
+
+        row.setOnClickListener(v -> {
+            if (bleManager.isSessionReady())
+                bleManager.readStandby();
+            showStandbyDialog(sp, value);
+        });
+    }
+
+    private void renderStandby(TextView value, android.content.SharedPreferences sp) {
+        if (!sp.getBoolean("standby_enabled", false)) {
+            value.setText(R.string.state_off);
+            return;
+        }
+        if (sp.getBoolean("standby_allday", true)) {
+            value.setText(getString(R.string.state_on) + " · " + getString(R.string.standby_mode_allday));
+        } else {
+            value.setText(getString(R.string.state_on) + " · " + String.format(Locale.getDefault(),
+                    "%02d:%02d - %02d:%02d",
+                    sp.getInt("standby_sh", 8), sp.getInt("standby_sm", 0),
+                    sp.getInt("standby_eh", 22), sp.getInt("standby_em", 0)));
+        }
+    }
+
+    /**
+     * The protocol carries no watch-face style here: STANDBY_SET is a single
+     * on/off byte and STANDBY_WATCH_FACE_SET repeats that switch alongside the
+     * all-day / scheduled pair, so the dialog offers exactly those choices.
+     */
+    private void showStandbyDialog(android.content.SharedPreferences sp, TextView value) {
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        toggle.setText(R.string.standby_desc);
+        toggle.setChecked(sp.getBoolean("standby_enabled", false));
+        box.addView(toggle);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial allDay =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        allDay.setText(R.string.standby_mode_allday);
+        allDay.setChecked(sp.getBoolean("standby_allday", true));
+        box.addView(allDay);
+
+        final TimePicker from = new TimePicker(requireContext());
+        final TimePicker to = new TimePicker(requireContext());
+        for (TimePicker p : new TimePicker[] { from, to })
+            p.setIs24HourView(true);
+        setPickerTime(from, sp.getInt("standby_sh", 8), sp.getInt("standby_sm", 0));
+        setPickerTime(to, sp.getInt("standby_eh", 22), sp.getInt("standby_em", 0));
+
+        final LinearLayout window = new LinearLayout(requireContext());
+        window.setOrientation(LinearLayout.VERTICAL);
+        window.addView(labelledPicker(getString(R.string.standby_mode_schedule), from));
+        window.addView(to);
+        box.addView(window);
+
+        final Runnable refresh = () -> {
+            boolean on = toggle.isChecked();
+            allDay.setEnabled(on);
+            window.setVisibility(on && !allDay.isChecked() ? View.VISIBLE : View.GONE);
+        };
+        toggle.setOnCheckedChangeListener((b, c) -> refresh.run());
+        allDay.setOnCheckedChangeListener((b, c) -> refresh.run());
+        refresh.run();
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.addView(box);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.standby_title)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    boolean on = toggle.isChecked();
+                    boolean everyDay = allDay.isChecked();
+                    int nsh = pickerHour(from), nsm = pickerMinute(from);
+                    int neh = pickerHour(to), nem = pickerMinute(to);
+
+                    sp.edit()
+                            .putBoolean("standby_enabled", on)
+                            .putBoolean("standby_allday", everyDay)
+                            .putInt("standby_sh", nsh)
+                            .putInt("standby_sm", nsm)
+                            .putInt("standby_eh", neh)
+                            .putInt("standby_em", nem)
+                            .apply();
+
+                    renderStandby(value, sp);
+
+                    if (bleManager.isSessionReady()) {
+                        bleManager.sendStandby(on, everyDay, nsh, nsm, neh, nem);
+                        Toast.makeText(requireContext(), R.string.standby_saved, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(requireContext(), R.string.status_not_connected, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .show();
+    }
+    // ===== Watch settings read straight off the device =====
+    //
+    // All three keys answer a READ, so the rows render from what the watch
+    // reports and an edit is a push followed by that read confirming it.
+
+    private void setupHrWarningRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        renderHrWarning(value, sp);
+        monitoringRepaint.add(() -> renderHrWarning(value, sp));
+        row.setOnClickListener(v -> showHrWarningDialog(sp, value));
+    }
+
+    private void renderHrWarning(TextView value, android.content.SharedPreferences sp) {
+        boolean high = sp.getBoolean("hr_warn_high_on", false);
+        boolean low = sp.getBoolean("hr_warn_low_on", false);
+        if (!high && !low) {
+            value.setText(R.string.state_off);
+            return;
+        }
+        value.setText(getString(R.string.hr_warning_summary,
+                sp.getInt("hr_warn_high", 150), sp.getInt("hr_warn_low", 60)));
+    }
+
+    private void showHrWarningDialog(android.content.SharedPreferences sp, TextView value) {
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial highOn =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        highOn.setText(R.string.hr_warning_high);
+        highOn.setChecked(sp.getBoolean("hr_warn_high_on", false));
+        box.addView(highOn);
+
+        final EditText highBpm = new EditText(requireContext());
+        highBpm.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        highBpm.setHint(R.string.hr_warning_bpm);
+        highBpm.setText(String.valueOf(sp.getInt("hr_warn_high", 150)));
+        box.addView(highBpm);
+
+        final com.google.android.material.switchmaterial.SwitchMaterial lowOn =
+                new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+        lowOn.setText(R.string.hr_warning_low);
+        lowOn.setChecked(sp.getBoolean("hr_warn_low_on", false));
+        box.addView(lowOn);
+
+        final EditText lowBpm = new EditText(requireContext());
+        lowBpm.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        lowBpm.setHint(R.string.hr_warning_bpm);
+        lowBpm.setText(String.valueOf(sp.getInt("hr_warn_low", 60)));
+        box.addView(lowBpm);
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.addView(box);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.dev_hr_warning)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    int high = parseBpm(highBpm, sp.getInt("hr_warn_high", 150));
+                    int low = parseBpm(lowBpm, sp.getInt("hr_warn_low", 60));
+                    sp.edit()
+                            .putBoolean("hr_warn_high_on", highOn.isChecked())
+                            .putInt("hr_warn_high", high)
+                            .putBoolean("hr_warn_low_on", lowOn.isChecked())
+                            .putInt("hr_warn_low", low)
+                            .apply();
+                    renderHrWarning(value, sp);
+                    if (bleManager.isSessionReady())
+                        bleManager.sendHrWarning(highOn.isChecked(), high, lowOn.isChecked(), low);
+                    else
+                        Toast.makeText(requireContext(), R.string.device_not_connected,
+                                Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
+    /** Keeps the stored value rather than sending a 0 the watch would take literally. */
+    private static int parseBpm(EditText field, int fallback) {
+        try {
+            return Integer.parseInt(field.getText().toString().trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private void setupVibrationRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final Runnable render = () -> {
+            int times = sp.getInt("watch_vibration", 1);
+            value.setText(times == 0 ? getString(R.string.vibration_off)
+                    : getString(R.string.vibration_times, times));
+        };
+        render.run();
+        monitoringRepaint.add(render);
+
+        row.setOnClickListener(v -> {
+            CharSequence[] items = {
+                    getString(R.string.vibration_off),
+                    getString(R.string.vibration_times, 1),
+                    getString(R.string.vibration_times, 2),
+                    getString(R.string.vibration_times, 3)
+            };
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.dev_vibration)
+                    .setSingleChoiceItems(items, sp.getInt("watch_vibration", 1), (d, which) -> {
+                        sp.edit().putInt("watch_vibration", which).apply();
+                        render.run();
+                        if (bleManager.isSessionReady())
+                            bleManager.sendVibration(which);
+                        else
+                            Toast.makeText(requireContext(), R.string.device_not_connected,
+                                    Toast.LENGTH_SHORT).show();
+                        d.dismiss();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        });
+    }
+
+    private void setupUnitsRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final Runnable render = () -> value.setText(sp.getInt("watch_units", 0) == 1
+                ? R.string.units_imperial : R.string.units_metric);
+        render.run();
+        monitoringRepaint.add(render);
+
+        row.setOnClickListener(v -> {
+            CharSequence[] items = {
+                    getString(R.string.units_metric), getString(R.string.units_imperial)
+            };
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.dev_units)
+                    .setSingleChoiceItems(items, sp.getInt("watch_units", 0), (d, which) -> {
+                        sp.edit().putInt("watch_units", which).apply();
+                        render.run();
+                        if (bleManager.isSessionReady())
+                            bleManager.sendUnits(which);
+                        else
+                            Toast.makeText(requireContext(), R.string.device_not_connected,
+                                    Toast.LENGTH_SHORT).show();
+                        d.dismiss();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        });
+    }
+    private void setupWatchPasswordRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final Runnable render = () -> value.setText(sp.getBoolean("watch_password_on", false)
+                ? R.string.state_on : R.string.state_off);
+        render.run();
+        monitoringRepaint.add(render);
+
+        row.setOnClickListener(v -> {
+            LinearLayout box = new LinearLayout(requireContext());
+            box.setOrientation(LinearLayout.VERTICAL);
+            int pad = (int) (24 * getResources().getDisplayMetrics().density);
+            box.setPadding(pad, pad / 2, pad, 0);
+
+            final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                    new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+            toggle.setText(R.string.dev_watch_password);
+            toggle.setChecked(sp.getBoolean("watch_password_on", false));
+            box.addView(toggle);
+
+            final EditText digits = new EditText(requireContext());
+            digits.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            digits.setHint(R.string.watch_password_hint);
+            digits.setText(sp.getString("watch_password", ""));
+            box.addView(digits);
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.dev_watch_password)
+                    .setView(box)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.save, (d, w) -> {
+                        String pw = digits.getText().toString().trim();
+                        if (pw.length() > 4) pw = pw.substring(0, 4);
+                        sp.edit()
+                                .putBoolean("watch_password_on", toggle.isChecked())
+                                .putString("watch_password", pw)
+                                .apply();
+                        render.run();
+                        if (bleManager.isSessionReady())
+                            bleManager.sendWatchPassword(toggle.isChecked(), pw);
+                        else
+                            Toast.makeText(requireContext(), R.string.device_not_connected,
+                                    Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
+    }
+
+    private void setupGameTimeRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final Runnable render = () -> value.setText(sp.getBoolean("game_time_on", false)
+                ? getString(R.string.game_time_minutes, sp.getInt("game_time_min", 60))
+                : getString(R.string.state_off));
+        render.run();
+        monitoringRepaint.add(render);
+
+        row.setOnClickListener(v -> {
+            LinearLayout box = new LinearLayout(requireContext());
+            box.setOrientation(LinearLayout.VERTICAL);
+            int pad = (int) (24 * getResources().getDisplayMetrics().density);
+            box.setPadding(pad, pad / 2, pad, 0);
+
+            final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                    new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+            toggle.setText(R.string.monitoring_enabled);
+            toggle.setChecked(sp.getBoolean("game_time_on", false));
+            box.addView(toggle);
+
+            final EditText minutes = new EditText(requireContext());
+            minutes.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            minutes.setText(String.valueOf(sp.getInt("game_time_min", 60)));
+            box.addView(minutes);
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.dev_game_time)
+                    .setView(box)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.save, (d, w) -> {
+                        int min = parseBpm(minutes, sp.getInt("game_time_min", 60));
+                        sp.edit()
+                                .putBoolean("game_time_on", toggle.isChecked())
+                                .putInt("game_time_min", min)
+                                .apply();
+                        render.run();
+                        if (bleManager.isSessionReady())
+                            bleManager.sendGameTimeReminder(toggle.isChecked(), min);
+                        else
+                            Toast.makeText(requireContext(), R.string.device_not_connected,
+                                    Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
+    }
+
+    /** There is no undo from the phone, so this one always asks first. */
+    private void setupShutdownRow(View view, int rowId) {
+        final View row = view.findViewById(rowId);
+        if (row == null) return;
+        row.setOnClickListener(v -> new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.dev_shutdown)
+                .setMessage(R.string.shutdown_confirm)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    if (bleManager.isSessionReady())
+                        bleManager.sendShutdown();
+                    else
+                        Toast.makeText(requireContext(), R.string.device_not_connected,
+                                Toast.LENGTH_SHORT).show();
+                })
+                .show());
+    }
+    private void setupSosRow(View view, int rowId, int valueId) {
+        final View row = view.findViewById(rowId);
+        final TextView value = view.findViewById(valueId);
+        if (row == null || value == null) return;
+
+        final android.content.SharedPreferences sp = requireContext()
+                .getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE);
+
+        final Runnable render = () -> {
+            String phone = sp.getString("sos_phone", "");
+            value.setText(sp.getBoolean("sos_on", false) && phone != null && !phone.isEmpty()
+                    ? phone : getString(R.string.state_off));
+        };
+        render.run();
+        monitoringRepaint.add(render);
+
+        row.setOnClickListener(v -> {
+            LinearLayout box = new LinearLayout(requireContext());
+            box.setOrientation(LinearLayout.VERTICAL);
+            int pad = (int) (24 * getResources().getDisplayMetrics().density);
+            box.setPadding(pad, pad / 2, pad, 0);
+
+            final com.google.android.material.switchmaterial.SwitchMaterial toggle =
+                    new com.google.android.material.switchmaterial.SwitchMaterial(requireContext());
+            toggle.setText(R.string.monitoring_enabled);
+            toggle.setChecked(sp.getBoolean("sos_on", false));
+            box.addView(toggle);
+
+            final EditText phone = new EditText(requireContext());
+            phone.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
+            phone.setHint(R.string.sos_phone_hint);
+            phone.setText(sp.getString("sos_phone", ""));
+            box.addView(phone);
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.dev_sos)
+                    .setView(box)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.save, (d, w) -> {
+                        String number = phone.getText().toString().trim();
+                        // The wire field is 18 bytes; anything longer would be
+                        // truncated silently on the watch instead.
+                        if (number.length() > 18) number = number.substring(0, 18);
+                        sp.edit()
+                                .putBoolean("sos_on", toggle.isChecked())
+                                .putString("sos_phone", number)
+                                .apply();
+                        render.run();
+                        if (bleManager.isSessionReady())
+                            bleManager.sendSos(toggle.isChecked(), number);
+                        else
+                            Toast.makeText(requireContext(), R.string.device_not_connected,
+                                    Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
     }
 }

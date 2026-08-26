@@ -1022,4 +1022,102 @@ El dial queda guardado. Para bajarlo, reduce el área o los fotogramas de la ani
     <string name="qr_torch_off">Linterna desactivada</string>
     <string name="qr_connecting_to">Conectando a %s…</string>
 
+    <!-- ── Reminders & Period Tracker ── -->
+    <string name="dev_drink_water">Recordatorio de tomar agua</string>
+    <string name="dev_wash_hands">Lavado de manos</string>
+    <string name="dev_female_care">Seguimiento del ciclo</string>
+    <string name="reminder_title">Recordatorio</string>
+    <string name="reminder_interval">Intervalo</string>
+    <string name="reminder_repeat">Días de repetición</string>
+    <string name="reminder_repeat_everyday">Todos los días</string>
+    <string name="reminder_repeat_workdays">Días laborables</string>
+    <string name="reminder_repeat_weekends">Fin de semana</string>
+    <string name="reminder_repeat_custom">Personalizado</string>
+    <string name="reminder_saved">Recordatorio guardado y sincronizado</string>
+
+    <string name="period_tracker_title">Seguimiento del Ciclo</string>
+    <string name="period_tracker_subtitle">Salud femenina y predicción de fases</string>
+    <string name="period_card_title">Ciclo Menstrual</string>
+    <string name="period_card_desc">Fase actual y predicción</string>
+    <string name="period_phase_menstruation">Período menstrual</string>
+    <string name="period_phase_follicular">Fase folicular (Seguro)</string>
+    <string name="period_phase_fertile">Ventana fértil</string>
+    <string name="period_phase_ovulation">Día de ovulación</string>
+    <string name="period_phase_luteal">Fase lútea (Seguro)</string>
+    <string name="period_day_in_cycle">Día %1$d del ciclo</string>
+    <string name="period_cycle_summary">Ciclo de %1$d días · Período %2$d días</string>
+    <string name="period_next_in">Próximo período en %1$d días</string>
+    <string name="period_next_today">El período inicia hoy</string>
+    <string name="period_ovulation_in">Ovulación estimada en %1$d días</string>
+    <string name="period_ovulation_today">Hoy es el día de ovulación</string>
+    <string name="period_mark_start_today">Registrar inicio hoy</string>
+    <string name="period_mark_start_date">Registrar fecha de inicio</string>
+    <string name="period_settings">Configuración del ciclo</string>
+    <string name="period_last_period_date">Última menstruación</string>
+    <string name="period_duration_label">Duración del período</string>
+    <string name="period_cycle_length_label">Duración del ciclo</string>
+    <string name="period_reminders_label">Recordatorios en el reloj</string>
+    <string name="period_reminder_time_label">Hora del aviso</string>
+    <string name="period_advance_days">%1$d días antes</string>
+    <string name="period_advance_menstruation">Aviso previo a menstruación</string>
+    <string name="period_advance_ovulation">Aviso previo a ovulación</string>
+    <string name="period_phase_legend">Fases del ciclo</string>
+    <string name="period_sync_success">Ciclo sincronizado con el reloj</string>
+    <string name="period_disabled_hint">Activa el seguimiento de ciclo para predecir tus fases y recibir alertas en el reloj.</string>
+
+    <!-- ── Standby Watch Face (AOD) ── -->
+    <string name="dev_standby">Pantalla de reposo (Standby)</string>
+    <string name="standby_title">Pantalla de Reposo (AOD)</string>
+    <string name="standby_desc">Esfera Always-On en suspensión</string>
+    <string name="standby_mode_allday">Todo el día</string>
+    <string name="standby_mode_schedule">Horario programado</string>
+    <string name="standby_saved">Ajuste de reposo sincronizado</string>
+
+    <!-- ── World Clock ── -->
+    <string name="dev_world_clock">Reloj mundial</string>
+    <string name="world_clock_title">Reloj Mundial</string>
+    <string name="world_clock_local">Hora local</string>
+    <string name="world_clock_add">Añadir ciudad</string>
+    <string name="world_clock_search">Buscar ciudad o país…</string>
+    <string name="world_clock_max_reached">Has alcanzado el límite máximo de ciudades</string>
+    <string name="world_clock_empty">No hay ciudades añadidas al reloj</string>
+    <string name="world_clock_synced">Relojes mundiales sincronizados con el reloj</string>
+
+    <!-- ── Stock Market ── -->
+    <string name="dev_stock">Bolsa de valores (Acciones)</string>
+    <string name="stock_title">Bolsa de Valores</string>
+    <string name="stock_add">Añadir acción</string>
+    <string name="stock_search_hint">Símbolo (ej: AAPL, TSLA, MSFT)</string>
+    <string name="stock_color_mode">Modo de color</string>
+    <string name="stock_color_green_up">Verde sube / Rojo baja</string>
+    <string name="stock_color_red_up">Rojo sube / Verde baja</string>
+    <string name="stock_empty">No hay acciones añadidas</string>
+    <string name="stock_price">Precio</string>
+    <string name="stock_change">Cambio</string>
+    <string name="stock_change_percent">Variación (%)</string>
+    <string name="stock_synced">Acciones sincronizadas con el reloj</string>
+
+
+    <!-- ── Watch settings the app now exposes ── -->
+    <string name="dev_wash">Recordatorio de lavado de manos</string>
+    <string name="dev_hr_warning">Alarma de frecuencia cardíaca</string>
+    <string name="dev_vibration">Vibración</string>
+    <string name="dev_units">Unidades</string>
+    <string name="units_metric">Métrico</string>
+    <string name="units_imperial">Imperial</string>
+    <string name="vibration_off">Sin vibración</string>
+    <string name="vibration_times">%d vez(ces)</string>
+    <string name="hr_warning_high">Aviso de pulso alto</string>
+    <string name="hr_warning_low">Aviso de pulso bajo</string>
+    <string name="hr_warning_bpm">ppm</string>
+    <string name="hr_warning_summary">Alto %1$d · Bajo %2$d ppm</string>
+    <string name="dev_temp_monitoring">Temperatura automática</string>
+    <string name="dev_watch_password">Contraseña del reloj</string>
+    <string name="dev_game_time">Recordatorio de tiempo de juego</string>
+    <string name="dev_shutdown">Apagar el reloj</string>
+    <string name="shutdown_confirm">¿Apagar el reloj? Tendrás que encenderlo con su botón.</string>
+    <string name="watch_password_hint">4 dígitos</string>
+    <string name="game_time_minutes">Avisar tras %d min</string>
+    <string name="dev_sos">SOS</string>
+    <string name="sos_phone_hint">Número de emergencia</string>
 </resources>

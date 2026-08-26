@@ -192,15 +192,15 @@ public class SettingsFragment extends Fragment {
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // Goal fields (save on focus lost)
-        // Only the step goal has a verified write encoding (STEP_GOAL 0x0207,
-        // int32 BE). The original app reads the calorie/distance/sleep goals
-        // from the watch but never writes them, so those three stay phone-side
-        // until their payloads can be confirmed rather than guessed.
+        // Goal fields (save on focus lost). All four reach the watch now:
+        // steps 0x0207, calories 0x0239, distance 0x023A, sleep 0x023B, every
+        // one a big-endian integer. The watch keeps its own copies and reports
+        // them on connect, so an edit here is a push and the next sync is a
+        // read-back — see docs/protocols/19-FIRMWARE-CAPABILITY-SURVEY.md.
         setupGoalField(view, R.id.etGoalSteps,    "goal_steps",     10000, true);
-        setupGoalField(view, R.id.etGoalSleep,    "goal_sleep_min", 480, false);
-        setupGoalField(view, R.id.etGoalCalories, "goal_calories",  500, false);
-        setupGoalField(view, R.id.etGoalDistance, "goal_distance",  5, false);
+        setupGoalField(view, R.id.etGoalSleep,    "goal_sleep_min", 480, true);
+        setupGoalField(view, R.id.etGoalCalories, "goal_calories",  500, true);
+        setupGoalField(view, R.id.etGoalDistance, "goal_distance",  5, true);
 
         // Distance unit label initial state
         TextView lblDist = view.findViewById(R.id.lblDistanceUnit);
@@ -536,6 +536,12 @@ public class SettingsFragment extends Fragment {
                                 boolean pushToWatch) {
         EditText et = root.findViewById(editTextId);
         et.setText(String.valueOf(prefs.getInt(prefKey, defaultVal)));
+        // The watch reports its own goals on every connect, so the field can go
+        // stale while the screen sits there. Refreshing it on resume is what
+        // stops a focus change from writing that stale number back and pushing
+        // it to the watch as if the user had typed it.
+        goalFields.put(et, new int[] { defaultVal });
+        goalKeys.put(et, prefKey);
         et.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
                 try {
@@ -549,6 +555,23 @@ public class SettingsFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private final java.util.Map<EditText, int[]> goalFields = new java.util.LinkedHashMap<>();
+    private final java.util.Map<EditText, String> goalKeys = new java.util.LinkedHashMap<>();
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        for (java.util.Map.Entry<EditText, int[]> e : goalFields.entrySet()) {
+            EditText et = e.getKey();
+            if (et.hasFocus()) continue; // don't yank the field out from under the user
+            String key = goalKeys.get(et);
+            if (key == null) continue;
+            String fresh = String.valueOf(prefs.getInt(key, e.getValue()[0]));
+            if (!fresh.contentEquals(et.getText()))
+                et.setText(fresh);
+        }
     }
 
     /**

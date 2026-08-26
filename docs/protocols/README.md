@@ -26,6 +26,10 @@ All documentation was derived by static analysis of the decompiled Android APK l
 | 13 | [13-ALARM.md](./13-ALARM.md) | `ALARM` (0x0210): the 28-byte item, the enabled/repeat bit packing, the Monday-first weekday mask, and the five flag operations |
 | 14 | [14-INCOMING-CALL.md](./14-INCOMING-CALL.md) | `INCOMING_CALL` (0x0603): why it is a call-in-progress flag rather than a ring push, the notification that draws the caller screen, and the watch's answer/hang-up byte |
 | 15 | [15-MONITORING-AND-ACTIONS.md](./15-MONITORING-AND-ACTIONS.md) | HR/SpO2/sleep monitoring windows, `FIND_WATCH` (0x0234) and `REALTIME_MEASUREMENT` (0x0236), with what the Kronos Thunder does and does not answer |
+| 16 | [16-STANDBY-AND-AOD.md](./16-STANDBY-AND-AOD.md) | Always-on display: `STANDBY_SET` (0x0241) as a write-only on/off byte, the 8-byte `STANDBY_WATCH_FACE_SET` (0x0254) entity, and how to tell an unimplemented key from an acknowledged one |
+| 17 | [17-WORLD-CLOCK-AND-STOCK.md](./17-WORLD-CLOCK-AND-STOCK.md) | The two list keys: `WORLD_CLOCK` (0x0407) with its paged read and watch-side deletions, `STOCK` (0x0408) with its decimal-place nibbles and little-endian floats |
+| 18 | [18-GIRL-CARE.md](./18-GIRL-CARE.md) | `GIRL_CARE` (0x021A) cycle parameters and reminder, and the `GIRL_CARE_MONTHLY` (0x026C) calendar the watch paints |
+| 19 | [19-FIRMWARE-CAPABILITY-SURVEY.md](./19-FIRMWARE-CAPABILITY-SURVEY.md) | What a Kronos Thunder actually implements, swept key by key: the gaps worth building, the two defects, and the vendor features this firmware does not have |
 
 ---
 

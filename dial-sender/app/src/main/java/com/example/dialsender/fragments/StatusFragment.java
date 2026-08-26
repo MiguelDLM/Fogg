@@ -110,7 +110,14 @@ public class StatusFragment extends Fragment {
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener =
             (sharedPreferences, key) -> {
                 if (key == null) return;
-                if (key.equals("weather_time") || key.equals("last_sync_time") || key.startsWith("health_")) {
+                // "goal_" matters as much as the samples do: the gauge draws
+                // steps against the target, and the target moves both when the
+                // user edits it and when the watch reports its own on connect.
+                // Leaving it out was why the ring kept the old goal until the
+                // screen was rebuilt.
+                if (key.equals("weather_time") || key.equals("last_sync_time")
+                        || key.startsWith("health_") || key.startsWith("girlcare_")
+                        || key.startsWith("goal_")) {
                     if (isAdded()) {
                         requireActivity().runOnUiThread(this::render);
                     }
@@ -314,6 +321,50 @@ public class StatusFragment extends Fragment {
                 "stress",
                 lastTime(stressSeries),
                 stressSeries.size() >= 2 ? hourlyBars(stressSeries, todayStart, theme.accentStress, theme) : null,
+                theme,
+                density
+        );
+
+        // 11. Period Tracker Card (Female Health)
+        boolean ptEnabled = com.example.dialsender.ble.PeriodTrackerManager.isEnabled(requireContext());
+        com.example.dialsender.ble.PeriodTrackerManager.CycleStatus cs =
+                com.example.dialsender.ble.PeriodTrackerManager.getCycleStatus(requireContext());
+        String ptVal;
+        String ptSub;
+        if (ptEnabled) {
+            int phaseRes;
+            switch (cs.currentPhase) {
+                case MENSTRUATION:
+                    phaseRes = R.string.period_phase_menstruation;
+                    break;
+                case FERTILE_WINDOW:
+                    phaseRes = R.string.period_phase_fertile;
+                    break;
+                case OVULATION_DAY:
+                    phaseRes = R.string.period_phase_ovulation;
+                    break;
+                case LUTEAL_SAFE:
+                    phaseRes = R.string.period_phase_luteal;
+                    break;
+                case FOLLICULAR_SAFE:
+                default:
+                    phaseRes = R.string.period_phase_follicular;
+                    break;
+            }
+            ptVal = getString(R.string.period_day_in_cycle, cs.currentDayInCycle);
+            ptSub = getString(phaseRes) + " · " + (cs.daysUntilNextPeriod == 0 ? getString(R.string.period_next_today) : getString(R.string.period_next_in, cs.daysUntilNextPeriod));
+        } else {
+            ptVal = getString(R.string.state_off);
+            ptSub = getString(R.string.period_disabled_hint);
+        }
+        addCard(
+                getString(R.string.period_card_title),
+                ptVal,
+                Color.parseColor("#F43F5E"),
+                R.drawable.ic_female_care,
+                "period_tracker",
+                ptSub,
+                null,
                 theme,
                 density
         );
@@ -742,6 +793,10 @@ public class StatusFragment extends Fragment {
     // ===================== Navigation & Data Parsing =====================
 
     private void openDetail(String metricKey) {
+        if ("period_tracker".equals(metricKey)) {
+            startActivity(new Intent(requireContext(), com.example.dialsender.PeriodTrackerActivity.class));
+            return;
+        }
         Intent i = new Intent(requireContext(), MetricDetailActivity.class);
         i.putExtra(MetricDetailActivity.EXTRA_METRIC, metricKey);
         startActivity(i);

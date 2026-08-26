@@ -20,7 +20,7 @@ actions the watch is otherwise the only place to trigger.
 | `HR_MONITORING` | 534 | `0x02` / `0x16` | automatic heart-rate sampling |
 | `BLOOD_OXYGEN_SET` | 549 | `0x02` / `0x25` | automatic SpO2 sampling |
 | `SLEEP_MONITORING` | 576 | `0x02` / `0x40` | sleep tracking window |
-| `FIND_WATCH` | 564 | `0x02` / `0x34` | make the watch ring |
+| `FIND_WATCH` | 564 | `0x02` / `0x34` | make the watch ring — **not observed on this watch, see §2** |
 | `REALTIME_MEASUREMENT` | 566 | `0x02` / `0x36` | take a reading now — **inert on this watch, see §3** |
 
 ---
@@ -78,8 +78,15 @@ showing it is necessarily reporting the phone's copy, not the watch's.
 One byte: **1 starts** the ring, **0 stops** it. The mirror of `FIND_PHONE`
 (0x0213), which the watch already uses in the other direction.
 
-Verified: `Tx FIND_WATCH start=true` → `AB 11 00 03 00 B7 02 34 00`, a bodyless
-ACK.
+`Tx FIND_WATCH start=true` → `AB 11 00 03 00 B7 02 34 00`, a bodyless ACK.
+
+**That ACK is not evidence the watch rings.** This firmware answers a write to
+*any* key with an empty body, implemented or not — the discriminator is the
+READ, see
+[16-STANDBY-AND-AOD §3.1](./16-STANDBY-AND-AOD.md#31-telling-unsupported-from-acknowledged).
+On a Kronos Thunder the ring was never observed: the user reports the row does
+nothing. Treat FIND_WATCH as **accepted but inert on this hardware** until
+someone sees the watch actually ring.
 
 **The watch never reports that it stopped.** It stops on its own when the user
 acknowledges it there, silently. So the phone cannot display live state — it can

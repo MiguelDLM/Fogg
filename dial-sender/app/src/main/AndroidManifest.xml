@@ -163,6 +163,9 @@
 
         <activity android:name=".ImportDataActivity" android:exported="false"/>
         <activity android:name=".ExportDataActivity" android:exported="false"/>
+        <activity android:name=".PeriodTrackerActivity" android:exported="false"/>
+        <activity android:name=".WorldClockActivity" android:exported="false"/>
+        <activity android:name=".StockMarketActivity" android:exported="false"/>
 
         <provider
             android:name="androidx.core.content.FileProvider"

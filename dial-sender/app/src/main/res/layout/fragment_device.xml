@@ -174,6 +174,18 @@
                 <TextView style="@style/Fogg.Row.Label" android:text="@string/device_raise_to_wake"/>
                 <TextView android:id="@+id/txtRaiseToWake" style="@style/Fogg.Row.Value" android:text="@string/state_off"/>
             </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowStandby" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_standby"
+                    android:contentDescription="@null" app:tint="?attr/foggCalories"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_standby"/>
+                    <TextView android:id="@+id/txtStandby" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ═══════════ Continuous health monitoring ═══════════ -->
@@ -229,6 +241,66 @@
                 </LinearLayout>
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowDrinkWater" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_water"
+                    android:contentDescription="@null" app:tint="?attr/foggDistance"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_drink_water"/>
+                    <TextView android:id="@+id/txtDrinkWater" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowTempMonitoring" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_pulse"
+                    android:contentDescription="@null" app:tint="?attr/foggCalories"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_temp_monitoring"/>
+                    <TextView android:id="@+id/txtTempMonitoring" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowWash" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_wash"
+                    android:contentDescription="@null" app:tint="?attr/foggSpo2"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_wash"/>
+                    <TextView android:id="@+id/txtWash" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowHrWarning" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_metric_heart"
+                    android:contentDescription="@null" app:tint="?attr/foggHeart"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_hr_warning"/>
+                    <TextView android:id="@+id/txtHrWarning" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowFemaleCare" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_female_care"
+                    android:contentDescription="@null" app:tint="?attr/foggHeart"/>
+                <LinearLayout style="@style/Fogg.Row.Column">
+                    <TextView style="@style/Fogg.Row.Title" android:text="@string/dev_female_care"/>
+                    <TextView android:id="@+id/txtFemaleCare" style="@style/Fogg.Row.Subtitle"
+                        android:text="@string/state_off"/>
+                </LinearLayout>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ═══════════ Notifications & handy features ═══════════ -->
@@ -250,6 +322,22 @@
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_alarm"
                     android:contentDescription="@null"/>
                 <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_alarms"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowWorldClock" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_world_clock"
+                    android:contentDescription="@null" app:tint="?attr/foggDistance"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_world_clock"/>
+                <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowStock" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_stock"
+                    android:contentDescription="@null" app:tint="?attr/foggSteps"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_stock"/>
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
@@ -294,6 +382,24 @@
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 
+            <LinearLayout android:id="@+id/rowVibration" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
+                    android:contentDescription="@null" app:tint="?attr/foggCalories"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_vibration"/>
+                <TextView android:id="@+id/txtVibration" style="@style/Fogg.Row.Value"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowUnits" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_units"/>
+                <TextView android:id="@+id/txtUnits" style="@style/Fogg.Row.Value"
+                    android:text="@string/units_metric"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
             <LinearLayout android:id="@+id/rowAntiLost" style="?attr/foggRowStyle">
                 <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_bluetooth"
                     android:contentDescription="@null"/>
@@ -322,6 +428,42 @@
                     android:contentDescription="@null"/>
                 <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_agps"/>
                 <ImageView style="@style/Fogg.Row.Chevron" android:contentDescription="@null"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowSos" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
+                    android:contentDescription="@null" app:tint="?attr/foggDanger"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_sos"/>
+                <TextView android:id="@+id/txtSos" style="@style/Fogg.Row.Value"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowWatchPassword" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_watch_password"/>
+                <TextView android:id="@+id/txtWatchPassword" style="@style/Fogg.Row.Value"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowGameTime" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_settings"
+                    android:contentDescription="@null"/>
+                <TextView style="@style/Fogg.Row.Label" android:text="@string/dev_game_time"/>
+                <TextView android:id="@+id/txtGameTime" style="@style/Fogg.Row.Value"
+                    android:text="@string/state_off"/>
+            </LinearLayout>
+            <View style="?attr/foggDividerStyle"/>
+
+            <LinearLayout android:id="@+id/rowShutdown" style="?attr/foggRowStyle">
+                <ImageView style="?attr/foggRowIconStyle" android:src="@drawable/ic_standby"
+                    android:contentDescription="@null" app:tint="?attr/foggDanger"/>
+                <TextView style="@style/Fogg.Row.Label"
+                    android:textColor="?attr/foggDanger"
+                    android:text="@string/dev_shutdown"/>
             </LinearLayout>
             <View style="?attr/foggDividerStyle"/>
 

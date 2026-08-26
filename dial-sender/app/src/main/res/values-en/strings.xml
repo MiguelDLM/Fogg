@@ -1022,4 +1022,102 @@ The dial is saved either way. To bring it down, shrink the animation\'s area or 
     <string name="qr_torch_off">Flashlight turned off</string>
     <string name="qr_connecting_to">Connecting to %s…</string>
 
+    <!-- ── Reminders & Period Tracker ── -->
+    <string name="dev_drink_water">Drink Water Reminder</string>
+    <string name="dev_wash_hands">Hand Washing</string>
+    <string name="dev_female_care">Period Tracker</string>
+    <string name="reminder_title">Reminder</string>
+    <string name="reminder_interval">Interval</string>
+    <string name="reminder_repeat">Repeat days</string>
+    <string name="reminder_repeat_everyday">Everyday</string>
+    <string name="reminder_repeat_workdays">Workdays</string>
+    <string name="reminder_repeat_weekends">Weekends</string>
+    <string name="reminder_repeat_custom">Custom</string>
+    <string name="reminder_saved">Reminder saved &amp; synced</string>
+
+    <string name="period_tracker_title">Period Tracker</string>
+    <string name="period_tracker_subtitle">Cycle tracking &amp; phase predictions</string>
+    <string name="period_card_title">Menstrual Cycle</string>
+    <string name="period_card_desc">Current phase &amp; prediction</string>
+    <string name="period_phase_menstruation">Menstrual period</string>
+    <string name="period_phase_follicular">Follicular phase (Safe)</string>
+    <string name="period_phase_fertile">Fertile window</string>
+    <string name="period_phase_ovulation">Ovulation day</string>
+    <string name="period_phase_luteal">Luteal phase (Safe)</string>
+    <string name="period_day_in_cycle">Day %1$d of cycle</string>
+    <string name="period_cycle_summary">%1$d day cycle · %2$d day period</string>
+    <string name="period_next_in">Next period in %1$d days</string>
+    <string name="period_next_today">Period starts today</string>
+    <string name="period_ovulation_in">Ovulation in %1$d days</string>
+    <string name="period_ovulation_today">Today is ovulation day</string>
+    <string name="period_mark_start_today">Log period start today</string>
+    <string name="period_mark_start_date">Log start date</string>
+    <string name="period_settings">Cycle Settings</string>
+    <string name="period_last_period_date">Last period date</string>
+    <string name="period_duration_label">Period duration</string>
+    <string name="period_cycle_length_label">Cycle length</string>
+    <string name="period_reminders_label">Watch reminders</string>
+    <string name="period_reminder_time_label">Reminder time</string>
+    <string name="period_advance_days">%1$d days before</string>
+    <string name="period_advance_menstruation">Menstruation reminder</string>
+    <string name="period_advance_ovulation">Ovulation reminder</string>
+    <string name="period_phase_legend">Cycle Phases</string>
+    <string name="period_sync_success">Cycle synced with watch</string>
+    <string name="period_disabled_hint">Enable period tracking to predict cycle phases and receive watch alerts.</string>
+
+    <!-- ── Standby Watch Face (AOD) ── -->
+    <string name="dev_standby">Standby Screen (AOD)</string>
+    <string name="standby_title">Standby Screen (AOD)</string>
+    <string name="standby_desc">Always-On dial when idle</string>
+    <string name="standby_mode_allday">All day</string>
+    <string name="standby_mode_schedule">Scheduled hours</string>
+    <string name="standby_saved">Standby setting synced</string>
+
+    <!-- ── World Clock ── -->
+    <string name="dev_world_clock">World Clock</string>
+    <string name="world_clock_title">World Clock</string>
+    <string name="world_clock_local">Local time</string>
+    <string name="world_clock_add">Add city</string>
+    <string name="world_clock_search">Search city or country…</string>
+    <string name="world_clock_max_reached">Maximum number of cities reached</string>
+    <string name="world_clock_empty">No cities added to watch</string>
+    <string name="world_clock_synced">World clocks synced with watch</string>
+
+    <!-- ── Stock Market ── -->
+    <string name="dev_stock">Stock Market</string>
+    <string name="stock_title">Stock Market</string>
+    <string name="stock_add">Add stock</string>
+    <string name="stock_search_hint">Symbol (e.g. AAPL, TSLA, MSFT)</string>
+    <string name="stock_color_mode">Color mode</string>
+    <string name="stock_color_green_up">Green up / Red down</string>
+    <string name="stock_color_red_up">Red up / Green down</string>
+    <string name="stock_empty">No stocks added</string>
+    <string name="stock_price">Price</string>
+    <string name="stock_change">Change</string>
+    <string name="stock_change_percent">Change (%)</string>
+    <string name="stock_synced">Stocks synced with watch</string>
+
+
+    <!-- ── Watch settings the app now exposes ── -->
+    <string name="dev_wash">Hand-wash reminder</string>
+    <string name="dev_hr_warning">Heart-rate alarm</string>
+    <string name="dev_vibration">Vibration</string>
+    <string name="dev_units">Units</string>
+    <string name="units_metric">Metric</string>
+    <string name="units_imperial">Imperial</string>
+    <string name="vibration_off">No vibration</string>
+    <string name="vibration_times">%d time(s)</string>
+    <string name="hr_warning_high">High heart-rate alert</string>
+    <string name="hr_warning_low">Low heart-rate alert</string>
+    <string name="hr_warning_bpm">bpm</string>
+    <string name="hr_warning_summary">High %1$d · Low %2$d bpm</string>
+    <string name="dev_temp_monitoring">Automatic temperature</string>
+    <string name="dev_watch_password">Watch password</string>
+    <string name="dev_game_time">Game-time reminder</string>
+    <string name="dev_shutdown">Power off the watch</string>
+    <string name="shutdown_confirm">Power the watch off? You will have to switch it back on with its button.</string>
+    <string name="watch_password_hint">4 digits</string>
+    <string name="game_time_minutes">Remind after %d min</string>
+    <string name="dev_sos">SOS</string>
+    <string name="sos_phone_hint">Emergency number</string>
 </resources>
