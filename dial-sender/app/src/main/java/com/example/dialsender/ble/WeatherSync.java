@@ -73,7 +73,7 @@ public final class WeatherSync {
                                 fc.append(";");
                             // code|hi|lo|pop
                             fc.append(d.conditionCode).append("|").append(d.tempHigh)
-                                    .append("|").append(d.tempLow).append("|").append(d.precipitation);
+                                    .append("|").append(d.tempLow).append("|").append(d.popProbability);
                         }
                         appCtx.getSharedPreferences("dial_sender_prefs", Context.MODE_PRIVATE).edit()
                                 .putInt("weather_temp", t.tempCurrent)
@@ -83,7 +83,7 @@ public final class WeatherSync {
                                 .putInt("weather_humidity", t.humidity)
                                 .putInt("weather_wind", t.windSpeed)
                                 .putInt("weather_uv", t.uvIndex)
-                                .putInt("weather_pop", t.precipitation)
+                                .putInt("weather_pop", t.popProbability)
                                 .putString("weather_city", city)
                                 .putString("weather_forecast", fc.toString())
                                 .putFloat("weather_lat", (float) loc[0])
@@ -206,10 +206,10 @@ public final class WeatherSync {
     private static List<BleManager.WeatherDay> fetch(double lat, double lon) throws Exception {
         String url = "https://api.open-meteo.com/v1/forecast"
                 + "?latitude=" + lat + "&longitude=" + lon
-                + "&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m"
+                + "&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,visibility,precipitation"
                 + "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
-                + "uv_index_max,precipitation_probability_max,wind_speed_10m_max"
-                + "&forecast_days=4&timezone=auto";
+                + "uv_index_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset"
+                + "&forecast_days=7&timezone=auto";
 
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(8000);
@@ -230,6 +230,8 @@ public final class WeatherSync {
         int curCode = current != null ? current.optInt("weather_code", 0) : 0;
         int curHum = current != null ? (int) Math.round(current.optDouble("relative_humidity_2m", 0)) : 0;
         int curWind = current != null ? (int) Math.round(current.optDouble("wind_speed_10m", 0)) : 0;
+        int curVis = current != null ? (int) Math.round(current.optDouble("visibility", 10000) / 1000.0) : 10;
+        double curRain = current != null ? current.optDouble("precipitation", 0.0) : 0.0;
 
         JSONObject daily = root.getJSONObject("daily");
         JSONArray codes = daily.getJSONArray("weather_code");
@@ -237,7 +239,10 @@ public final class WeatherSync {
         JSONArray minA = daily.getJSONArray("temperature_2m_min");
         JSONArray uvA = daily.optJSONArray("uv_index_max");
         JSONArray popA = daily.optJSONArray("precipitation_probability_max");
+        JSONArray rainSumA = daily.optJSONArray("precipitation_sum");
         JSONArray windA = daily.optJSONArray("wind_speed_10m_max");
+        JSONArray sunriseA = daily.optJSONArray("sunrise");
+        JSONArray sunsetA = daily.optJSONArray("sunset");
 
         List<BleManager.WeatherDay> out = new ArrayList<>();
         int n = codes.length();
@@ -248,10 +253,39 @@ public final class WeatherSync {
             int code = (i == 0) ? wmoToCode(curCode) : wmoToCode(codes.optInt(i, 0));
             int wind = (i == 0) ? curWind : (windA != null ? (int) Math.round(windA.optDouble(i, 0)) : 0);
             int hum = (i == 0) ? curHum : 0;
+            int vis = (i == 0) ? curVis : 10;
             int uv = uvA != null ? (int) Math.round(uvA.optDouble(i, 0)) : 0;
             int pop = popA != null ? (int) Math.round(popA.optDouble(i, 0)) : 0;
-            // visibility isn't provided here; leave 0.
-            out.add(new BleManager.WeatherDay(code, cur, lo, hi, wind, hum, 0, uv, pop));
+            int rainMm = (i == 0) ? (int) Math.round(curRain) : (rainSumA != null ? (int) Math.round(rainSumA.optDouble(i, 0)) : 0);
+
+            int srH = 6, srM = 0, srS = 0;
+            int ssH = 19, ssM = 0, ssS = 0;
+            if (sunriseA != null && i < sunriseA.length()) {
+                String sr = sunriseA.optString(i, "");
+                if (sr.contains("T")) {
+                    String[] parts = sr.substring(sr.indexOf('T') + 1).split(":");
+                    if (parts.length >= 2) {
+                        try {
+                            srH = Integer.parseInt(parts[0]);
+                            srM = Integer.parseInt(parts[1]);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+            if (sunsetA != null && i < sunsetA.length()) {
+                String ss = sunsetA.optString(i, "");
+                if (ss.contains("T")) {
+                    String[] parts = ss.substring(ss.indexOf('T') + 1).split(":");
+                    if (parts.length >= 2) {
+                        try {
+                            ssH = Integer.parseInt(parts[0]);
+                            ssM = Integer.parseInt(parts[1]);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+
+            out.add(new BleManager.WeatherDay(code, cur, hi, lo, wind, hum, vis, uv, rainMm, pop, srH, srM, srS, ssH, ssM, ssS, 0));
         }
         return out;
     }
@@ -330,35 +364,50 @@ public final class WeatherSync {
     }
 
     /**
-     * Maps a WMO weather code (Open-Meteo) to the watch's BleWeather code.
-     * Watch codes (from the original app): 1=sunny 2=cloudy 3=overcast 4=rainy
-     * 5=thunder 6=thundershower 7=high-wind 8=snowy 9=foggy 10=sandstorm 11=haze,
-     * 0=other.
+     * Maps a WMO weather code (Open-Meteo) to the watch's BleWeather code (0..20).
      */
     private static int wmoToCode(int wmo) {
         switch (wmo) {
             case 0:
-                return BleManager.WEATHER_SUNNY; // clear sky
+                return BleManager.WEATHER_SUNNY; // clear sky (1)
             case 1:
             case 2:
-                return BleManager.WEATHER_CLOUDY; // mainly clear / partly cloudy
+                return BleManager.WEATHER_CLOUDY; // partly cloudy (2)
             case 3:
-                return BleManager.WEATHER_OVERCAST;
+                return BleManager.WEATHER_OVERCAST; // overcast (3)
             case 45:
             case 48:
-                return BleManager.WEATHER_FOGGY;
+                return BleManager.WEATHER_FOGGY; // foggy (9)
+            case 51:
+            case 53:
+            case 55:
+                return BleManager.WEATHER_DRIZZLE; // drizzle (13)
+            case 61:
+            case 63:
+                return BleManager.WEATHER_RAINY; // rainy (4)
+            case 65:
+            case 66:
+            case 67:
+            case 80:
+            case 81:
+            case 82:
+                return BleManager.WEATHER_HEAVY_RAIN; // heavy rain (14)
+            case 71:
+            case 73:
+                return BleManager.WEATHER_LIGHT_SNOW; // light snow (16)
+            case 75:
+            case 77:
+            case 85:
+            case 86:
+                return BleManager.WEATHER_HEAVY_SNOW; // heavy snow (17)
             case 95:
-                return BleManager.WEATHER_THUNDER;
+                return BleManager.WEATHER_THUNDER; // thunder (5)
             case 96:
             case 99:
-                return BleManager.WEATHER_THUNDERSHOWER;
+                return BleManager.WEATHER_THUNDERSHOWER; // thundershower (6)
             default:
                 break;
         }
-        if ((wmo >= 51 && wmo <= 67) || (wmo >= 80 && wmo <= 82))
-            return BleManager.WEATHER_RAINY;
-        if ((wmo >= 71 && wmo <= 77) || (wmo >= 85 && wmo <= 86))
-            return BleManager.WEATHER_SNOWY;
         return BleManager.WEATHER_OTHER;
     }
 }

@@ -1174,6 +1174,114 @@ public class BleManager {
             return;
         }
 
+        // Daily goals (STEP 0x0207, CALORIES 0x0239, DISTANCE 0x023A, SLEEP
+        // 0x023B). The watch keeps its own copies and the original app reads
+        // them on every connect, so a READ reply is the authority — the phone's
+        // prefs follow it rather than the other way round.
+        if (isReply && cmd == 0x02 && flag == (byte) BleKeyFlag.READ.getValue()
+                && (key == 0x07 || key == 0x39 || key == 0x3A || key == 0x3B)) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 2) {
+                int value = 0;
+                for (byte b : body)
+                    value = (value << 8) | (b & 0xFF);
+                storeGoal(key & 0xFF, value);
+            }
+            return;
+        }
+
+        // Heart-rate alarm (HR_WARNING_SET 0x023F) — 4 bytes.
+        if (isReply && cmd == 0x02 && (key & 0xFF) == 0x3F) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 4) {
+                log("Rx HR_WARNING high=" + (body[0] != 0) + "/" + (body[1] & 0xFF)
+                        + " low=" + (body[2] != 0) + "/" + (body[3] & 0xFF));
+                prefs.edit()
+                        .putBoolean("hr_warn_high_on", body[0] != 0)
+                        .putInt("hr_warn_high", body[1] & 0xFF)
+                        .putBoolean("hr_warn_low_on", body[2] != 0)
+                        .putInt("hr_warn_low", body[3] & 0xFF)
+                        .apply();
+                notifyWatchSettings();
+            }
+            return;
+        }
+
+        // Hand-wash reminder (WASH_SET 0x0226) — same 6-byte shape as the
+        // sedentary and drink-water reminders.
+        if (isReply && cmd == 0x02 && (key & 0xFF) == 0x26) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 6) {
+                log("Rx WASH raw=" + bytesToHex(body));
+                storeReminder(0x26, body);
+                notifyWatchSettings();
+            }
+            return;
+        }
+
+        // Watch password (0x0235): enabled byte + four characters.
+        if (isReply && cmd == 0x02 && (key & 0xFF) == 0x35) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 5) {
+                StringBuilder pw = new StringBuilder();
+                for (int i = 1; i < 5; i++)
+                    if ((body[i] & 0xFF) != 0xFF) pw.append((char) (body[i] & 0xFF));
+                log("Rx WATCH_PASSWORD enabled=" + (body[0] != 0) + " len=" + pw.length());
+                prefs.edit()
+                        .putBoolean("watch_password_on", body[0] != 0)
+                        .putString("watch_password", pw.toString())
+                        .apply();
+                notifyWatchSettings();
+            }
+            return;
+        }
+
+        // SOS (0x024E): enabled byte, number length, then the fixed field.
+        if (isReply && cmd == 0x02 && (key & 0xFF) == 0x4E) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 2) {
+                int len = Math.min(body[1] & 0xFF, Math.max(0, body.length - 2));
+                StringBuilder phone = new StringBuilder();
+                for (int i = 0; i < len; i++) {
+                    int c = body[2 + i] & 0xFF;
+                    if (c != 0xFF && c != 0) phone.append((char) c);
+                }
+                log("Rx SOS enabled=" + (body[0] != 0) + " phone=" + phone.length() + " digits");
+                prefs.edit()
+                        .putBoolean("sos_on", body[0] != 0)
+                        .putString("sos_phone", phone.toString())
+                        .apply();
+                notifyWatchSettings();
+            }
+            return;
+        }
+
+        // Game-time reminder (0x0251): enabled byte + minutes.
+        if (isReply && cmd == 0x02 && (key & 0xFF) == 0x51) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 2) {
+                log("Rx GAME_TIME enabled=" + (body[0] != 0) + " after " + (body[1] & 0xFF) + "min");
+                prefs.edit()
+                        .putBoolean("game_time_on", body[0] != 0)
+                        .putInt("game_time_min", body[1] & 0xFF)
+                        .apply();
+                notifyWatchSettings();
+            }
+            return;
+        }
+
+        // Vibration repeats (0x020B, 0-3) and unit system (0x0211, 0 metric).
+        if (isReply && cmd == 0x02 && ((key & 0xFF) == 0x0B || (key & 0xFF) == 0x11)) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 1) {
+                int v = body[0] & 0xFF;
+                log("Rx " + ((key & 0xFF) == 0x0B ? "VIBRATION" : "UNIT_SET") + "=" + v);
+                prefs.edit().putInt((key & 0xFF) == 0x0B ? "watch_vibration" : "watch_units", v).apply();
+                notifyWatchSettings();
+            }
+            return;
+        }
+
         // User profile READ reply (Cmd=0x02, Key=0x06, FLAG=READ).
         if (isReply && cmd == 0x02 && key == 0x06 && flag == BleKeyFlag.READ.getValue()
                 && data.length >= 20) {
@@ -1380,7 +1488,7 @@ public class BleManager {
         // the stored setting, which is what the rows render from (the watch is
         // the source of truth, as it is for alarms).
         if (isReply && cmd == 0x02
-                && (key == 0x34 || key == 0x16 || key == 0x25 || key == 0x40)) {
+                && (key == 0x34 || key == 0x16 || key == 0x25 || key == 0x40 || key == 0x1B)) {
             byte[] body = Arrays.copyOfRange(data, 9, data.length);
             if (body.length >= 5 && key != 0x34) {
                 boolean on = body[0] != 0;
@@ -1410,6 +1518,112 @@ public class BleManager {
             if (cameraListener != null) {
                 handler.post(() -> cameraListener.onShutter());
             }
+            return;
+        }
+
+        // Standby watch face (STANDBY_WATCH_FACE_SET 0x0254). A READ comes back
+        // with the eight bytes the watch has stored, which is what the row
+        // renders from; a write is answered with a bodyless ACK. Firmware that
+        // does not implement the key answers everything with an empty body,
+        // and that is the case we have to tell apart from a real ACK — see
+        // sendStandby() for why the master switch travels separately.
+        if (cmd == 0x02 && (key & 0xFF) == 0x54) {
+            byte[] body = data.length > 9 ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (body.length >= 7) {
+                standbyScheduleSupported = true;
+                boolean on = body[0] != 0;
+                boolean allDay = body[1] != 0;
+                int sh = body[3] & 0xFF, sm = body[4] & 0xFF;
+                int eh = body[5] & 0xFF, em = body[6] & 0xFF;
+                log("Rx STANDBY_WATCH_FACE enabled=" + on + " allDay=" + allDay
+                        + " " + sh + ":" + sm + "-" + eh + ":" + em
+                        + "  raw=" + bytesToHex(body));
+                prefs.edit()
+                        .putBoolean("standby_enabled", on)
+                        .putBoolean("standby_allday", allDay)
+                        .putInt("standby_sh", sh).putInt("standby_sm", sm)
+                        .putInt("standby_eh", eh).putInt("standby_em", em)
+                        .apply();
+                MonitoringListener ml = monitoringListener;
+                if (ml != null)
+                    handler.post(ml::onMonitoringChanged);
+            } else if ((flag & 0xFF) == BleKeyFlag.READ.getValue() && isReply) {
+                // An empty answer to a READ is this firmware saying it has no
+                // such setting; the schedule half of the row stays local-only.
+                standbyScheduleSupported = false;
+                log("Rx STANDBY_WATCH_FACE: empty — key not implemented by this firmware");
+            } else {
+                log("Rx STANDBY_WATCH_FACE ack flag=0x" + String.format("%02X", flag));
+            }
+            if (!isReply) sendAck(cmd, key, flag);
+            return;
+        }
+
+        // Reminders / Health Settings (Sedentary 0x0209, Drink Water 0x0221, Wash 0x0228,
+        // Girl Care 0x021A, Standby Set 0x0241 — 0x0254 is handled above).
+        //
+        // A write comes back as a bodyless ACK; a READ comes back with what the
+        // watch actually stored, which is the only way to tell an accepted frame
+        // from an understood one — the watch ACKs 0x09/0x21 either way.
+        if (cmd == 0x02 && (key == 0x09 || key == 0x21 || key == 0x28 || key == 0x1A || (key & 0xFF) == 0x41)) {
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            if (isReply && flag == (byte) BleKeyFlag.READ.getValue() && body.length > 0) {
+                log("Rx reminder key=0x" + String.format("%02X", key)
+                        + " len=" + body.length + " raw=" + bytesToHex(body));
+                if ((key == 0x09 || key == 0x21) && body.length >= 6) {
+                    storeReminder(key & 0xFF, body);
+                    MonitoringListener ml = monitoringListener;
+                    if (ml != null)
+                        handler.post(ml::onMonitoringChanged);
+                }
+            } else {
+                log("Rx settings ack key=0x" + String.format("%02X", key) + " flag=0x" + String.format("%02X", flag));
+            }
+            if (!isReply) sendAck(cmd, key, flag);
+            return;
+        }
+
+        // World Clock (0x0407)
+        //
+        // Three different things arrive under this key and they have to be told
+        // apart by direction, not by flag alone:
+        //   * watch -> phone DELETE with a one-byte body: the user removed a
+        //     city on the watch.
+        //   * reply DELETE/CREATE with no body: the plain ACK for the reset and
+        //     the pushes syncToWatch() just sent. Treating those as "the watch
+        //     deleted id=-1" is what filled the log with bogus delete attempts.
+        //   * reply READ/READ_CONTINUE: one page of the list, see
+        //     onWorldClockPage().
+        if (cmd == 0x04 && key == 0x07) {
+            int f = flag & 0xFF;
+            byte[] body = (data.length > 9) ? Arrays.copyOfRange(data, 9, data.length) : new byte[0];
+            log("Rx WORLD_CLOCK flag=0x" + String.format("%02X", f) + " isReply=" + isReply
+                    + " body=" + body.length + "B");
+            if (!isReply && f == BleKeyFlag.DELETE.getValue() && body.length >= 1) {
+                int id = body[0] & 0xFF;
+                log("Watch deleted WORLD_CLOCK id=" + id);
+                WorldClockManager.deleteClockById(context, id);
+                sendAck(cmd, key, flag);
+                return;
+            }
+            if (isReply && (f == BleKeyFlag.READ.getValue() || f == BleKeyFlag.READ_CONTINUE.getValue())) {
+                onWorldClockPage(body);
+                return;
+            }
+            if (!isReply) sendAck(cmd, key, flag);
+            return;
+        }
+
+        // Stock Market (0x0408)
+        if (cmd == 0x04 && key == 0x08) {
+            int f = flag & 0xFF;
+            log("Rx STOCK flag=0x" + String.format("%02X", f) + " isReply=" + isReply);
+            if (f == BleKeyFlag.DELETE.getValue()) {
+                int id = (data.length > 9) ? (data[9] & 0xFF) : -1;
+                log("Watch deleted STOCK id=" + id);
+                StockMarketManager.deleteStockById(context, id);
+            }
+            if (!isReply) sendAck(cmd, key, flag);
             return;
         }
 
@@ -1735,8 +1949,7 @@ public class BleManager {
         handler.removeCallbacks(healthTimeoutRunnable);
         handler.postDelayed(healthTimeoutRunnable, HEALTH_RESPONSE_TIMEOUT_MS);
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     /**
@@ -2309,8 +2522,7 @@ public class BleManager {
         byte[] msg = createMessageWithHeader((byte) 0x11, cmd, key, flag, new byte[] { 0x00 });
         log("Tx ACK: " + bytesToHex(msg));
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     private int calculateCrc16(byte[] data, int offset) {
@@ -2339,6 +2551,18 @@ public class BleManager {
      * The guard matters for the keys that enqueue several frames at once:
      * kicking a write that is already outstanding would race the GATT write
      * callback, which is what advances the queue.
+     */
+    /**
+     * Start draining the queue if nothing is in flight.
+     *
+     * Every sender goes through here. Kicking {@link #sendNextChunk()} by hand
+     * while a write is already outstanding starts a second
+     * {@code writeCharacteristic} on the same characteristic, and the two race:
+     * one logical frame is written over and never reaches the watch, while the
+     * GATT callback still advances the queue once. That is what silently ate
+     * the STEP_GOAL frame in syncUserProfileAndGoals(), which enqueues the
+     * profile and four goals and then kicked the queue a second time — the
+     * watch ACKed 0x06, 0x39, 0x3A and 0x3B, and 0x07 simply vanished.
      */
     private void flushQueue() {
         if (!isSending) {
@@ -2459,8 +2683,7 @@ public class BleManager {
         log("Syncing time: " + cal.getTime());
         byte[] timeMsg = createMessage((byte) 0x02, (byte) 0x01, (byte) 0x00, timePayload);
         enqueueLogicalFrame(timeMsg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     public void readBattery() {
@@ -2468,8 +2691,7 @@ public class BleManager {
         log("Reading battery level...");
         byte[] msg = createMessage((byte) 0x02, (byte) 0x03, (byte) 0x10, null);
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     public void readDeviceInfo() {
@@ -2477,8 +2699,7 @@ public class BleManager {
         log("Reading device info (0x023E)...");
         byte[] msg = createMessage((byte) 0x02, (byte) 0x3E, (byte) 0x10, null);
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     /** Capability block from the last DEVICE_INFO reply, or null before one arrives. */
@@ -2590,8 +2811,7 @@ public class BleManager {
         log("Reading firmware version (0x0204)...");
         byte[] msg = createMessage((byte) 0x02, (byte) 0x04, (byte) 0x10, null);
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     /**
@@ -2608,9 +2828,10 @@ public class BleManager {
         sendTime();
         sendHourSystem();
         sendUserProfile();
-        sendStepGoal();
-        isSending = true;
-        sendNextChunk();
+        // The step goal rides along with the other three in syncReminders() ->
+        // sendGoals(); sending it here as well just doubled the frame.
+        syncReminders();
+        flushQueue();
         // Read the profile back so a firmware that accepts the frame but
         // decodes it differently shows up in the log instead of silently
         // skewing every calorie figure the watch reports afterwards.
@@ -2688,6 +2909,189 @@ public class BleManager {
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x07, (byte) 0x00, payload));
     }
 
+    // ===== Daily goals =====
+    //
+    // Four keys, all big-endian integers, all owned by the watch: the original
+    // app reads calories and distance on every connect and never writes them.
+    // The units are fixed by what a Kronos returns for its own defaults —
+    // 10000 steps, 4000 (4 km), 480 (8 h) — so distance is metres and sleep is
+    // minutes. Calories reads 300000 against a 300 kcal default, i.e. small
+    // calories, which is why the phone's kcal figure is scaled by 1000.
+
+    private static final int CAL_PER_KCAL = 1000;
+
+    private void storeGoal(int key, int value) {
+        SharedPreferences.Editor e = prefs.edit();
+        switch (key) {
+            case 0x07: e.putInt("goal_steps", value); break;
+            case 0x39: e.putInt("goal_calories", Math.max(1, value / CAL_PER_KCAL)); break;
+            case 0x3A: e.putInt("goal_distance", Math.max(1, value / 1000)); break;
+            case 0x3B: e.putInt("goal_sleep_min", value); break;
+            default: return;
+        }
+        log("Rx goal key=0x" + String.format("%02X", key) + " raw=" + value);
+        e.apply();
+        notifyWatchSettings();
+    }
+
+    /** Push the three goals the step goal used to travel without. */
+    public void sendGoals() {
+        if (!isSessionReady()) return;
+        sendStepGoal();
+
+        int kcal = clamp(prefs.getInt("goal_calories", 500), 1, 20000);
+        int km = clamp(prefs.getInt("goal_distance", 5), 1, 500);
+        int sleepMin = clamp(prefs.getInt("goal_sleep_min", 480), 1, 1440);
+
+        log("Tx GOALS calories=" + kcal + "kcal distance=" + km + "km sleep=" + sleepMin + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x39, (byte) 0x00,
+                ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(kcal * CAL_PER_KCAL).array()));
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x3A, (byte) 0x00,
+                ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(km * 1000).array()));
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x3B, (byte) 0x00,
+                ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort((short) sleepMin).array()));
+        flushQueue();
+    }
+
+    /**
+     * Read the goals back after pushing them.
+     *
+     * All four round-trip, the step goal included: `Tx STEP_GOAL: 8000` comes
+     * back as `raw=8000`. It looked pinned at 10000 for a while, but that was
+     * this app losing the frame — syncUserProfileAndGoals() used to kick the
+     * write queue by hand on top of a flush already in progress, and 0x0207 was
+     * the frame that got overwritten. See flushQueue().
+     */
+    public void readGoals() {
+        if (!isSessionReady()) return;
+        for (int key : new int[] { 0x07, 0x39, 0x3A, 0x3B })
+            enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
+                    (byte) BleKeyFlag.READ.getValue(), new byte[0]));
+        flushQueue();
+    }
+
+    // ===== Watch-side settings the app did not expose =====
+
+    /**
+     * Heart-rate alarm (HR_WARNING_SET 0x023F) — `BleHrWarningSettings` is four
+     * bytes: high switch, high bpm, low switch, low bpm.
+     */
+    public void sendHrWarning(boolean highOn, int highBpm, boolean lowOn, int lowBpm) {
+        if (!isSessionReady()) return;
+        byte[] payload = {
+                (byte) (highOn ? 1 : 0), (byte) clamp(highBpm, 80, 220),
+                (byte) (lowOn ? 1 : 0), (byte) clamp(lowBpm, 30, 100)
+        };
+        log("Tx HR_WARNING high=" + highOn + "/" + highBpm + " low=" + lowOn + "/" + lowBpm);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x3F, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /** How many times the watch buzzes for a notification: 0 = off, 1-3 times. */
+    public void sendVibration(int times) {
+        if (!isSessionReady()) return;
+        log("Tx VIBRATION=" + times);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x0B, (byte) 0x00,
+                new byte[] { (byte) clamp(times, 0, 3) }));
+        flushQueue();
+    }
+
+    /** Unit system shown on the watch: 0 = metric, 1 = imperial. */
+    public void sendUnits(int unit) {
+        if (!isSessionReady()) return;
+        log("Tx UNIT_SET=" + unit);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x11, (byte) 0x00,
+                new byte[] { (byte) clamp(unit, 0, 1) }));
+        flushQueue();
+    }
+
+    /**
+     * Watch password (SET_WATCH_PASSWORD 0x0235). `BleSettingWatchPassword` is
+     * one enabled byte followed by a fixed four-character string, which is what
+     * the watch returns as `00 FF FF FF FF` when no password is set.
+     */
+    public void sendWatchPassword(boolean enabled, String password) {
+        if (!isSessionReady()) return;
+        byte[] payload = new byte[5];
+        payload[0] = (byte) (enabled ? 1 : 0);
+        // 0xFF is what the watch itself stores for an unset digit.
+        Arrays.fill(payload, 1, 5, (byte) 0xFF);
+        if (password != null) {
+            byte[] digits = password.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+            System.arraycopy(digits, 0, payload, 1, Math.min(digits.length, 4));
+        }
+        log("Tx SET_WATCH_PASSWORD enabled=" + enabled);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x35, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Game-time reminder (GAME_TIME_REMINDER 0x0251) — `BleGameTimeReminder` is
+     * an enabled byte plus the minutes after which the watch nags.
+     */
+    public void sendGameTimeReminder(boolean enabled, int minutes) {
+        if (!isSessionReady()) return;
+        byte[] payload = { (byte) (enabled ? 1 : 0), (byte) clamp(minutes, 1, 240) };
+        log("Tx GAME_TIME_REMINDER enabled=" + enabled + " after " + minutes + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x51, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Power the watch off (SHUTDOWN 0x0222). One byte; there is no undo from
+     * the phone, so the caller is expected to have confirmed with the user.
+     */
+    public void sendShutdown() {
+        if (!isSessionReady()) return;
+        log("Tx SHUTDOWN");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x22, (byte) 0x00, new byte[] { 1 }));
+        flushQueue();
+    }
+
+    /**
+     * SOS (SOS_SET 0x024E). `BleSOSSettings` is an enabled byte, the phone
+     * number's length, then the number itself in a fixed 18-byte field. The
+     * watch pads unused bytes with 0xFF, which is how an unconfigured SOS reads
+     * back as `00 00` followed by eighteen 0xFF.
+     */
+    public void sendSos(boolean enabled, String phone) {
+        if (!isSessionReady()) return;
+        String number = (phone == null) ? "" : phone.trim();
+        byte[] digits = number.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        int len = Math.min(digits.length, SOS_PHONE_LENGTH);
+
+        byte[] payload = new byte[2 + SOS_PHONE_LENGTH];
+        payload[0] = (byte) (enabled ? 1 : 0);
+        payload[1] = (byte) len;
+        Arrays.fill(payload, 2, payload.length, (byte) 0xFF);
+        System.arraycopy(digits, 0, payload, 2, len);
+
+        log("Tx SOS_SET enabled=" + enabled + " len=" + len);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x4E, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    private static final int SOS_PHONE_LENGTH = 18;
+
+    public void readWatchSettings() {
+        if (!isSessionReady()) return;
+        for (int key : new int[] { 0x0B, 0x11, 0x1B, 0x26, 0x35, 0x3F, 0x4E, 0x51 })
+            enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
+                    (byte) BleKeyFlag.READ.getValue(), new byte[0]));
+        flushQueue();
+    }
+
+    private static int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    /** The rows render from prefs; this is what tells them the watch spoke. */
+    private void notifyWatchSettings() {
+        MonitoringListener ml = monitoringListener;
+        if (ml != null)
+            handler.post(ml::onMonitoringChanged);
+    }
+
     /**
      * READ USER_PROFILE (0x0206). The watch echoes the same 11-byte layout, so
      * this is what confirms the little-endian floats were understood rather
@@ -2697,8 +3101,7 @@ public class BleManager {
         if (!isSessionReady()) return;
         log("Reading user profile (0x0206)...");
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x06, (byte) 0x10, null));
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     /**
@@ -2708,10 +3111,12 @@ public class BleManager {
     public void syncUserProfileAndGoals() {
         if (!isSessionReady()) return;
         sendUserProfile();
-        sendStepGoal();
-        isSending = true;
-        sendNextChunk();
+        sendGoals();
+        flushQueue();
         handler.postDelayed(this::readUserProfile, 600);
+        // Read the goals back: the watch is the authority, so if it clamps or
+        // ignores one of them the phone's fields correct themselves.
+        handler.postDelayed(this::readGoals, 1200);
     }
 
     /**
@@ -2781,44 +3186,65 @@ public class BleManager {
     public static final int WEATHER_OTHER = 0, WEATHER_SUNNY = 1, WEATHER_CLOUDY = 2,
             WEATHER_OVERCAST = 3, WEATHER_RAINY = 4, WEATHER_THUNDER = 5,
             WEATHER_THUNDERSHOWER = 6, WEATHER_HIGH_WIND = 7, WEATHER_SNOWY = 8,
-            WEATHER_FOGGY = 9, WEATHER_SANDSTORM = 10, WEATHER_HAZE = 11;
+            WEATHER_FOGGY = 9, WEATHER_SANDSTORM = 10, WEATHER_HAZE = 11,
+            WEATHER_WIND = 12, WEATHER_DRIZZLE = 13, WEATHER_HEAVY_RAIN = 14,
+            WEATHER_LIGHTNING = 15, WEATHER_LIGHT_SNOW = 16, WEATHER_HEAVY_SNOW = 17,
+            WEATHER_SLEET = 18, WEATHER_TORNADO = 19, WEATHER_SNOWSTORM = 20;
 
-    /** One BleWeather record (10 bytes once encoded). All temps in °C. */
+    /** One BleWeather record. All temps in °C. */
     public static class WeatherDay {
-        public int conditionCode; // 0..11 (see WEATHER_* constants)
+        public int conditionCode; // 0..20 (see WEATHER_* constants)
         public int tempCurrent;
-        public int tempLow;
         public int tempHigh;
+        public int tempLow;
         public int windSpeed;     // km/h
         public int humidity;      // %
         public int visibility;    // km
         public int uvIndex;
-        public int precipitation; // % (0..100), encoded as int16 LE
+        public int precipitation; // mm of rain (for watch wire protocol)
+        public int popProbability; // % probability of precipitation (for app UI)
+        public int sunriseH, sunriseM, sunriseS;
+        public int sunsetH, sunsetM, sunsetS;
+        public int aqi;
 
-        public WeatherDay(int conditionCode, int tempCurrent, int tempLow, int tempHigh) {
-            this(conditionCode, tempCurrent, tempLow, tempHigh, 0, 0, 0, 0, 0);
+        public WeatherDay(int conditionCode, int tempCurrent, int tempHigh, int tempLow) {
+            this(conditionCode, tempCurrent, tempHigh, tempLow, 0, 0, 0, 0, 0, 0, 6, 0, 0, 19, 0, 0, 0);
         }
 
-        public WeatherDay(int conditionCode, int tempCurrent, int tempLow, int tempHigh,
+        public WeatherDay(int conditionCode, int tempCurrent, int tempHigh, int tempLow,
                 int windSpeed, int humidity, int visibility, int uvIndex, int precipitation) {
+            this(conditionCode, tempCurrent, tempHigh, tempLow, windSpeed, humidity, visibility, uvIndex, precipitation, precipitation, 6, 0, 0, 19, 0, 0, 0);
+        }
+
+        public WeatherDay(int conditionCode, int tempCurrent, int tempHigh, int tempLow,
+                int windSpeed, int humidity, int visibility, int uvIndex, int precipitation, int popProbability,
+                int sunriseH, int sunriseM, int sunriseS, int sunsetH, int sunsetM, int sunsetS, int aqi) {
             this.conditionCode = conditionCode;
             this.tempCurrent = tempCurrent;
-            this.tempLow = tempLow;
             this.tempHigh = tempHigh;
+            this.tempLow = tempLow;
             this.windSpeed = windSpeed;
             this.humidity = humidity;
             this.visibility = visibility;
             this.uvIndex = uvIndex;
             this.precipitation = precipitation;
+            this.popProbability = popProbability;
+            this.sunriseH = sunriseH;
+            this.sunriseM = sunriseM;
+            this.sunriseS = sunriseS;
+            this.sunsetH = sunsetH;
+            this.sunsetM = sunsetM;
+            this.sunsetS = sunsetS;
+            this.aqi = aqi;
         }
     }
 
-    /** Appends a 10-byte BleWeather record. precipitation is int16 little-endian. */
-    private void putBleWeather(ByteBuffer buf, WeatherDay d) {
-        buf.put((byte) d.tempCurrent);
+    /** Appends a 10-byte BleWeather record (V1). */
+    private void putBleWeather(ByteBuffer buf, WeatherDay d, boolean isRealtime) {
+        buf.put((byte) (isRealtime ? d.tempCurrent : 0));
         buf.put((byte) d.tempHigh);
         buf.put((byte) d.tempLow);
-        buf.put((byte) d.conditionCode);
+        buf.put((byte) (d.conditionCode & 0xFF));
         buf.put((byte) d.windSpeed);
         buf.put((byte) d.humidity);
         buf.put((byte) d.visibility);
@@ -2827,11 +3253,49 @@ public class BleManager {
         buf.put((byte) ((d.precipitation >> 8) & 0xFF)); // LE high byte
     }
 
+    /** Appends a 20-byte BleWeather2 record (V2). */
+    private void putBleWeather2(ByteBuffer buf, WeatherDay d, boolean isRealtime) {
+        buf.put((byte) (isRealtime ? d.tempCurrent : 0));
+        buf.put((byte) d.tempHigh);
+        buf.put((byte) d.tempLow);
+        // mWeatherCode (int16 Little-Endian)
+        buf.put((byte) (d.conditionCode & 0xFF));
+        buf.put((byte) ((d.conditionCode >> 8) & 0xFF));
+        buf.put((byte) d.windSpeed);
+        buf.put((byte) d.humidity);
+        buf.put((byte) d.visibility);
+        buf.put((byte) d.uvIndex);
+        // mPrecipitation (int16 Little-Endian)
+        buf.put((byte) (d.precipitation & 0xFF));
+        buf.put((byte) ((d.precipitation >> 8) & 0xFF));
+        buf.put((byte) d.sunriseH);
+        buf.put((byte) d.sunriseM);
+        buf.put((byte) d.sunriseS);
+        buf.put((byte) d.sunsetH);
+        buf.put((byte) d.sunsetM);
+        buf.put((byte) d.sunsetS);
+        // mAQI / Altitude (int16 Little-Endian)
+        buf.put((byte) (d.aqi & 0xFF));
+        buf.put((byte) ((d.aqi >> 8) & 0xFF));
+        // Padding
+        buf.put((byte) 0x00);
+    }
+
+    private void putCityName66(ByteBuffer buf, String city) {
+        byte[] raw = (city != null) ? city.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        int len = Math.min(raw.length, 66);
+        buf.put(raw, 0, len);
+        for (int i = len; i < 66; i++) {
+            buf.put((byte) 0);
+        }
+    }
+
     /**
-     * Push current weather (today) + a 3-day forecast to the watch.
+     * Push current weather (today) + 7-day forecast to the watch using both V2 (0x040C/0x040D)
+     * and V1 (0x0404/0x0405) protocols.
      *
-     * @param days today first, then the next days (forecast uses up to 3)
-     * @param city ignored by this protocol variant (kept for the public API)
+     * @param days today first, then the next days (forecast uses up to 7)
+     * @param city City name (encoded in V2 packets)
      */
     public void sendWeather(List<WeatherDay> days, String city) {
         if (!isSessionReady() || days == null || days.isEmpty()) {
@@ -2840,28 +3304,44 @@ public class BleManager {
         }
         Calendar now = Calendar.getInstance();
 
-        // --- WEATHER_REALTIME (0x0404): BleTime + BleWeather (16 bytes) ---
+        // --- 1. WEATHER_REALTIME2 (0x040C, UPDATE 0x00): BleTime(6) + City(66) + BleWeather2(20) = 92 B ---
+        ByteBuffer rt2 = ByteBuffer.allocate(92);
+        rt2.order(ByteOrder.BIG_ENDIAN);
+        putBleTime(rt2, now);
+        putCityName66(rt2, city);
+        putBleWeather2(rt2, days.get(0), true);
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x0C, (byte) 0x00, rt2.array()));
+        log("Tx WEATHER_REALTIME2 city='" + city + "' cur=" + days.get(0).tempCurrent + "°C hi=" + days.get(0).tempHigh + "°C lo=" + days.get(0).tempLow + "°C");
+
+        // --- 2. WEATHER_FORECAST2 (0x040D, UPDATE 0x00): BleTime(6) + City(66) + 7 x BleWeather2(20) = 212 B ---
+        ByteBuffer fc2 = ByteBuffer.allocate(212);
+        fc2.order(ByteOrder.BIG_ENDIAN);
+        putBleTime(fc2, now);
+        putCityName66(fc2, city);
+        for (int i = 0; i < 7; i++) {
+            WeatherDay d = days.get(Math.min(i, days.size() - 1));
+            putBleWeather2(fc2, d, i == 0);
+        }
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x0D, (byte) 0x00, fc2.array()));
+        log("Tx WEATHER_FORECAST2 (" + Math.min(days.size(), 7) + " days)");
+
+        // --- 3. V1 fallback: WEATHER_REALTIME (0x0404, 16 B) & WEATHER_FORECAST (0x0405, 36 B) ---
         ByteBuffer rt = ByteBuffer.allocate(16);
         rt.order(ByteOrder.BIG_ENDIAN);
         putBleTime(rt, now);
-        putBleWeather(rt, days.get(0));
+        putBleWeather(rt, days.get(0), true);
         enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x04, (byte) 0x00, rt.array()));
-        log("Tx WEATHER_REALTIME: " + bytesToHex(rt.array()));
 
-        // --- WEATHER_FORECAST (0x0405): BleTime + 3 x BleWeather (36 bytes) ---
         ByteBuffer fc = ByteBuffer.allocate(36);
         fc.order(ByteOrder.BIG_ENDIAN);
         putBleTime(fc, now);
         for (int i = 0; i < 3; i++) {
-            // Repeat the last available day if fewer than 3 were supplied.
             WeatherDay d = days.get(Math.min(i, days.size() - 1));
-            putBleWeather(fc, d);
+            putBleWeather(fc, d, i == 0);
         }
         enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x05, (byte) 0x00, fc.array()));
-        log("Tx WEATHER_FORECAST: " + bytesToHex(fc.array()));
 
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     /** Convenience hook for the UI: fetch current weather and push it to the watch. */
@@ -2911,8 +3391,7 @@ public class BleManager {
         byte[] msg = createMessage((byte) 0x06, (byte) 0x01, (byte) 0x00, new byte[] { (byte) state });
         log("Tx CAMERA state=" + state);
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     // ===== Incoming calls (INCOMING_CALL 0x0603) =====
@@ -2998,6 +3477,7 @@ public class BleManager {
     public static String monitoringPref(int key) {
         switch (key) {
             case 0x16: return "hr_monitoring";
+            case 0x1B: return "temp_monitoring";
             case 0x25: return "spo2_monitoring";
             case 0x40: return "sleep_monitoring";
             default:   return "monitoring_" + key;
@@ -3084,6 +3564,17 @@ public class BleManager {
     }
 
     /** Automatic heart-rate sampling (HR_MONITORING 0x0216). */
+    /**
+     * Automatic temperature measurement (TEMPERATURE_DETECTING 0x021B).
+     * `BleTemperatureDetecting` is a BleTimeRange plus the interval — the same
+     * six bytes as the HR and SpO2 windows.
+     */
+    public void sendTemperatureMonitoring(boolean enabled, int startHour, int startMinute,
+                                          int endHour, int endMinute, int intervalMinutes) {
+        sendMonitoringWindow(0x1B, "TEMPERATURE_DETECTING", enabled,
+                startHour, startMinute, endHour, endMinute, intervalMinutes);
+    }
+
     public void sendHeartRateMonitoring(boolean enabled, int startHour, int startMinute,
                                         int endHour, int endMinute, int intervalMinutes) {
         sendMonitoringWindow(0x16, "HR_MONITORING", enabled, startHour, startMinute,
@@ -3124,6 +3615,479 @@ public class BleManager {
         enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
                 (byte) BleKeyFlag.READ.getValue(), new byte[0]));
         flushQueue();
+    }
+
+    // ===== Health Reminders & Girl Care =====
+
+    /** Pref prefix the reminder rows in DeviceFragment read from. */
+    private static String reminderPref(int key) {
+        switch (key) {
+            case 0x09: return "set_sedentary";
+            case 0x26: return "wash";
+            default:   return "drink_water";
+        }
+    }
+
+    /**
+     * Adopt what the watch reports for a reminder key, in the same shape the
+     * phone writes it: [enabled<<7 | weekday mask, startH, startM, endH, endM,
+     * interval].
+     */
+    private void storeReminder(int key, byte[] body) {
+        String p = reminderPref(key);
+        int b0 = body[0] & 0xFF;
+        boolean on = (b0 & 0x80) != 0;
+        int repeat = b0 & 0x7F;
+        int interval = body[5] & 0xFF;
+        log("Rx reminder [" + p + "] enabled=" + on + " repeat=0x" + Integer.toHexString(repeat)
+                + " " + (body[1] & 0xFF) + ":" + (body[2] & 0xFF)
+                + "-" + (body[3] & 0xFF) + ":" + (body[4] & 0xFF)
+                + " every " + interval + "min");
+        SharedPreferences.Editor e = prefs.edit()
+                .putBoolean(p + "_on", on)
+                .putInt(p + "_sh", body[1] & 0xFF).putInt(p + "_sm", body[2] & 0xFF)
+                .putInt(p + "_eh", body[3] & 0xFF).putInt(p + "_em", body[4] & 0xFF);
+        if (repeat != 0)
+            e.putInt(p + "_repeat", repeat);
+        if (interval > 0)
+            e.putInt(p + "_interval", interval);
+        if (key == 0x09)
+            e.putBoolean("set_sedentary", on); // legacy key the row still falls back to
+        e.apply();
+    }
+
+    /** Ask the watch for the reminder settings it is actually running. */
+    public void readReminders() {
+        if (!isSessionReady())
+            return;
+        log("Tx reminder READ 0x09/0x21/0x26/0x1A");
+        for (int key : new int[] { 0x09, 0x21, 0x26, 0x1A }) {
+            enqueueLogicalFrame(createMessage((byte) 0x02, (byte) key,
+                    (byte) BleKeyFlag.READ.getValue(), new byte[0]));
+        }
+        flushQueue();
+    }
+
+    /**
+     * Sedentary Reminder (SEDENTARINESS 0x0209) — 6 bytes.
+     * Byte 0: [bit 7: enabled (1), bits 0-6: repeat mask (0x7F = everyday)]
+     * Byte 1: startHour
+     * Byte 2: startMinute
+     * Byte 3: endHour
+     * Byte 4: endMinute
+     * Byte 5: interval (minutes)
+     */
+    public void sendSedentariness(boolean enabled, int repeat, int startHour, int startMinute,
+                                 int endHour, int endMinute, int intervalMinutes) {
+        if (!isSessionReady()) return;
+        byte b0 = (byte) ((enabled ? 0x80 : 0x00) | (repeat & 0x7F));
+        byte[] payload = {
+                b0,
+                (byte) startHour, (byte) startMinute,
+                (byte) endHour, (byte) endMinute,
+                (byte) Math.max(intervalMinutes, 15)
+        };
+        log("Tx SEDENTARINESS enabled=" + enabled + " repeat=0x" + Integer.toHexString(repeat)
+                + " " + startHour + ":" + startMinute + "-" + endHour + ":" + endMinute
+                + " every " + intervalMinutes + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x09, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Drink Water Reminder (DRINK_WATER 0x0221) — 6 bytes.
+     * Byte 0: [bit 7: enabled (1), bits 0-6: repeat mask (0x7F = everyday)]
+     * Byte 1: startHour
+     * Byte 2: startMinute
+     * Byte 3: endHour
+     * Byte 4: endMinute
+     * Byte 5: interval (minutes)
+     */
+    public void sendDrinkWater(boolean enabled, int repeat, int startHour, int startMinute,
+                               int endHour, int endMinute, int intervalMinutes) {
+        if (!isSessionReady()) return;
+        byte b0 = (byte) ((enabled ? 0x80 : 0x00) | (repeat & 0x7F));
+        byte[] payload = {
+                b0,
+                (byte) startHour, (byte) startMinute,
+                (byte) endHour, (byte) endMinute,
+                (byte) Math.max(intervalMinutes, 15)
+        };
+        log("Tx DRINK_WATER enabled=" + enabled + " repeat=0x" + Integer.toHexString(repeat)
+                + " " + startHour + ":" + startMinute + "-" + endHour + ":" + endMinute
+                + " every " + intervalMinutes + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x21, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Hand Wash Reminder (WASH_SET 0x0226) — 6 bytes, the `BleWashSettings`
+     * shape: [enabled<<7 | weekday mask, startH, startM, endH, endM, interval].
+     * 0x0228 is IBEACON_SET; an earlier build wrote this reminder there, which
+     * is why it never reached the watch.
+     */
+    public void sendWash(boolean enabled, int repeat, int startHour, int startMinute,
+                         int endHour, int endMinute, int intervalMinutes) {
+        if (!isSessionReady()) return;
+        byte b0 = (byte) ((enabled ? 0x80 : 0x00) | (repeat & 0x7F));
+        byte[] payload = {
+                b0,
+                (byte) startHour, (byte) startMinute,
+                (byte) endHour, (byte) endMinute,
+                (byte) Math.max(intervalMinutes, 15)
+        };
+        log("Tx WASH enabled=" + enabled + " repeat=0x" + Integer.toHexString(repeat)
+                + " " + startHour + ":" + startMinute + "-" + endHour + ":" + endMinute
+                + " every " + intervalMinutes + "min");
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x26, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Girl Care / Period Tracker (GIRL_CARE 0x021A) — 10 bytes.
+     * Byte 0: [bit 7: reminderEnabled, bits 1-6: 0, bit 0: enabled]
+     * Byte 1: reminderHour
+     * Byte 2: reminderMinute
+     * Byte 3: menstruationReminderAdvance (days in advance, 1-3)
+     * Byte 4: ovulationReminderAdvance (days in advance, 1-3)
+     * Byte 5: latestYear - 2000
+     * Byte 6: latestMonth (1-12)
+     * Byte 7: latestDay (1-31)
+     * Byte 8: menstruationDuration (days, default 5)
+     * Byte 9: menstruationPeriod (cycle days, default 28)
+     */
+    public void sendGirlCare(boolean enabled, boolean reminderEnabled, int reminderHour, int reminderMinute,
+                             int periodAdvance, int ovulationAdvance, int lastYear, int lastMonth, int lastDay,
+                             int duration, int cycle) {
+        if (!isSessionReady()) return;
+        byte b0 = (byte) (((reminderEnabled ? 1 : 0) << 7) | (enabled ? 1 : 0));
+        int yearOffset = (lastYear >= 2000) ? (lastYear - 2000) : lastYear;
+        byte[] payload = {
+                b0,
+                (byte) reminderHour,
+                (byte) reminderMinute,
+                (byte) Math.max(1, Math.min(3, periodAdvance)),
+                (byte) Math.max(1, Math.min(3, ovulationAdvance)),
+                (byte) yearOffset,
+                (byte) lastMonth,
+                (byte) lastDay,
+                (byte) Math.max(2, Math.min(15, duration)),
+                (byte) Math.max(20, Math.min(45, cycle))
+        };
+        log("Tx GIRL_CARE enabled=" + enabled + " reminder=" + reminderEnabled
+                + " time=" + reminderHour + ":" + reminderMinute + " last=" + lastYear + "-" + lastMonth + "-" + lastDay
+                + " dur=" + duration + " cycle=" + cycle);
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x1A, (byte) 0x00, payload));
+        flushQueue();
+    }
+
+    /**
+     * Push all saved reminders to the watch if enabled.
+     */
+    public void syncReminders() {
+        if (!isSessionReady()) return;
+
+        // Sedentary and drink water are settings the watch owns: it has its own
+        // menu for them, so re-pushing the phone's copy on every connect (and
+        // the app reconnects often) quietly undid whatever the user had set
+        // there. Alarms and the monitoring windows already treat the watch as
+        // the source of truth; these two now do the same — readReminders()
+        // below pulls the live values in.
+        //
+        // The one thing worth pushing is an edit made in the app while the
+        // phone was disconnected, which never reached the watch. The row marks
+        // it pending; send that, then let the read confirm it.
+        if (prefs.getBoolean("set_sedentary_pending", false)) {
+            sendSedentariness(
+                    prefs.getBoolean("set_sedentary_on", prefs.getBoolean("set_sedentary", false)),
+                    prefs.getInt("set_sedentary_repeat", 0x7F),
+                    prefs.getInt("set_sedentary_sh", 8), prefs.getInt("set_sedentary_sm", 0),
+                    prefs.getInt("set_sedentary_eh", 22), prefs.getInt("set_sedentary_em", 0),
+                    prefs.getInt("set_sedentary_interval", 60));
+            prefs.edit().remove("set_sedentary_pending").apply();
+        }
+        if (prefs.getBoolean("drink_water_pending", false)) {
+            sendDrinkWater(
+                    prefs.getBoolean("drink_water_on", false),
+                    prefs.getInt("drink_water_repeat", 0x7F),
+                    prefs.getInt("drink_water_sh", 8), prefs.getInt("drink_water_sm", 0),
+                    prefs.getInt("drink_water_eh", 22), prefs.getInt("drink_water_em", 0),
+                    prefs.getInt("drink_water_interval", 60));
+            prefs.edit().remove("drink_water_pending").apply();
+        }
+
+        if (prefs.getBoolean("wash_pending", false)) {
+            sendWash(
+                    prefs.getBoolean("wash_on", false),
+                    prefs.getInt("wash_repeat", 0x7F),
+                    prefs.getInt("wash_sh", 8), prefs.getInt("wash_sm", 0),
+                    prefs.getInt("wash_eh", 18), prefs.getInt("wash_em", 0),
+                    prefs.getInt("wash_interval", 60));
+            prefs.edit().remove("wash_pending").apply();
+        }
+
+        // Girl Care
+        PeriodTrackerManager.syncToWatch(context);
+
+        // Read the reminders back: the watch ACKs 0x09/0x21 whether or not it
+        // understood the frame, so the reply to a READ is the only proof that
+        // what it stored is what was sent.
+        readReminders();
+
+        // Standby
+        boolean allDay = prefs.getBoolean("standby_allday", true);
+        int sh = prefs.getInt("standby_sh", 8);
+        int sm = prefs.getInt("standby_sm", 0);
+        int eh = prefs.getInt("standby_eh", 22);
+        int em = prefs.getInt("standby_em", 0);
+        sendStandby(prefs.getBoolean("standby_enabled", false), allDay, sh, sm, eh, em);
+        // ...then ask the watch what it kept, the way the row renders it.
+        readStandby();
+
+        // World Clock: read current clocks from watch so phone reflects watch state
+        readWorldClocks();
+
+        // Stock Market: managed from app
+        StockMarketManager.syncToWatch(context);
+
+        // Goals: push what the user set, then read it back. The watch stores
+        // all four, so the read is a confirmation rather than a guess — and it
+        // corrects the phone if the watch clamped anything.
+        sendGoals();
+        readGoals();
+        readWatchSettings();
+    }
+
+    // ===== Standby / Always-On Display =====
+    //
+    // Two keys carry this one feature and they are not interchangeable:
+    //
+    //   STANDBY_SET (0x0241) is the master switch — a single byte, 0 or 1.
+    //   The original app pushes it from its own cache on every connect and
+    //   never reads it back; a READ on the Kronos Thunder answers with an
+    //   unrelated eight-byte block, so treat the key as write-only.
+    //
+    //   STANDBY_WATCH_FACE_SET (0x0254) is the BleStandbyWatchFaceSet entity,
+    //   eight bytes: enable, all-day, then a BleTimeRange (its own enabled
+    //   flag plus start/end) and one reserved byte. All-day and scheduled are
+    //   the two halves of one choice — the original app writes each as the
+    //   negation of the other. This firmware answers 0x0254 with an empty
+    //   body, read or write, the shape it uses for keys it does not
+    //   implement, so only the master switch actually lands on this watch.
+
+    /** True once the watch has answered a 0x0254 READ with a real body. */
+    private boolean standbyScheduleSupported;
+
+    public boolean isStandbyScheduleSupported() {
+        return standbyScheduleSupported;
+    }
+
+    public void sendStandby(boolean enabled, boolean allDay, int startH, int startM, int endH, int endM) {
+        if (!isSessionReady()) return;
+
+        log("Tx STANDBY enabled=" + enabled + " allDay=" + allDay
+                + " " + startH + ":" + startM + "-" + endH + ":" + endM);
+
+        // Master switch first: on a watch that only implements 0x0241 this is
+        // the frame that does the work.
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x41,
+                (byte) BleKeyFlag.UPDATE.getValue(), new byte[] { (byte) (enabled ? 1 : 0) }));
+
+        byte[] wfPayload = {
+                (byte) (enabled ? 1 : 0),
+                (byte) (allDay ? 1 : 0),
+                (byte) (allDay ? 0 : 1), // BleTimeRange.mEnabled — the scheduled half
+                (byte) startH, (byte) startM,
+                (byte) endH, (byte) endM,
+                0 // reserved
+        };
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x54,
+                (byte) BleKeyFlag.UPDATE.getValue(), wfPayload));
+        flushQueue();
+    }
+
+    /** Ask the watch for its stored standby schedule (0x0241 has no readable state). */
+    public void readStandby() {
+        if (!isSessionReady()) return;
+        enqueueLogicalFrame(createMessage((byte) 0x02, (byte) 0x54, (byte) BleKeyFlag.READ.getValue(), new byte[0]));
+        flushQueue();
+    }
+
+    // ===== World Clock (WORLD_CLOCK 0x0407) =====
+
+    public void sendWorldClock(int id, boolean isLocal, int timeZoneOffsetQuarterHours, String cityName) {
+        if (!isSessionReady()) return;
+        byte[] payload = new byte[68];
+        payload[0] = (byte) (((isLocal ? 1 : 0) << 7) | (id & 0x7F));
+        payload[1] = (byte) timeZoneOffsetQuarterHours;
+        // payload[2..3] = 0 (reversed)
+        if (cityName != null) {
+            byte[] cityBytes = cityName.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+            int len = Math.min(cityBytes.length, 62);
+            System.arraycopy(cityBytes, 0, payload, 4, len);
+        }
+        log("Tx WORLD_CLOCK id=" + id + " local=" + isLocal + " offsetQ=" + timeZoneOffsetQuarterHours + " city=" + cityName);
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x07, (byte) BleKeyFlag.CREATE.getValue(), payload));
+        flushQueue();
+    }
+
+    public void deleteWorldClock(int id) {
+        if (!isSessionReady()) return;
+        log("Tx WORLD_CLOCK delete id=" + id);
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x07, (byte) BleKeyFlag.DELETE.getValue(), new byte[] { (byte) id }));
+        flushQueue();
+    }
+
+    public void resetWorldClocks() {
+        if (!isSessionReady()) return;
+        log("Tx WORLD_CLOCK reset all");
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x07, (byte) BleKeyFlag.DELETE.getValue(), new byte[] { (byte) 0xFF }));
+        flushQueue();
+    }
+
+    // Reading the list back is paged: the watch answers a READ with a single
+    // 68-byte item — the local clock — and hands over the rest one frame at a
+    // time in response to READ_CONTINUE, ending with an empty body. Verified on
+    // a Kronos: a read-all issued seconds after pushing "Hong Kong" came back as
+    // one 77-byte frame carrying just "Berlin", the local clock. The old code
+    // took that single frame for the whole list, concluded the watch held no
+    // world clocks, and overwrote the phone's list with an empty one.
+    private static final int WORLD_CLOCK_MAX_PAGES = WorldClockManager.MAX_CLOCKS + 2;
+    private static final long WORLD_CLOCK_PAGE_TIMEOUT_MS = 3000;
+    /** Items gathered so far, or null when no read is in flight. */
+    private List<WorldClockManager.WorldClockItem> worldClockPages = null;
+    private int worldClockPageCount = 0;
+    private final Runnable worldClockPageTimeout = () -> {
+        if (worldClockPages == null) return;
+        log("World clock read: no answer after " + worldClockPageCount
+                + " page(s) — keeping the phone's list");
+        worldClockPages = null;
+    };
+
+    public void readWorldClocks() {
+        if (!isSessionReady()) return;
+        log("Tx WORLD_CLOCK read all");
+        worldClockPages = new ArrayList<>();
+        worldClockPageCount = 0;
+        requestWorldClockPage(BleKeyFlag.READ.getValue());
+    }
+
+    private void requestWorldClockPage(int pageFlag) {
+        handler.removeCallbacks(worldClockPageTimeout);
+        handler.postDelayed(worldClockPageTimeout, WORLD_CLOCK_PAGE_TIMEOUT_MS);
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x07, (byte) pageFlag, new byte[] { (byte) 0xFF }));
+        flushQueue();
+    }
+
+    /**
+     * One page of the world clock list. Keep asking until the watch answers
+     * with an empty body, then adopt what it reported.
+     */
+    private void onWorldClockPage(byte[] body) {
+        handler.removeCallbacks(worldClockPageTimeout);
+        if (worldClockPages == null) {
+            log("Rx WORLD_CLOCK page outside a read — ignoring");
+            return;
+        }
+        List<WorldClockManager.WorldClockItem> page = WorldClockManager.parseItems(body);
+        if (!page.isEmpty()) {
+            WorldClockManager.WorldClockItem first = page.get(0);
+            if (!worldClockPages.isEmpty()) {
+                WorldClockManager.WorldClockItem last = worldClockPages.get(worldClockPages.size() - 1);
+                // A firmware that ignores READ_CONTINUE just repeats the first
+                // item. Stop rather than spin, and leave the phone's list alone.
+                if (last.id == first.id && last.isLocal == first.isLocal
+                        && String.valueOf(last.cityName).equalsIgnoreCase(String.valueOf(first.cityName))) {
+                    log("World clock read: page repeated — cursor is not advancing, keeping the phone's list");
+                    worldClockPages = null;
+                    return;
+                }
+            }
+            for (WorldClockManager.WorldClockItem item : page) {
+                log("Rx WORLD_CLOCK item id=" + item.id + " local=" + item.isLocal + " city=" + item.cityName);
+            }
+            worldClockPages.addAll(page);
+            worldClockPageCount++;
+            if (worldClockPageCount < WORLD_CLOCK_MAX_PAGES) {
+                requestWorldClockPage(BleKeyFlag.READ_CONTINUE.getValue());
+                return;
+            }
+            log("World clock read: page cap reached");
+        }
+
+        List<WorldClockManager.WorldClockItem> full = worldClockPages;
+        worldClockPages = null;
+        log("Rx WORLD_CLOCK list complete: " + full.size() + " item(s) over "
+                + worldClockPageCount + " page(s)");
+        WorldClockManager.applyWatchList(context, full);
+    }
+
+    // ===== Stock Market (STOCK 0x0408) =====
+
+    public void sendStock(int id, int colorType, String stockCode, float sharePrice,
+                          float netChangePoint, float netChangePercent, float marketCap) {
+        if (!isSessionReady()) return;
+        byte[] payload = new byte[84];
+        payload[0] = (byte) id;
+        payload[1] = (byte) (colorType & 1);
+
+        int decPt = getDecimalPlaces(netChangePoint);
+        int decPrice = getDecimalPlaces(sharePrice);
+        int decPct = getDecimalPlaces(netChangePercent);
+
+        payload[2] = (byte) ((decPt & 0x0F) | ((decPrice & 0x0F) << 4));
+        payload[3] = (byte) ((decPct & 0x0F) << 4);
+
+        if (stockCode != null) {
+            byte[] codeBytes = stockCode.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+            int len = Math.min(codeBytes.length, 62);
+            System.arraycopy(codeBytes, 0, payload, 4, len);
+        }
+
+        // Float values in Little-Endian
+        putFloatLe(payload, 68, sharePrice);
+        putFloatLe(payload, 72, netChangePoint);
+        putFloatLe(payload, 76, netChangePercent);
+        putFloatLe(payload, 80, marketCap);
+
+        log("Tx STOCK id=" + id + " code=" + stockCode + " price=" + sharePrice + " change=" + netChangePoint + " (" + netChangePercent + "%)");
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x08, (byte) BleKeyFlag.CREATE.getValue(), payload));
+        flushQueue();
+    }
+
+    public void deleteStock(int id) {
+        if (!isSessionReady()) return;
+        log("Tx STOCK delete id=" + id);
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x08, (byte) BleKeyFlag.DELETE.getValue(), new byte[] { (byte) id }));
+        flushQueue();
+    }
+
+    public void resetStocks() {
+        if (!isSessionReady()) return;
+        log("Tx STOCK reset all");
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x08, (byte) BleKeyFlag.DELETE.getValue(), new byte[] { (byte) 0xFF }));
+        flushQueue();
+    }
+
+    public void readStocks() {
+        if (!isSessionReady()) return;
+        log("Tx STOCK read all");
+        enqueueLogicalFrame(createMessage((byte) 0x04, (byte) 0x08, (byte) BleKeyFlag.READ.getValue(), new byte[] { (byte) 0xFF }));
+        flushQueue();
+    }
+
+    private static int getDecimalPlaces(float f) {
+        String s = String.valueOf(f);
+        int idx = s.indexOf('.');
+        return (idx < 0) ? 0 : Math.min(4, s.length() - 1 - idx);
+    }
+
+    private static void putFloatLe(byte[] target, int offset, float value) {
+        int bits = Float.floatToIntBits(value);
+        target[offset] = (byte) (bits & 0xFF);
+        target[offset + 1] = (byte) ((bits >> 8) & 0xFF);
+        target[offset + 2] = (byte) ((bits >> 16) & 0xFF);
+        target[offset + 3] = (byte) ((bits >> 24) & 0xFF);
     }
 
     // ===== Alarms (ALARM 0x0210) =====
@@ -3472,8 +4436,7 @@ public class BleManager {
         byte[] msg = createMessage((byte) 0x02, (byte) key, (byte) 0x00, data);
         log("Tx SET key=0x" + String.format("%02X", key) + " " + bytesToHex(data));
         enqueueLogicalFrame(msg);
-        isSending = true;
-        sendNextChunk();
+        flushQueue();
     }
 
     // ========== Notification Forwarding ==========
@@ -3504,8 +4467,7 @@ public class BleManager {
             log("Tx NOTIFICATION cat=" + category + " pkg=" + packageName + " title=" + title);
             enqueueLogicalFrame(frame);
             if (!isSending) {
-                isSending = true;
-                sendNextChunk();
+                flushQueue();
             }
         });
     }
