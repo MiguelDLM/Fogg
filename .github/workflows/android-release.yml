@@ -4,15 +4,28 @@ on:
   push:
     tags:
       - 'v*'
+  # Lets the release be re-run by hand from the Actions tab when a tag push
+  # does not trigger it.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.8.1)'
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # github.ref_name is the tag on a tag push and the branch on a manual
+      # run, so the tag is resolved once here and used everywhere below.
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.tag || github.ref }}
 
     - name: set up JDK 17
       uses: actions/setup-java@v3
@@ -39,12 +52,30 @@ jobs:
       working-directory: dial-sender
 
     - name: Rename APK
-      run: mv dial-sender/app/build/outputs/apk/debug/app-debug.apk dial-sender-${{ github.ref_name }}.apk
+      run: mv dial-sender/app/build/outputs/apk/debug/app-debug.apk dial-sender-${{ env.TAG }}.apk
+
+    # The release body was never set, so every release so far has been
+    # published with empty notes. Use RELEASE_NOTES_<tag>.md when the tag ships
+    # one, and fall back to GitHub's generated commit list when it does not, so
+    # a tag without notes still releases instead of failing the step.
+    - name: Prepare release notes
+      run: |
+        notes="RELEASE_NOTES_${TAG}.md"
+        if [ -f "$notes" ]; then
+          echo "Using $notes"
+          echo "NOTES_PATH=$notes" >> "$GITHUB_ENV"
+        else
+          echo "No $notes in the tag; falling back to generated notes"
+          echo "GENERATE=true" >> "$GITHUB_ENV"
+        fi
 
     - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
       with:
-        files: dial-sender-${{ github.ref_name }}.apk
+        tag_name: ${{ env.TAG }}
+        name: Fogg ${{ env.TAG }}
+        body_path: ${{ env.NOTES_PATH }}
+        generate_release_notes: ${{ env.GENERATE == 'true' }}
+        files: dial-sender-${{ env.TAG }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
