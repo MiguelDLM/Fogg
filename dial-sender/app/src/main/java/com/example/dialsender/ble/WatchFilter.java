@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Tells a compatible watch apart from every other Bluetooth device the phone
@@ -47,9 +46,6 @@ import java.util.UUID;
 public final class WatchFilter {
 
     private static final String TAG = "WatchFilter";
-
-    /** Service the whole watch protocol runs on — a definitive match. */
-    public static final UUID SERVICE_UUID = BleUuids.SERVICE;
 
     /** Names shorter than this only ever match exactly ("86", "A6", "L1"...). */
     private static final int MIN_PREFIX_LENGTH = 4;
@@ -162,7 +158,7 @@ public final class WatchFilter {
             if (uuids == null)
                 return false;
             for (ParcelUuid u : uuids) {
-                if (u != null && SERVICE_UUID.equals(u.getUuid()))
+                if (u != null && BleUuids.isWatchService(u.getUuid()))
                     return true;
             }
         } catch (Exception ignored) {
@@ -206,7 +202,7 @@ public final class WatchFilter {
         ScanRecord record = result.getScanRecord();
         if (record != null && record.getServiceUuids() != null) {
             for (ParcelUuid u : record.getServiceUuids()) {
-                if (u != null && SERVICE_UUID.equals(u.getUuid()))
+                if (u != null && BleUuids.isWatchService(u.getUuid()))
                     return true;
             }
         }
