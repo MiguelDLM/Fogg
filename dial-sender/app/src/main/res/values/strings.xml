@@ -137,7 +137,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="settings_section_language">IDIOMA</string>
     <string name="settings_lang_es">Español</string>
     <string name="settings_lang_en">English</string>
-    <string name="settings_version">Fogg v0.7</string>
+    <string name="settings_version">Fogg v0.8.2</string>
 
     <!-- ── Device ── -->
     <string name="dev_watchfaces">Esferas del reloj</string>
@@ -299,7 +299,7 @@ Elige una actividad arriba para registrar la primera.</string>
     <string name="health_data_desc">Sincroniza y visualiza métricas de salud</string>
     <string name="library">Biblioteca</string>
     <string name="library_desc">Esferas prediseñadas y tus creaciones</string>
-    <string name="version_label">Fogg v0.7</string>
+    <string name="version_label">Fogg v0.8.2</string>
     <string name="chipset_info">Compatible con chipset Jieli / HK89</string>
 
     <!-- ── Settings activity ── -->

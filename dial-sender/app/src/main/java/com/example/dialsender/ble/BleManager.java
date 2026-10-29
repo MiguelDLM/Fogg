@@ -898,9 +898,15 @@ public class BleManager {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 BluetoothGattService service = gatt.getService(BleUuids.SERVICE);
+                if (service == null)
+                    service = gatt.getService(BleUuids.SERVICE_ALT);
                 if (service != null) {
                     writeChar = service.getCharacteristic(BleUuids.WRITE_CHAR);
+                    if (writeChar == null)
+                        writeChar = service.getCharacteristic(BleUuids.WRITE_CHAR_ALT);
                     BluetoothGattCharacteristic notifyChar = service.getCharacteristic(BleUuids.NOTIFY_CHAR);
+                    if (notifyChar == null)
+                        notifyChar = service.getCharacteristic(BleUuids.NOTIFY_CHAR_ALT);
 
                     if (writeChar != null && notifyChar != null) {
                         log("STF Services Found!");
@@ -922,9 +928,10 @@ public class BleManager {
                         handleIncompatibleDevice(gatt.getDevice(), REASON_NO_CHARACTERISTICS);
                     }
                 } else {
-                    log("ERROR: this device does not expose "
+                    log("ERROR: this device does not expose a supported Nordic UART service ("
                             + BleUuids.describe(BleUuids.SERVICE)
-                            + ", which is the only channel the watch protocol runs on");
+                            + " or " + BleUuids.describe(BleUuids.SERVICE_ALT)
+                            + "), which is the only channel the watch protocol runs on");
                     dumpGattTable(gatt);
                     handleIncompatibleDevice(gatt.getDevice(), REASON_NO_SERVICE);
                 }

@@ -137,7 +137,7 @@ Pick an activity above to record your first one.</string>
     <string name="settings_section_language">LANGUAGE</string>
     <string name="settings_lang_es">Español</string>
     <string name="settings_lang_en">English</string>
-    <string name="settings_version">Fogg v0.7</string>
+    <string name="settings_version">Fogg v0.8.2</string>
 
     <!-- ── Device ── -->
     <string name="dev_watchfaces">Watch Faces</string>
@@ -299,7 +299,7 @@ Pick an activity above to record your first one.</string>
     <string name="health_data_desc">Sync and view health metrics charts</string>
     <string name="library">Library</string>
     <string name="library_desc">Pre-made dials and your creations</string>
-    <string name="version_label">Fogg v0.7</string>
+    <string name="version_label">Fogg v0.8.2</string>
     <string name="chipset_info">Compatible with Jieli / HK89 chipset</string>
 
     <!-- ── Settings activity ── -->
