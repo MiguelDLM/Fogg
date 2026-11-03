@@ -6,6 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 ![Devices](https://img.shields.io/badge/devices-1013%2B%20supported-FF9800?style=flat-square)
 ![Languages](https://img.shields.io/badge/languages-ES%20%7C%20EN-7E57C2?style=flat-square)
+[![Downloads](https://img.shields.io/github/downloads/MiguelDLM/Fogg/total?label=Downloads)](https://github.com/MiguelDLM/Fogg/releases)
 
 A reverse-engineered companion toolkit for smartwatches running the **Jieli / HK89** chipset, sold under dozens of OEM brands (SMA, CoFit, X-View, i-Health, and more). Consists of an Android companion app and a cross-platform desktop dial designer.
 
